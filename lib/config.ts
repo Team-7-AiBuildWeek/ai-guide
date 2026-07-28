@@ -51,6 +51,13 @@ export const config = {
   stadiaBaseUrl: process.env.STADIA_BASE_URL ?? "https://api.stadiamaps.com",
   /** alidade_smooth | alidade_smooth_dark | outdoors | osm_bright | stamen_toner | ... */
   stadiaStyle: process.env.STADIA_STYLE ?? "alidade_smooth",
+  /**
+   * Use Stadia's domain-based auth for tiles instead of putting the key in the
+   * style URL. Requests are authorised by the browser's Origin/Referer, so the
+   * key never reaches the page at all. Add the domain under Manage Properties
+   * first, or every tile 401s.
+   */
+  stadiaDomainAuth: (process.env.STADIA_DOMAIN_AUTH ?? "").toLowerCase() === "true",
 
   /** Nominatim demands a contact address in the User-Agent. */
   nominatimUserAgent:

@@ -55,6 +55,25 @@ then reload `/dev/providers`, which exercises all four methods. Optional:
 and `STADIA_STYLE` (`alidade_smooth` by default — a quiet light basemap that
 lets the mint route line carry the eye).
 
+### Keeping the key out of the page
+
+Tiles are fetched by the browser, so a key in the style URL is readable by
+anyone — that is inherent to client-side maps, not a leak. Stadia's answer is
+**domain-based authentication**: add the domain under *Manage Properties →
+Authentication Configuration*, then set `STADIA_DOMAIN_AUTH=true` and the style
+URL carries no key at all. Requests are authorised by the browser's `Origin`.
+
+Geocoding and routing are unaffected: they run in server components and keep
+using `STADIA_API_KEY`, which never reaches the browser.
+
+| | dev (localhost) | production |
+|---|---|---|
+| `STADIA_DOMAIN_AUTH` | `false` | `true` |
+| Key in the page | yes | **no** |
+| Geocoding / routing | key, server-side | key, server-side |
+
+Turn it on only after the domain is registered — until then every tile 401s.
+
 Routing is Valhalla, and its leg geometry is an encoded polyline with **six**
 digits of precision where almost every library defaults to five. Decoding it
 wrong is silent and puts the route in the Gulf of Guinea, so

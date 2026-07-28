@@ -194,7 +194,17 @@ export class StadiaMapProvider implements MapProvider {
     };
   }
 
+  /**
+   * The only provider method whose result reaches the browser.
+   *
+   * With domain auth on, the key is left out entirely and Stadia authorises by
+   * Origin/Referer — so nothing secret is ever rendered into the page. Without
+   * it, the key rides along and is readable by anyone; that is inherent to
+   * client-side tiles, not a leak we introduced, but it is why domain auth is
+   * the right setting in production.
+   */
   tileStyleUrl(): string {
-    return `https://tiles.stadiamaps.com/styles/${config.stadiaStyle}.json?api_key=${this.key()}`;
+    const base = `https://tiles.stadiamaps.com/styles/${config.stadiaStyle}.json`;
+    return config.stadiaDomainAuth ? base : `${base}?api_key=${this.key()}`;
   }
 }
