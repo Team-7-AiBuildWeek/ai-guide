@@ -33,6 +33,10 @@ yarn-error.log*
 # env files — real keys never get committed, the template always does
 .env*
 !.env.example
+# `.env*` only matches names starting with ".env", so anything-else.env needs
+# its own rule. deploy/netlify.env holds real production values.
+*.env
+!*.env.example
 
 # vercel
 .vercel
