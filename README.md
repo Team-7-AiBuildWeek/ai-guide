@@ -5,10 +5,33 @@ AI audio walking tour, MVP. Mobile-first PWA, no accounts, no database.
 ## Build status
 
 - **Step 0 — skeleton and provider layer. Done.**
-- **Step 1 — map with live GPS at `/map`. Done.** The bottom sheet and
-  "Build my tour" are the remaining half of this step.
-- Step 0.5 — audio engine at `/dev/audio`. Not started.
-- Steps 2–7 — screens. Not started.
+- **Steps 1–6 — the whole flow. Done.** One page, one map, six stages:
+  `start → brief → points → generating → headphones → tour`.
+- Step 0.5 — audio engine. **Not started** — the tour screen has no player yet,
+  so the headphones prompt is currently a promise the app cannot keep.
+- Step 7 — the €8 question. Not started.
+
+## The flow
+
+`components/TourFlow.tsx` is the state machine. The map mounts once and is
+never torn down; only the sheet's contents and height change, which is what
+makes the first screen become the second without a page transition — and means
+the tiles are paid for once.
+
+| Stage | Screen |
+|---|---|
+| `start` | Map, sheet resting at the bottom: **Build my tour** |
+| `brief` | Sheet full screen: free text, or **simple settings** sliders |
+| `points` | Start point by typing, GPS, or dropping a pin; end point optional |
+| `generating` | Real phases streamed over SSE, not a timer |
+| `headphones` | Use headphones. The tap on Start is the iOS audio-unlock gesture |
+| `tour` | Route drawn, stops numbered, directions behind the top-right icon, **Ask anything** |
+
+`POST /api/tours` streams progress as server-sent events so the status lines
+are true — each one is emitted when that stage actually begins. `EventSource`
+cannot POST, so the client parses the stream by hand.
+
+`/api/geocode` and `/api/ask` exist so the browser never sees a provider key.
 
 ## Run it
 
