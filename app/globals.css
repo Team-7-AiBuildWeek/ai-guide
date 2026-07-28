@@ -1,0 +1,350 @@
+@import "tailwindcss";
+
+/* ============================================================================
+   Design language, adapted from smaut.tech.
+   ----------------------------------------------------------------------------
+   Borrowed as-is: Space Grotesk over Inter, the mint accent, the near-black
+   surfaces, the tight 3–4px control radius against softer 12–20px cards, the
+   grey-900 / grey-700 text split, and the generous section rhythm.
+
+   Changed on purpose, because this is read outdoors in sunlight, one-handed,
+   by someone between 45 and 60:
+     - Base size 16px -> 18px. Every size below scales from it.
+     - Mint is a FILL, never text on white: #5EDA9B on white is 1.75:1.
+       On near-black ink it is 10:1, which is why the primary button inverts
+       SMAUT's near-black-with-white-text into mint-with-ink-text.
+     - Control padding 14px -> 16px so every button clears 44px.
+     - No dark mode. Dark is harder to read at full brightness in daylight.
+   ========================================================================= */
+
+:root {
+  /* --- ink ------------------------------------------------------------- */
+  --ink: #111827; /* headings */
+  --ink-soft: #374151; /* body copy */
+  --ink-mute: #6b7280; /* captions, secondary */
+
+  /* --- surfaces -------------------------------------------------------- */
+  --canvas: #f9fafb; /* page */
+  --surface: #ffffff; /* cards */
+  --line: #e5e7eb; /* hairlines */
+  --line-strong: #d1d5db;
+
+  /* --- dark (player chrome, map overlays) ------------------------------ */
+  --dark: #1f1f1f;
+  --dark-soft: #2a2e2c;
+  --on-dark: #f9fafb;
+  --on-dark-mute: #9ca3af;
+
+  /* --- the signature --------------------------------------------------- */
+  --mint: #5eda9b; /* fill only */
+  --mint-press: #4bc98a;
+  --mint-wash: #eafaf2; /* tinted panel */
+  --mint-ink: #1e7a52; /* the green when it must be text: 5.3:1 on white */
+
+  --danger: #b91c1c;
+
+  /* --- type ------------------------------------------------------------
+     18px base, 1.25 ratio, same as the source. Display sizes use clamp so a
+     390px phone never gets a headline it has to scroll sideways to read. */
+  --text-caption: 0.889rem; /* 16px — captions and data only, never prose */
+  --text-body: 1rem; /* 18px */
+  --text-lead: 1.25rem; /* 22.5px */
+  --text-h3: 1.5625rem; /* 28px */
+  --text-h2: clamp(1.75rem, 5vw, 1.953rem);
+  --text-h1: clamp(2.1rem, 8vw, 3.05rem);
+
+  /* --- shape ----------------------------------------------------------- */
+  --radius-control: 4px; /* buttons, inputs — tight, as on the source */
+  --radius-card: 14px;
+  --radius-panel: 20px;
+
+  /* --- rhythm ---------------------------------------------------------- */
+  --gap: 1rem;
+  --section-y: 3.5rem;
+  --measure: 34rem; /* readable line length */
+
+  --shadow-card: 0 1px 2px rgb(17 24 39 / 0.04), 0 8px 24px -12px rgb(17 24 39 / 0.12);
+  --shadow-lift: 0 2px 4px rgb(17 24 39 / 0.06), 0 16px 40px -16px rgb(17 24 39 / 0.22);
+}
+
+@theme inline {
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-ink-mute: var(--ink-mute);
+  --color-canvas: var(--canvas);
+  --color-surface: var(--surface);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-dark: var(--dark);
+  --color-dark-soft: var(--dark-soft);
+  --color-on-dark: var(--on-dark);
+  --color-mint: var(--mint);
+  --color-mint-wash: var(--mint-wash);
+  --color-mint-ink: var(--mint-ink);
+  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+}
+
+/* ---------------------------------------------------------------- base --- */
+
+html {
+  font-size: 18px; /* the 17px+ floor, set once */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--canvas);
+  color: var(--ink-soft);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: var(--text-body);
+  line-height: 1.6;
+  overscroll-behavior-y: none; /* no rubber-band fighting the player */
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  color: var(--ink);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-h1);
+}
+h2 {
+  font-size: var(--text-h2);
+}
+h3 {
+  font-size: var(--text-h3);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+code,
+pre {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+:focus-visible {
+  outline: 3px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------------------------------------------------------- primitives --- */
+
+.u-eyebrow {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-mute);
+}
+
+.u-measure {
+  max-width: var(--measure);
+}
+
+/* Buttons. 48px tall at rest — 44px is the floor, not the target. */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  padding: 0.889rem 1.333rem;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-body);
+  font-weight: 500;
+  line-height: 1;
+  text-align: center;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, transform 100ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Primary inverts the source: mint fill, ink text. 10:1, and it is the one
+   thing on screen that stays findable with the sun behind you. */
+.btn--primary {
+  background: var(--mint);
+  color: var(--ink);
+}
+.btn--primary:hover {
+  background: var(--mint-press);
+}
+
+/* The source's own primary — kept for the second action in a pair. */
+.btn--dark {
+  background: var(--ink);
+  color: var(--on-dark);
+}
+.btn--dark:hover {
+  background: var(--ink-soft);
+}
+
+.btn--quiet {
+  background: var(--surface);
+  color: var(--ink);
+  border-color: var(--line-strong);
+}
+.btn--quiet:hover {
+  border-color: var(--ink-mute);
+}
+
+.btn--lg {
+  min-height: 60px;
+  padding: 1.111rem 1.778rem;
+  font-size: var(--text-lead);
+}
+
+/* A defined grey rather than a translucent version of the live button:
+   45% opacity mint is unreadable outdoors, and "faded" reads as "broken". */
+.btn:disabled {
+  background: var(--line);
+  color: var(--ink-mute);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+.btn:disabled:active {
+  transform: none;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+}
+
+.panel-dark {
+  background: var(--dark);
+  color: var(--on-dark);
+  border-radius: var(--radius-panel);
+}
+.panel-dark h1,
+.panel-dark h2,
+.panel-dark h3 {
+  color: var(--on-dark);
+}
+
+/* Small mint tag. Fill + ink text, never mint text on white. */
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.667rem;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag--quiet {
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+}
+
+/* ---------------------------------------------------------------------------
+   The route spine — the signature element.
+
+   Lifted from the source's six-step integration timeline, which is the most
+   distinctive structure on that site. Numbering is honest here in a way it
+   usually isn't: the stops are walked in order, so the number is the
+   instruction, not decoration.
+   ------------------------------------------------------------------------ */
+
+.spine {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.spine__item {
+  position: relative;
+  padding-left: 3.111rem;
+  padding-bottom: 1.778rem;
+}
+
+/* The line runs between nodes, so it stops at the last one. */
+.spine__item:not(:last-child)::before {
+  content: "";
+  position: absolute;
+  left: 1.028rem;
+  top: 2.222rem;
+  bottom: 0;
+  width: 2px;
+  background: var(--mint);
+}
+
+.spine__item:last-child {
+  padding-bottom: 0;
+}
+
+.spine__node {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: grid;
+  place-items: center;
+  width: 2.111rem;
+  height: 2.111rem;
+  border-radius: 999px;
+  background: var(--mint);
+  color: var(--ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-caption);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Where you are now. Filled dark so it reads at a glance mid-walk. */
+.spine__item--current .spine__node {
+  background: var(--ink);
+  color: var(--mint);
+}
+
+.spine__item--done .spine__node {
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+}
+
+.spine__title {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-lead);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.2;
+}
+
+.spine__meta {
+  font-size: var(--text-caption);
+  color: var(--ink-mute);
+  font-variant-numeric: tabular-nums;
+}

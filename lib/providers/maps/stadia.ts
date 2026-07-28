@@ -1,0 +1,200 @@
+/**
+ * Stadia Maps: tiles, geocoding and walking routes from one key.
+ *
+ * The only provider here that covers all four methods with a single account,
+ * which makes it the sensible default once you have a key.
+ *
+ * Shapes taken from their published OpenAPI spec (https://api.stadiamaps.com/openapi.yaml):
+ *   - auth is `api_key` as a QUERY parameter on every call, including the POST
+ *   - geocoding v2 returns a GeoJSON FeatureCollection
+ *   - routing is Valhalla: POST /route/v1, and the leg shape is an encoded
+ *     polyline with SIX digits of precision, not the usual five
+ */
+
+import { config, requireKey, DEFAULT_CENTER } from "@/lib/config";
+import { ProviderError, type LatLng, type Place, type WalkingRoute } from "@/lib/providers/types";
+import type { MapProvider } from "./index";
+
+type GeocodeFeature = {
+  geometry: { coordinates: [number, number] } | null;
+  properties: {
+    gid: string;
+    name: string;
+    layer: string;
+    coarse_location?: string | null;
+    formatted_address_line?: string | null;
+    formatted_address_lines?: string[] | null;
+  };
+};
+
+type GeocodeResponse = { features?: GeocodeFeature[] };
+
+type RouteResponse = {
+  trip?: {
+    legs?: Array<{ shape: string; summary?: { time: number; length: number } }>;
+    summary?: { time: number; length: number };
+  };
+};
+
+/**
+ * Decode a Google-style encoded polyline.
+ *
+ * Valhalla emits precision 6. Passing 5 here silently yields coordinates ten
+ * times too small — a route through the Gulf of Guinea rather than Bratislava.
+ */
+function decodePolyline(encoded: string, precision = 6): [number, number][] {
+  const factor = 10 ** precision;
+  const coords: [number, number][] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
+
+  while (index < encoded.length) {
+    let result = 0;
+    let shift = 0;
+    let byte: number;
+
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += result & 1 ? ~(result >> 1) : result >> 1;
+
+    result = 0;
+    shift = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += result & 1 ? ~(result >> 1) : result >> 1;
+
+    // GeoJSON order: [lng, lat].
+    coords.push([lng / factor, lat / factor]);
+  }
+  return coords;
+}
+
+function toPlace(f: GeocodeFeature): Place | null {
+  if (!f.geometry) return null;
+  const p = f.properties;
+  const address =
+    p.formatted_address_lines?.join(", ") ??
+    p.formatted_address_line ??
+    p.coarse_location ??
+    p.name;
+  return {
+    id: p.gid,
+    name: p.name,
+    address,
+    lat: f.geometry.coordinates[1],
+    lng: f.geometry.coordinates[0],
+  };
+}
+
+export class StadiaMapProvider implements MapProvider {
+  readonly name = "stadia";
+
+  private key(): string {
+    return requireKey(config.stadiaApiKey, "STADIA_API_KEY", "stadia");
+  }
+
+  private url(path: string, params: Record<string, string | number> = {}): string {
+    const u = new URL(path, config.stadiaBaseUrl);
+    for (const [k, v] of Object.entries(params)) u.searchParams.set(k, String(v));
+    u.searchParams.set("api_key", this.key());
+    return u.toString();
+  }
+
+  private async json<T>(url: string, init?: RequestInit): Promise<T> {
+    const res = await fetch(url, init);
+    if (!res.ok) {
+      // Never let the key reach a log line.
+      const safe = url.replace(/api_key=[^&]+/, "api_key=***");
+      throw new ProviderError(this.name, `HTTP ${res.status} on ${safe}: ${await res.text()}`);
+    }
+    return (await res.json()) as T;
+  }
+
+  async geocode(query: string): Promise<Place[]> {
+    // Focus on the old town so "Michalská" ranks the Bratislava gate first
+    // rather than a same-named street elsewhere.
+    const body = await this.json<GeocodeResponse>(
+      this.url("/geocoding/v2/search", {
+        text: query,
+        "focus.point.lat": DEFAULT_CENTER.lat,
+        "focus.point.lon": DEFAULT_CENTER.lng,
+        size: 6,
+        lang: "sk",
+      }),
+    );
+    return (body.features ?? []).map(toPlace).filter((p): p is Place => p !== null);
+  }
+
+  async reverseGeocode(lat: number, lng: number): Promise<Place> {
+    const body = await this.json<GeocodeResponse>(
+      this.url("/geocoding/v2/reverse", {
+        "point.lat": lat,
+        "point.lon": lng,
+        size: 1,
+        lang: "sk",
+      }),
+    );
+    const place = (body.features ?? []).map(toPlace).find((p): p is Place => p !== null);
+    // Keep the pin exactly where it was dropped; only borrow the label.
+    return place
+      ? { ...place, lat, lng }
+      : { id: `pin-${lat.toFixed(5)},${lng.toFixed(5)}`, name: "Dropped pin", address: "", lat, lng };
+  }
+
+  async walkingRoute(points: LatLng[]): Promise<WalkingRoute> {
+    if (points.length < 2) {
+      throw new ProviderError(this.name, "a route needs at least two points");
+    }
+
+    const body = await this.json<RouteResponse>(this.url("/route/v1"), {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        locations: points.map((p) => ({ lat: p.lat, lon: p.lng, type: "break" })),
+        costing: "pedestrian",
+        units: "kilometers",
+      }),
+    });
+
+    const legs = body.trip?.legs ?? [];
+    if (legs.length === 0) throw new ProviderError(this.name, "no walking route found");
+
+    // One leg per pair of stops; stitch them into a single line for the map.
+    const coordinates = legs.flatMap((leg, i) => {
+      const decoded = decodePolyline(leg.shape);
+      // Drop each leg's first point — it duplicates the previous leg's last.
+      return i === 0 ? decoded : decoded.slice(1);
+    });
+
+    const summary =
+      body.trip?.summary ??
+      legs.reduce(
+        (acc, l) => ({
+          time: acc.time + (l.summary?.time ?? 0),
+          length: acc.length + (l.summary?.length ?? 0),
+        }),
+        { time: 0, length: 0 },
+      );
+
+    return {
+      geojson: {
+        type: "Feature",
+        properties: {},
+        geometry: { type: "LineString", coordinates },
+      },
+      meters: summary.length * 1000, // `units: kilometers` above
+      seconds: summary.time,
+    };
+  }
+
+  tileStyleUrl(): string {
+    return `https://tiles.stadiamaps.com/styles/${config.stadiaStyle}.json?api_key=${this.key()}`;
+  }
+}
