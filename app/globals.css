@@ -335,6 +335,70 @@ pre {
   color: var(--mint-ink);
 }
 
+/* Steps not yet reached recede, so the eye lands on the one that is working. */
+.spine__item--pending .spine__node {
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  color: var(--ink-mute);
+}
+
+/* ---------------------------------------------------------------------------
+   The working node breathes.
+
+   Generation takes thirty to sixty seconds, and a still screen for that long
+   reads as crashed — people close the tab. One pulsing node says the machine
+   is alive, and because it sits on the step that is actually running, it also
+   says which part is taking the time.
+   ------------------------------------------------------------------------ */
+
+@keyframes spine-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    box-shadow: 0 0 0 0 rgb(94 218 155 / 0.55);
+  }
+  50% {
+    transform: scale(1.09);
+    box-shadow: 0 0 0 11px rgb(94 218 155 / 0);
+  }
+}
+
+.spine__node--working {
+  animation: spine-breathe 2.1s cubic-bezier(0.4, 0, 0.4, 1) infinite;
+}
+
+/* The line below a working step fills toward the next one. */
+@keyframes spine-trickle {
+  from {
+    background-position: 0 -28px;
+  }
+  to {
+    background-position: 0 28px;
+  }
+}
+
+.spine__item--working:not(:last-child)::before {
+  background: linear-gradient(
+    to bottom,
+    var(--mint) 0 45%,
+    color-mix(in srgb, var(--mint) 25%, transparent) 45% 100%
+  );
+  background-size: 100% 28px;
+  animation: spine-trickle 1.6s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spine__node--working {
+    animation: none;
+    /* Still visibly the live one, without any movement. */
+    box-shadow: 0 0 0 4px rgb(94 218 155 / 0.35);
+  }
+  .spine__item--working:not(:last-child)::before {
+    animation: none;
+    background: var(--mint);
+  }
+}
+
 .spine__title {
   font-family: var(--font-space-grotesk), sans-serif;
   font-size: var(--text-lead);
