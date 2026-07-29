@@ -1,53 +1,53 @@
-/** Google Gemini generateContent, over plain fetch. See the note in anthropic.ts about SDKs. */
+/**
+ * Gemini tour planning, via @google/genai.
+ *
+ * Server-side only — the key comes from `lib/config.ts` and is passed in
+ * explicitly rather than read from the environment by the SDK.
+ *
+ * Validation and the single retry are not here: they live in
+ * `generateTourPlanVia`, shared with the other vendors, so all three behave
+ * identically when a model returns something that isn't the schema.
+ */
 
+import { GoogleGenAI } from "@google/genai";
 import { config, requireKey } from "@/lib/config";
 import { ProviderError, type TourPlan, type TourRequest } from "@/lib/providers/types";
 import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
 import { generateTourPlanVia, type LLMProvider } from "./index";
 
-type GeminiResponse = {
-  candidates?: Array<{
-    content?: { parts?: Array<{ text?: string }> };
-    finishReason?: string;
-  }>;
-  promptFeedback?: { blockReason?: string };
-};
-
 export class GoogleLLMProvider implements LLMProvider {
   readonly name = "google";
 
   async generateTourPlan(input: TourRequest): Promise<TourPlan> {
-    const apiKey = requireKey(config.googleApiKey, "GOOGLE_API_KEY", "google");
-    const url =
-      `https://generativelanguage.googleapis.com/v1beta/models/` +
-      `${encodeURIComponent(config.googleModel)}:generateContent`;
+    const apiKey = requireKey(config.geminiApiKey, "GEMINI_API_KEY", "google");
+    const ai = new GoogleGenAI({ apiKey });
 
     return generateTourPlanVia(this.name, async ({ system, user, maxTokens }) => {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "content-type": "application/json", "x-goog-api-key": apiKey },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: system }] },
+      let res;
+      try {
+        res = await ai.models.generateContent({
+          model: config.geminiModel,
           contents: [{ role: "user", parts: [{ text: user }] }],
-          generationConfig: {
+          config: {
+            systemInstruction: system,
             maxOutputTokens: maxTokens,
+            // Constrained decoding: the model can only emit our shape. Zod
+            // still checks it — a schema hint is not a guarantee.
             responseMimeType: "application/json",
-            responseSchema: TOUR_PLAN_JSON_SCHEMA,
+            responseSchema: TOUR_PLAN_JSON_SCHEMA as never,
           },
-        }),
-      });
-
-      if (!res.ok) {
-        throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);
+        });
+      } catch (err) {
+        throw new ProviderError(this.name, err instanceof Error ? err.message : String(err), err);
       }
 
-      const body = (await res.json()) as GeminiResponse;
-      if (body.promptFeedback?.blockReason) {
-        throw new ProviderError(this.name, `blocked: ${body.promptFeedback.blockReason}`);
+      const text = res.text;
+      if (!text) {
+        const reason = res.candidates?.[0]?.finishReason ?? "no finishReason";
+        // MAX_TOKENS here means the scripts outgrew the budget, not that the
+        // request was bad — worth saying so rather than "empty response".
+        throw new ProviderError(this.name, `no text returned (${reason})`);
       }
-
-      const text = body.candidates?.[0]?.content?.parts?.map((p) => p.text ?? "").join("");
-      if (!text) throw new ProviderError(this.name, "empty response");
       return text;
     }, input);
   }

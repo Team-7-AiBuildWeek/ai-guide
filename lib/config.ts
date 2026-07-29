@@ -7,7 +7,7 @@
  */
 
 export type LLMProviderName = "mock" | "anthropic" | "openai" | "google";
-export type TTSProviderName = "mock" | "elevenlabs" | "openai" | "google";
+export type TTSProviderName = "mock" | "elevenlabs" | "openai" | "google" | "google-cloud";
 export type MapProviderName = "mock" | "stadia" | "maptiler" | "mapbox" | "osm";
 
 function pick<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
@@ -23,7 +23,7 @@ export const config = {
   ),
   ttsProvider: pick<TTSProviderName>(
     process.env.TTS_PROVIDER,
-    ["mock", "elevenlabs", "openai", "google"],
+    ["mock", "elevenlabs", "openai", "google", "google-cloud"],
     "mock",
   ),
   mapProvider: pick<MapProviderName>(
@@ -35,7 +35,14 @@ export const config = {
   // Keys. Absent is fine — only the selected provider's key is ever read.
   anthropicApiKey: process.env.ANTHROPIC_API_KEY,
   openaiApiKey: process.env.OPENAI_API_KEY,
-  googleApiKey: process.env.GOOGLE_API_KEY,
+  /**
+   * Gemini, via @google/genai. GEMINI_API_KEY is the name the SDK itself uses;
+   * GOOGLE_API_KEY is accepted as a fallback so switching mid-setup doesn't
+   * break. Server-side only — this must never reach a NEXT_PUBLIC_ variable.
+   */
+  geminiApiKey: process.env.GEMINI_API_KEY ?? process.env.GOOGLE_API_KEY,
+  /** Google *Cloud* TTS is a separate service and often a separate key. */
+  googleCloudApiKey: process.env.GOOGLE_CLOUD_API_KEY ?? process.env.GOOGLE_API_KEY,
   elevenlabsApiKey: process.env.ELEVENLABS_API_KEY,
   stadiaApiKey: process.env.STADIA_API_KEY,
   maptilerApiKey: process.env.MAPTILER_API_KEY,
@@ -45,7 +52,8 @@ export const config = {
   // Model ids, overridable so a new release doesn't need a code change.
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-opus-5",
   openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
-  googleModel: process.env.GOOGLE_MODEL ?? "gemini-2.0-flash",
+  geminiModel: process.env.GEMINI_MODEL ?? process.env.GOOGLE_MODEL ?? "gemini-3.6-flash",
+  geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
 
   /** Stadia serves an EU endpoint too — api-eu.stadiamaps.com, closer to Bratislava. */
   stadiaBaseUrl: process.env.STADIA_BASE_URL ?? "https://api.stadiamaps.com",

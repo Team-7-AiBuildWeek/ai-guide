@@ -52,7 +52,7 @@ one env var. Nothing outside `lib/providers/` reads `process.env`.
 | Interface | Env var | Implementations |
 |---|---|---|
 | `LLMProvider` | `LLM_PROVIDER` | `mock`, `anthropic`, `openai`, `google` |
-| `TTSProvider` | `TTS_PROVIDER` | `mock`, `elevenlabs`, `openai`, `google` |
+| `TTSProvider` | `TTS_PROVIDER` | `mock`, `elevenlabs`, `openai`, `google`, `google-cloud` |
 | `MapProvider` | `MAP_PROVIDER` | `mock`, `stadia`, `maptiler`, `mapbox`, `osm` |
 
 ```
@@ -64,6 +64,27 @@ lib/providers/llm/            index.ts holds the shared validate-and-retry-once 
 lib/providers/tts/lexicon.ts  pronunciation map, applied before every synthesis.
 lib/providers/maps/           index.ts holds haversine + the straight-line fallback.
 ```
+
+### Gemini (`LLM_PROVIDER=google`, `TTS_PROVIDER=google`)
+
+Both go through `@google/genai` on one `GEMINI_API_KEY`, server-side only.
+Set it in `.env.local` and hear a voice at **`/dev/tts`** without walking the
+whole app.
+
+Two things that will cost you an afternoon if you don't know them:
+
+- **Gemini TTS returns raw PCM with no container.** 24 kHz, 16-bit, mono,
+  base64, straight out of `inlineData.data`. Handed to an `<audio>` element
+  as-is it plays nothing and reports no error. Every buffer goes through
+  `pcmToWav` in `lib/providers/tts/wav.ts` first.
+- **`gemini-2.5-flash` 404s for new keys** — "no longer available to new
+  users". `GEMINI_MODEL` defaults to `gemini-3.6-flash`. To see what a given
+  key can actually reach:
+  `curl "https://generativelanguage.googleapis.com/v1beta/models?key=$KEY"`.
+
+`TTS_PROVIDER=google-cloud` is the separate Cloud Text-to-Speech service. It
+takes SSML, so it pronounces Slovak names from IPA rather than respelling —
+better for place names, but a different API and often a different key.
 
 **Stadia Maps is the one to reach for** — tiles, geocoding and walking routes
 from a single key. Put the key in `.env.local`:

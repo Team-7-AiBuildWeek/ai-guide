@@ -20,6 +20,7 @@ import { MockTTSProvider } from "./tts/mock";
 import { ElevenLabsTTSProvider } from "./tts/elevenlabs";
 import { OpenAITTSProvider } from "./tts/openai";
 import { GoogleTTSProvider } from "./tts/google";
+import { GoogleCloudTTSProvider } from "./tts/google-cloud";
 
 import type { MapProvider } from "./maps";
 import { MockMapProvider } from "./maps/mock";
@@ -55,6 +56,8 @@ export function getTTS(): TTSProvider {
       return (tts = new OpenAITTSProvider());
     case "google":
       return (tts = new GoogleTTSProvider());
+    case "google-cloud":
+      return (tts = new GoogleCloudTTSProvider());
     default:
       return (tts = new MockTTSProvider());
   }
