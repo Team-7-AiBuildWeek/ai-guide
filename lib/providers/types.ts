@@ -71,6 +71,25 @@ export type TourRequest = {
   lang: string;
 };
 
+// ------------------------------------------------------------------- asking
+
+/** A question from the street, carrying the brief the walker set out with. */
+export type AskRequest = {
+  question: string;
+  /** BCP-47. */
+  lang: string;
+  /** The walker's own words from the setup screen — the point of the tour. */
+  freeText?: string;
+  interests: Interest[];
+  detail: Detail;
+  tourTitle?: string;
+  stopName?: string;
+  /** What the guide already said here, so the answer does not repeat it. */
+  stopContext?: string;
+  lat?: number;
+  lng?: number;
+};
+
 // ---------------------------------------------------------------------- tts
 
 export type Voice = {

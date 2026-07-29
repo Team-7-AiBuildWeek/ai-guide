@@ -1,10 +1,13 @@
-import type { TourPlan, TourRequest } from "@/lib/providers/types";
+import type { AskRequest, TourPlan, TourRequest } from "@/lib/providers/types";
 import { TourPlanSchema, ProviderError } from "@/lib/providers/types";
-import { buildTourPlanPrompt, SYSTEM_PROMPT } from "@/lib/prompts/tour-plan";
+import { buildTourPlanPrompt, lengthFloors, SYSTEM_PROMPT } from "@/lib/prompts/tour-plan";
+import { ASK_SYSTEM_PROMPT, buildAskPrompt } from "@/lib/prompts/ask";
 
 export interface LLMProvider {
   readonly name: string;
   generateTourPlan(input: TourRequest): Promise<TourPlan>;
+  /** A question from the street, answered against the walker's own brief. */
+  answerQuestion(input: AskRequest): Promise<string>;
 }
 
 /**
@@ -30,6 +33,27 @@ function stripFence(text: string): string {
   return t;
 }
 
+const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * Which stops came back too short.
+ *
+ * Asking for length is not enough — models routinely return half of what was
+ * requested. Measuring it and handing the shortfall back, stop by stop, is
+ * what actually gets a three-minute script instead of a ninety-second one.
+ */
+function shortfalls(plan: TourPlan, detail: TourRequest["detail"]): string[] {
+  const floor = lengthFloors(detail);
+  const out: string[] = [];
+  for (const stop of plan.stops) {
+    const s = words(stop.scriptShort);
+    const f = words(stop.scriptFull);
+    if (f < floor.full) out.push(`"${stop.name}" scriptFull is ${f} words, needs at least ${floor.full}`);
+    else if (s < floor.short) out.push(`"${stop.name}" scriptShort is ${s} words, needs at least ${floor.short}`);
+  }
+  return out;
+}
+
 /**
  * Parse and validate, retrying once with the error fed back to the model.
  * One retry only: if it can't produce the shape twice, a third go won't help
@@ -46,7 +70,10 @@ export async function generateTourPlanVia(
     const raw = await complete({
       system: SYSTEM_PROMPT,
       user: extra ? `${user}\n\n${extra}` : user,
-      maxTokens: 16000,
+      // Generous: six stops of ~800 words each, plus cues and JSON overhead,
+      // and on thinking models the reasoning counts against this too. Running
+      // out shows up as a truncated plan, not an error.
+      maxTokens: 48000,
     });
     const parsed = TourPlanSchema.safeParse(JSON.parse(stripFence(raw)));
     if (!parsed.success) {
@@ -56,7 +83,22 @@ export async function generateTourPlanVia(
   };
 
   try {
-    return await attempt();
+    const plan = await attempt();
+    const short = shortfalls(plan, req.detail);
+    if (short.length === 0) return plan;
+
+    // One expansion pass. If it still comes back thin, the walker gets the
+    // shorter tour rather than an error — a real tour beats a failed one.
+    try {
+      return await attempt(
+        `Your previous answer was too short. Specifically: ${short.join("; ")}. ` +
+          `Return the SAME stops, in the same order, with the same coordinates — ` +
+          `only rewrite the scripts that fall short, at the required length. ` +
+          `Do not pad: add substance, detail and story until each one genuinely covers its stop.`,
+      );
+    } catch {
+      return plan;
+    }
   } catch (err) {
     const detail =
       err instanceof SchemaError
@@ -86,4 +128,25 @@ class SchemaError extends Error {
     super(issues.join("; "));
     this.name = "SchemaError";
   }
+}
+
+/**
+ * Ask a question, shared by every real provider so they answer identically.
+ *
+ * Deliberately not JSON: the answer is spoken aloud, so it is plain text and
+ * any wrapper the model adds is stripped rather than parsed.
+ */
+export async function answerQuestionVia(
+  providerName: string,
+  complete: CompleteFn,
+  req: AskRequest,
+): Promise<string> {
+  const raw = await complete({
+    system: ASK_SYSTEM_PROMPT,
+    user: buildAskPrompt(req),
+    maxTokens: 2000,
+  });
+  const answer = raw.trim().replace(/^```[a-z]*\s*|\s*```$/g, "").trim();
+  if (!answer) throw new ProviderError(providerName, "the model returned an empty answer");
+  return answer;
 }

@@ -202,6 +202,41 @@ export default function TourFlow({
     active: stage === "tour",
   });
 
+  /**
+   * Stops already triggered by proximity.
+   *
+   * Without this, standing near a stop re-triggers it every time GPS jitters,
+   * and stepping back toward the previous one drags the tour backwards.
+   */
+  const arrivedRef = useRef<Set<string>>(new Set());
+  const [autoAdvance, setAutoAdvance] = useState(true);
+  const [justArrived, setJustArrived] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (stage !== "tour" || !autoAdvance || !fix || !tour) return;
+
+    // 35 m: tighter than a GPS fix is reliable in a street of tall buildings,
+    // and the stops are close together in an old town.
+    const ARRIVAL_M = 35;
+    let best: { index: number; name: string; id: string; d: number } | null = null;
+
+    tour.plan.stops.forEach((s, i) => {
+      if (arrivedRef.current.has(s.id)) return;
+      const d = distanceMeters(fix, { lat: s.lat, lng: s.lng });
+      if (d <= ARRIVAL_M && (!best || d < best.d)) best = { index: i, name: s.name, id: s.id, d };
+    });
+
+    if (!best) return;
+    const arrival = best as { index: number; name: string; id: string; d: number };
+    arrivedRef.current.add(arrival.id);
+    // Mark everything before it as seen too, so skipping a stop on the ground
+    // does not send the tour backwards later.
+    tour.plan.stops.slice(0, arrival.index).forEach((s) => arrivedRef.current.add(s.id));
+
+    if (arrival.index !== currentIndex) setCurrentIndex(arrival.index);
+    setJustArrived(arrival.name);
+  }, [fix, stage, autoAdvance, tour, currentIndex]);
+
   const ask = useCallback(
     async (question: string) => {
       const res = await fetch("/api/ask", {
@@ -209,17 +244,28 @@ export default function TourFlow({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           question,
+          lang: draft.lang,
+          // The brief from the setup screens. Without it the answer is generic
+          // and the walker may as well have used a search engine.
+          freeText: draft.freeText || undefined,
+          interests: draft.interests,
+          detail: draft.detail,
+          tourTitle: tour?.plan.title,
           stopName: currentStop?.name,
+          stopContext: currentStop
+            ? depth === "full"
+              ? currentStop.scriptFull
+              : currentStop.scriptShort
+            : undefined,
           lat: fix?.lat ?? currentStop?.lat,
           lng: fix?.lng ?? currentStop?.lng,
-          lang: draft.lang,
         }),
       });
       const body = (await res.json()) as { answer?: string; error?: string };
       if (!res.ok || !body.answer) throw new Error(body.error ?? "Could not answer.");
       return body.answer;
     },
-    [currentStop, fix, draft.lang],
+    [currentStop, fix, draft, depth, tour],
   );
 
   /** Speech synthesis is free and offline — good enough to repeat a cue. */
@@ -235,10 +281,17 @@ export default function TourFlow({
     [draft.lang],
   );
 
+  useEffect(() => {
+    if (!justArrived) return;
+    const id = window.setTimeout(() => setJustArrived(null), 6000);
+    return () => window.clearTimeout(id);
+  }, [justArrived]);
+
   const startOver = useCallback(() => {
     audioEngine.pause();
     clearPlayback();
     clearTour();
+    arrivedRef.current.clear();
     setTour(null);
     setStage("start");
     setAskOpen(false);
@@ -313,6 +366,35 @@ export default function TourFlow({
             onSpeak={speak}
           />
         </>
+      ) : null}
+
+      {/* Arrival, and the switch that turns it off. GPS moving the tour under
+          the walker is right most of the time and infuriating the rest, so it
+          has to be visible and it has to be defeatable. */}
+      {stage === "tour" ? (
+        <div className="pointer-events-none absolute inset-x-0 top-20 z-20 px-4">
+          <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
+            {justArrived ? (
+              <div className="panel-dark w-full px-4 py-3">
+                <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
+                  You&apos;ve arrived
+                </p>
+                <p className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold">
+                  {justArrived}
+                </p>
+              </div>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => setAutoAdvance((v) => !v)}
+              aria-pressed={autoAdvance}
+              className={`btn ${autoAdvance ? "btn--primary" : "btn--quiet"} px-4 py-2`}
+              style={{ minHeight: 44 }}
+            >
+              {autoAdvance ? "Auto-play on arrival" : "Manual stops"}
+            </button>
+          </div>
+        </div>
       ) : null}
 
       {/* Location trouble is reported once, above the sheet, not per screen. */}

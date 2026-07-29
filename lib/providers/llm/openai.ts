@@ -1,9 +1,9 @@
 /** OpenAI chat completions, over plain fetch. See the note in anthropic.ts about SDKs. */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type TourPlan, type TourRequest } from "@/lib/providers/types";
+import { ProviderError, type AskRequest, type TourPlan, type TourRequest } from "@/lib/providers/types";
 import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
-import { generateTourPlanVia, type LLMProvider } from "./index";
+import { answerQuestionVia, generateTourPlanVia, type CompleteFn, type LLMProvider } from "./index";
 
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
@@ -14,16 +14,13 @@ type OpenAIResponse = {
 export class OpenAILLMProvider implements LLMProvider {
   readonly name = "openai";
 
-  async generateTourPlan(input: TourRequest): Promise<TourPlan> {
+  private complete(json: boolean): CompleteFn {
     const apiKey = requireKey(config.openaiApiKey, "OPENAI_API_KEY", "openai");
 
-    return generateTourPlanVia(this.name, async ({ system, user, maxTokens }) => {
+    return async ({ system, user, maxTokens }) => {
       const res = await fetch(ENDPOINT, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          authorization: `Bearer ${apiKey}`,
-        },
+        headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
         body: JSON.stringify({
           model: config.openaiModel,
           max_completion_tokens: maxTokens,
@@ -31,10 +28,14 @@ export class OpenAILLMProvider implements LLMProvider {
             { role: "system", content: system },
             { role: "user", content: user },
           ],
-          response_format: {
-            type: "json_schema",
-            json_schema: { name: "tour_plan", strict: true, schema: TOUR_PLAN_JSON_SCHEMA },
-          },
+          ...(json
+            ? {
+                response_format: {
+                  type: "json_schema",
+                  json_schema: { name: "tour_plan", strict: true, schema: TOUR_PLAN_JSON_SCHEMA },
+                },
+              }
+            : {}),
         }),
       });
 
@@ -46,6 +47,14 @@ export class OpenAILLMProvider implements LLMProvider {
       const text = body.choices?.[0]?.message?.content;
       if (!text) throw new ProviderError(this.name, "empty response");
       return text;
-    }, input);
+    };
+  }
+
+  async generateTourPlan(input: TourRequest): Promise<TourPlan> {
+    return generateTourPlanVia(this.name, this.complete(true), input);
+  }
+
+  async answerQuestion(input: AskRequest): Promise<string> {
+    return answerQuestionVia(this.name, this.complete(false), input);
   }
 }

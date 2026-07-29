@@ -7,7 +7,7 @@
  */
 
 import type { LLMProvider } from "./index";
-import type { Stop, TourPlan, TourRequest } from "@/lib/providers/types";
+import type { AskRequest, Stop, TourPlan, TourRequest } from "@/lib/providers/types";
 
 type Seed = Omit<Stop, "scriptShort" | "scriptFull"> & { short: string; full: string };
 
@@ -88,6 +88,21 @@ function selectStops(req: TourRequest): Seed[] {
 
 export class MockLLMProvider implements LLMProvider {
   readonly name = "mock";
+
+  /**
+   * The mock cannot answer questions, and pretending otherwise would be worse
+   * than saying so — a walker who gets invented history from a demo build will
+   * believe it. It does at least prove the brief reached the provider.
+   */
+  async answerQuestion(input: AskRequest): Promise<string> {
+    const brief = input.freeText?.trim();
+    return (
+      `I can't answer that without a real language model — this is the mock guide. ` +
+      `Set LLM_PROVIDER and its key to switch it on. ` +
+      (input.stopName ? `You asked about ${input.stopName}. ` : "") +
+      (brief ? `Your brief reached me intact: "${brief}".` : "")
+    ).trim();
+  }
 
   async generateTourPlan(input: TourRequest): Promise<TourPlan> {
     const chosen = selectStops(input);

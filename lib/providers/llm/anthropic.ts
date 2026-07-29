@@ -8,9 +8,9 @@
  */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type TourPlan, type TourRequest } from "@/lib/providers/types";
+import { ProviderError, type AskRequest, type TourPlan, type TourRequest } from "@/lib/providers/types";
 import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
-import { generateTourPlanVia, type LLMProvider } from "./index";
+import { answerQuestionVia, generateTourPlanVia, type CompleteFn, type LLMProvider } from "./index";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -24,10 +24,10 @@ type AnthropicResponse = {
 export class AnthropicLLMProvider implements LLMProvider {
   readonly name = "anthropic";
 
-  async generateTourPlan(input: TourRequest): Promise<TourPlan> {
+  private complete(json: boolean): CompleteFn {
     const apiKey = requireKey(config.anthropicApiKey, "ANTHROPIC_API_KEY", "anthropic");
 
-    return generateTourPlanVia(this.name, async ({ system, user, maxTokens }) => {
+    return async ({ system, user, maxTokens }) => {
       const res = await fetch(ENDPOINT, {
         method: "POST",
         headers: {
@@ -40,10 +40,12 @@ export class AnthropicLLMProvider implements LLMProvider {
           max_tokens: maxTokens,
           system,
           messages: [{ role: "user", content: user }],
-          // Constrained decoding — the model can only emit our schema.
-          output_config: {
-            format: { type: "json_schema", schema: TOUR_PLAN_JSON_SCHEMA },
-          },
+          ...(json
+            ? {
+                // Constrained decoding — the model can only emit our schema.
+                output_config: { format: { type: "json_schema", schema: TOUR_PLAN_JSON_SCHEMA } },
+              }
+            : {}),
           // No temperature / top_p: current Opus models reject them outright.
         }),
       });
@@ -66,6 +68,14 @@ export class AnthropicLLMProvider implements LLMProvider {
         .filter((b) => b.type === "text")
         .map((b) => b.text ?? "")
         .join("");
-    }, input);
+    };
+  }
+
+  async generateTourPlan(input: TourRequest): Promise<TourPlan> {
+    return generateTourPlanVia(this.name, this.complete(true), input);
+  }
+
+  async answerQuestion(input: AskRequest): Promise<string> {
+    return answerQuestionVia(this.name, this.complete(false), input);
   }
 }

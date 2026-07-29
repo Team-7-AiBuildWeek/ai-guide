@@ -12,6 +12,29 @@ AI audio walking tour, MVP. Mobile-first PWA, no accounts, no database.
   toggle, auto-advance between stops.
 - Step 7 — the €8 question. Not started.
 
+## Personalisation, length, and arrival
+
+**Length is measured, not requested.** Models return roughly half of whatever
+word count you ask for. `lib/prompts/tour-plan.ts` sets a floor per `detail`
+setting, and `generateTourPlanVia` counts the words that came back and hands
+the shortfall to the model stop by stop for one expansion pass. If it is still
+thin the walker gets the shorter tour rather than an error — a real tour beats
+a failed one. Measured: a 60-minute "tell me everything" brief produced 8 stops
+and 4,038 words of narration, about 26 minutes spoken.
+
+**The brief goes everywhere.** The walker's own words outrank the sliders in
+the tour prompt, and they are sent with every question too. The same question
+at the same cathedral answers differently depending on what they set out for —
+coronation regalia, or roasted oxen and free wine, or sandstone and mason
+marks. `answerQuestion` is a first-class method on `LLMProvider`, not a tour
+request in disguise.
+
+**Stops trigger on approach.** Within 35 m of a stop the tour moves to it and
+plays. Each stop fires once, and everything before it is marked seen, so GPS
+jitter cannot re-trigger and stepping back toward the previous stop does not
+drag the tour backwards. Visible, and defeatable: **Auto-play on arrival** ↔
+**Manual stops**.
+
 ## The flow
 
 `components/TourFlow.tsx` is the state machine. The map mounts once and is

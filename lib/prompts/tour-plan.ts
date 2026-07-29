@@ -6,12 +6,27 @@
  * touching an API client to do it.
  */
 
-import type { TourRequest } from "@/lib/providers/types";
+import type { Detail, TourRequest } from "@/lib/providers/types";
 
-const DETAIL_WORDS: Record<TourRequest["detail"], string> = {
-  highlights: "Just the highlights — the walker wants the essentials, briskly.",
-  story: "A good story — one strong narrative per stop, with a little colour.",
-  everything: "Tell me everything — depth, dates, side-stories, the lot.",
+/**
+ * How much the walker actually asked for.
+ *
+ * Models under-write when given a vague "about three minutes" — they land at
+ * half of it. Naming a floor and a ceiling in words, and repeating the floor
+ * as a hard rule further down, is what makes the long version genuinely long.
+ */
+const LENGTH: Record<Detail, { short: number; full: number; label: string }> = {
+  highlights: { short: 80, full: 260, label: "Just the highlights" },
+  story: { short: 110, full: 480, label: "A good story" },
+  everything: { short: 130, full: 800, label: "Tell me everything" },
+};
+
+const DETAIL_WORDS: Record<Detail, string> = {
+  highlights: "The essentials, briskly. One idea per stop, no digressions.",
+  story: "One strong narrative per stop, with room for a detail that sticks.",
+  everything:
+    "Depth. Dates, names, the argument about what really happened, the side-story " +
+    "most guides leave out. Assume genuine curiosity and plenty of time.",
 };
 
 const PACE_WORDS: Record<TourRequest["pace"], string> = {
@@ -43,11 +58,7 @@ You are writing audio narration. It will be spoken aloud into someone's earbuds 
 - No travel-brochure adjectives. No "nestled", no "hidden gem", no "steeped in history". Say the concrete thing instead.
 - Your listener is somewhere between 45 and 60, has travelled before, and does not need to be flattered.
 
-Every stop needs two versions of the same material:
-- scriptShort: about 40 seconds spoken, roughly 100 words. The one thing worth knowing, said well.
-- scriptFull: about 3 minutes spoken, roughly 450 words. The same stop with room to breathe — the story, the detail, the thing that makes it stick.
-
-The full version must not read as the short version with padding bolted on. Write it as its own piece.
+Every stop needs two versions of the same material. The full version must not read as the short version with padding bolted on — write it as its own piece, with its own shape.
 
 walkingCueToHere is a spoken direction from the previous stop to this one, one or two sentences, using what the walker can see: street names, a church on the right, a corner with a tram stop. For the first stop, describe how to get there from the given starting point.
 
@@ -55,6 +66,7 @@ Coordinates must be real. If you are not certain of a place's coordinates, choos
 
 export function buildTourPlanPrompt(req: TourRequest): string {
   const count = stopCount(req);
+  const len = LENGTH[req.detail];
   const interests =
     req.interests.length > 0
       ? req.interests.map((i) => INTEREST_WORDS[i]).join("; ")
@@ -70,26 +82,50 @@ export function buildTourPlanPrompt(req: TourRequest): string {
     ``,
     `Time available: ${req.durationMinutes} minutes of walking and listening.`,
     `Aim for ${count} stops.`,
-    `Depth: ${DETAIL_WORDS[req.detail]}`,
     `Pace: ${PACE_WORDS[req.pace]}`,
+    `Depth: ${len.label}. ${DETAIL_WORDS[req.detail]}`,
     `Interests: ${interests}.`,
+    ``,
+    `LENGTH — this matters, and models routinely under-write it:`,
+    `  scriptShort: about ${len.short} words. Never fewer than ${Math.round(len.short * 0.8)}.`,
+    `  scriptFull:  about ${len.full} words. Never fewer than ${Math.round(len.full * 0.8)}.`,
+    `Count as you write. A scriptFull under ${Math.round(len.full * 0.8)} words is a failed answer,`,
+    `however good the prose is. Keep going until the stop is genuinely covered.`,
   ];
 
   if (req.freeText?.trim()) {
     lines.push(
       ``,
-      `The walker described what they want in their own words. This outranks the settings above where they disagree:`,
+      `THE WALKER'S OWN BRIEF — this is the whole point of the tour, and it outranks`,
+      `every setting above wherever they disagree:`,
+      ``,
       `"""${req.freeText.trim()}"""`,
+      ``,
+      `Build the tour around that. Every stop must earn its place against it: choose`,
+      `stops that answer it, and in each script make the connection explicit rather`,
+      `than leaving it implied. If they asked about one subject, that subject is the`,
+      `spine of the walk, not a paragraph in stop four. If something they asked for`,
+      `genuinely does not exist in this city, say so plainly in the summary and give`,
+      `them the nearest real thing instead of quietly substituting a standard tour.`,
     );
   }
 
   lines.push(
+    ``,
+    `The summary is spoken aloud as the walk begins: two or three sentences telling`,
+    `them what you have built and why it fits what they asked for.`,
     ``,
     `Order the stops into a sensible walking route — no doubling back, no crossing the same square three times.`,
     `Return only the JSON object described by the schema. No preamble, no explanation.`,
   );
 
   return lines.join("\n");
+}
+
+/** Word floors used to decide whether a returned plan is worth accepting. */
+export function lengthFloors(detail: Detail) {
+  const len = LENGTH[detail];
+  return { short: Math.round(len.short * 0.7), full: Math.round(len.full * 0.7) };
 }
 
 /**
@@ -101,7 +137,10 @@ export const TOUR_PLAN_JSON_SCHEMA = {
   type: "object",
   properties: {
     title: { type: "string", description: "Short name for the tour." },
-    summary: { type: "string", description: "Two sentences, spoken aloud as the intro." },
+    summary: {
+      type: "string",
+      description: "Two or three sentences, spoken aloud, saying how this fits what they asked for.",
+    },
     stops: {
       type: "array",
       items: {
@@ -112,8 +151,8 @@ export const TOUR_PLAN_JSON_SCHEMA = {
           lat: { type: "number" },
           lng: { type: "number" },
           walkingCueToHere: { type: "string" },
-          scriptShort: { type: "string", description: "~100 words" },
-          scriptFull: { type: "string", description: "~450 words" },
+          scriptShort: { type: "string", description: "Spoken narration, see the word count given." },
+          scriptFull: { type: "string", description: "Spoken narration, much longer than scriptShort." },
         },
         required: ["id", "name", "lat", "lng", "walkingCueToHere", "scriptShort", "scriptFull"],
         additionalProperties: false,
