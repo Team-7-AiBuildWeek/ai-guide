@@ -231,6 +231,17 @@ pre {
   font-size: var(--text-lead);
 }
 
+/* For a setting that floats over the map rather than an action being asked
+   for. Below the 44px target used everywhere else, which is the trade: it sits
+   alone with nothing to mis-tap, and at full size it read as the loudest thing
+   on a screen whose job is the map. Same reason as `.btn--icon` for existing:
+   `.btn`'s padding shorthand and font-size beat Tailwind utilities. */
+.btn--small {
+  min-height: 38px;
+  padding: 0.5rem 0.833rem;
+  font-size: var(--text-caption);
+}
+
 /* A defined grey rather than a translucent version of the live button:
    45% opacity mint is unreadable outdoors, and "faded" reads as "broken". */
 .btn:disabled {

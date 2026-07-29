@@ -502,14 +502,21 @@ export default function TourFlow({
                 </p>
               </div>
             ) : null}
+            {/* A setting, not an action — it should read as smaller than the
+                turn card and the player. The full sentence stays in the label
+                for anyone who cannot see which of the two states is lit. */}
             <button
               type="button"
               onClick={() => setAutoAdvance((v) => !v)}
               aria-pressed={autoAdvance}
-              className={`btn ${autoAdvance ? "btn--primary" : "btn--quiet"} px-4 py-2`}
-              style={{ minHeight: 44 }}
+              aria-label={
+                autoAdvance
+                  ? "Auto-play when you arrive at a stop. Switch to manual."
+                  : "Stops are played manually. Switch to auto-play on arrival."
+              }
+              className={`btn btn--small ${autoAdvance ? "btn--primary" : "btn--quiet"}`}
             >
-              {autoAdvance ? "Auto-play on arrival" : "Manual stops"}
+              {autoAdvance ? "Auto-play" : "Manual"}
             </button>
           </div>
         </div>
