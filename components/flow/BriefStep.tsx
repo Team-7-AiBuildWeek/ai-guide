@@ -9,6 +9,7 @@
  * keeps whatever was already entered.
  */
 
+import { useState } from "react";
 import {
   DETAILS,
   DURATIONS,
@@ -18,6 +19,7 @@ import {
   type Draft,
 } from "@/lib/tour/flow";
 import type { Detail, Interest, Pace } from "@/lib/providers/types";
+import { parseDuration } from "@/lib/tour/duration";
 
 /** A slider whose value reads as words, not a number. */
 function WordSlider<T extends string | number>({
@@ -64,6 +66,25 @@ export default function BriefStep({
   onContinue: () => void;
 }) {
   const simple = draft.useSimpleSettings;
+  const [readFromBrief, setReadFromBrief] = useState(false);
+
+  /**
+   * Typing the brief also sets the length, when the brief says one.
+   *
+   * The slider moves as they write rather than the duration being inferred
+   * invisibly at generation time: the walker can see what was understood and
+   * overrule it, and a wrong guess costs a drag instead of a wrong tour.
+   */
+  const setBrief = (freeText: string) => {
+    const found = parseDuration(freeText);
+    if (found !== null && found !== draft.durationMinutes) {
+      onChange({ freeText, durationMinutes: found });
+      setReadFromBrief(true);
+    } else {
+      onChange({ freeText });
+      if (found === null) setReadFromBrief(false);
+    }
+  };
 
   const toggleInterest = (i: Interest) =>
     onChange({
@@ -130,10 +151,28 @@ export default function BriefStep({
               id="brief"
               rows={5}
               value={draft.freeText}
-              onChange={(e) => onChange({ freeText: e.target.value })}
+              onChange={(e) => setBrief(e.target.value)}
               placeholder="Old town history, not too much walking, something about the coronations"
               className="mt-3 w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] p-4 text-[length:var(--text-body)] leading-relaxed text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
             />
+          </div>
+
+          {/* The duration lives here too, and not only in the simple settings.
+              Without it "I have all afternoon" went into the brief while the
+              request still said forty-five minutes, and the walk came back a
+              third of the length asked for. */}
+          <div>
+            <WordSlider
+              label="How long"
+              options={DURATIONS}
+              value={draft.durationMinutes}
+              onChange={(v) => onChange({ durationMinutes: v })}
+            />
+            {readFromBrief ? (
+              <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+                Read from what you wrote — change it if that is not right.
+              </p>
+            ) : null}
           </div>
 
           <div>
@@ -143,7 +182,7 @@ export default function BriefStep({
                 <button
                   key={ex}
                   type="button"
-                  onClick={() => onChange({ freeText: ex })}
+                  onClick={() => setBrief(ex)}
                   className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] px-4 py-3 text-left text-[color:var(--ink-soft)] hover:border-[color:var(--ink-mute)]"
                 >
                   {ex}
