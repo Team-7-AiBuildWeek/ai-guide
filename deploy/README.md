@@ -26,6 +26,36 @@ using `STADIA_API_KEY`, which never reaches the browser.
 Locally, leave `STADIA_DOMAIN_AUTH=false` in `.env.local` — localhost is not a
 registered domain.
 
+## If the deployed site "doesn't work with Gemini"
+
+Open **`/dev/providers` on the deployed URL**. It prints which provider is live
+for each of LLM, TTS and maps, and the exact error from each — including
+"google provider selected but GEMINI_API_KEY is not set". That page answers
+this question in one look; guessing from the app's behaviour does not, because
+every provider degrades quietly to a mock rather than erroring.
+
+Three things it will usually be:
+
+1. **The variables were never set.** Without `LLM_PROVIDER=google`,
+   `TTS_PROVIDER=google` and `GEMINI_API_KEY`, the app runs on mocks by
+   design — a canned tour, a beep instead of narration, and "I can't answer
+   that without a real language model". It looks broken; it is switched off.
+2. **They were set but not redeployed.** Netlify does not rebuild when a
+   variable is saved.
+3. **They were scoped to Production only**, so deploy previews still run mocks.
+
+## Function timeouts — the one that will bite next
+
+Tour generation takes 30–120 seconds and speech synthesis 5–30. Netlify's
+*background* functions are documented at 15 minutes, but ordinary synchronous
+functions are far shorter, and `export const maxDuration` in the route files is
+a Vercel convention that Netlify's adapter may not honour.
+
+So even with every key set, `/api/tours` may time out on Netlify while working
+locally. If the map and the landing screen work but building a tour hangs or
+502s, this is why — not the key. Vercel is the safer target and is what the
+project spec assumes.
+
 ## Known risk
 
 Next 16 is very new and Netlify's Next runtime can lag a major release. A build
