@@ -477,6 +477,8 @@ export default function TourFlow({
                   preparing={audio.preparing}
                   failed={audio.failed}
                   usingDeviceVoice={audio.usingDeviceVoice}
+                  voiceMode={audio.voiceMode}
+                  onVoiceMode={audio.setVoiceMode}
                   position={audio.position}
                   duration={audio.duration}
                   onToggle={audio.toggle}

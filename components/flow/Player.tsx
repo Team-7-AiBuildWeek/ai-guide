@@ -10,6 +10,7 @@
  */
 
 import type { Depth } from "@/lib/audio/engine";
+import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
 function mmss(s: number) {
   if (!Number.isFinite(s) || s < 0) s = 0;
@@ -27,6 +28,8 @@ export default function Player({
   preparing,
   failed,
   usingDeviceVoice,
+  voiceMode,
+  onVoiceMode,
   position,
   duration,
   onToggle,
@@ -43,8 +46,10 @@ export default function Player({
   playing: boolean;
   preparing: boolean;
   failed: boolean;
-  /** The phone is reading, because real synthesis was unavailable. */
+  /** The phone is reading — chosen, or because synthesis was unavailable. */
   usingDeviceVoice: boolean;
+  voiceMode: VoiceMode;
+  onVoiceMode: (m: VoiceMode) => void;
   position: number;
   duration: number;
   onToggle: () => void;
@@ -57,7 +62,7 @@ export default function Player({
 
   return (
     <div className="flex flex-col gap-3">
-      {usingDeviceVoice ? (
+      {usingDeviceVoice && voiceMode !== "device" ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           Read by your phone — the Gemini voice was unavailable.
         </p>
@@ -161,6 +166,42 @@ export default function Player({
             {d === "short" ? "Short · 40 sec" : "Full · 3 min"}
           </button>
         ))}
+      </div>
+
+      {/* Which voice reads the tour. Gemini bills per stop and a tour is a
+          dozen calls, so testing runs on the phone's free voice. Remove this
+          control once the narration is settled — it is scaffolding. */}
+      <div
+        role="group"
+        aria-label="Which voice reads the tour"
+        className="flex items-center justify-between gap-2 rounded-[var(--radius-control)] border border-dashed border-[color:var(--line-strong)] px-3 py-2"
+      >
+        <span className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          Voice
+        </span>
+        <div className="flex gap-1">
+          {(
+            [
+              ["device", "Free"],
+              ["gemini", "Gemini"],
+            ] as [VoiceMode, string][]
+          ).map(([mode, label]) => (
+            <button
+              key={mode}
+              type="button"
+              aria-pressed={voiceMode === mode}
+              onClick={() => onVoiceMode(mode)}
+              className={[
+                "min-h-[44px] rounded-[3px] px-3 font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold",
+                voiceMode === mode
+                  ? "bg-[color:var(--ink)] text-[color:var(--on-dark)]"
+                  : "text-[color:var(--ink-soft)]",
+              ].join(" ")}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
     </div>
   );

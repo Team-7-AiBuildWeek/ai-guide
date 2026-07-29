@@ -165,6 +165,12 @@ The other depth of the current stop is therefore prefetched **before** the next
 stop — the queue is serial, and the toggle is the control most likely to be
 pressed next.
 
+**Voice toggle, in the player: Free ↔ Gemini.** Gemini bills per synthesis and
+one tour is six to twelve calls, so testing runs on the phone's own voice —
+zero API calls, verified. The choice persists in localStorage. It is drawn with
+a dashed border because it is scaffolding: delete it once the narration is
+settled.
+
 When synthesis is unavailable, **the phone reads the stop itself** via
 `speechSynthesis` and the player says so. It is a fallback, not the product:
 no seeking, no lock-screen control. But the tour is never silent, and it works

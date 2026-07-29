@@ -17,6 +17,10 @@ const NO_CLIPS: Record<string, ClipState> = {};
 
 const NO_SPEECH: DeviceVoiceState = { speaking: false, paused: false };
 
+/** Which voice reads the tour. Persisted so a reload keeps the choice. */
+export type VoiceMode = "gemini" | "device";
+const VOICE_MODE_KEY = "btour:voice-mode:v1";
+
 const SERVER_STATE: EngineState = {
   ready: false,
   track: null,
@@ -67,9 +71,6 @@ export function useTourAudio({
 
   const stop = stops[index];
   const clipState: ClipState = stop ? (clipStates[`${stop.id}:${depth}`] ?? "idle") : "idle";
-  /** True once real synthesis failed and the phone is reading instead. */
-  const usingDeviceVoice = clipState === "failed" && deviceVoice.supported;
-
   /**
    * Tracks whether the element exists yet, so the loading effect re-runs the
    * moment it does. Without this a tour restored from localStorage lands on
@@ -77,6 +78,36 @@ export function useTourAudio({
    * ever — the play button calls into an engine with no element.
    */
   const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
+
+  /**
+   * Gemini charges per synthesis call and a six-stop tour is a dozen of them,
+   * so development runs on the phone's own voice by default of the toggle.
+   * localStorage is unreadable during SSR, hence the deferred read.
+   */
+  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("gemini");
+  useEffect(() => {
+    queueMicrotask(() => {
+      const saved = localStorage.getItem(VOICE_MODE_KEY);
+      if (saved === "device" || saved === "gemini") setVoiceModeState(saved);
+    });
+  }, []);
+
+  const setVoiceMode = useCallback((mode: VoiceMode) => {
+    setVoiceModeState(mode);
+    try {
+      localStorage.setItem(VOICE_MODE_KEY, mode);
+    } catch {
+      /* private mode */
+    }
+    // Whichever voice was mid-sentence should stop before the other starts.
+    deviceVoice.stop();
+    audioEngine.pause();
+  }, []);
+
+  /** The phone is reading — either because it was chosen, or as a fallback. */
+  const deviceChosen = voiceMode === "device" && deviceVoice.supported;
+  const usingDeviceVoice = deviceChosen || (clipState === "failed" && deviceVoice.supported);
+
 
   /**
    * Set while a depth change is being synthesised.
@@ -111,6 +142,14 @@ export function useTourAudio({
   useEffect(() => {
     if (!active || !stop || !unlocked) return;
     let cancelled = false;
+
+    // Device mode never calls the API at all — that is the whole point of it.
+    if (deviceChosen) {
+      audioEngine.pause();
+      const text = depth === "short" ? stop.scriptShort : stop.scriptFull;
+      deviceVoice.speak(text, lang, () => onAdvanceRef.current());
+      return () => deviceVoice.stop();
+    }
 
     // Captured NOW, before the await. Synthesising the other depth takes
     // tens of seconds, and reading the ratio afterwards measures wherever the
@@ -166,7 +205,7 @@ export function useTourAudio({
       cancelled = true;
       swapPendingRef.current = false;
     };
-  }, [active, stop, index, depth, library, stops.length, lang, unlocked]);
+  }, [active, stop, index, depth, library, stops.length, lang, unlocked, deviceChosen]);
 
   useEffect(() => {
     if (!active) deviceVoice.stop();
@@ -198,6 +237,9 @@ export function useTourAudio({
     playing: usingDeviceVoice ? speech.speaking && !speech.paused : engine.playing,
     clipState,
     usingDeviceVoice,
+    deviceChosen,
+    voiceMode,
+    setVoiceMode,
     /** True while the current stop is still being synthesized. */
     preparing: clipState === "loading" || (clipState === "idle" && active),
     failed: clipState === "failed",
