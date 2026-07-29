@@ -102,6 +102,9 @@ export type Voice = {
 
 // --------------------------------------------------------------------- maps
 
+/** A basemap the walker can switch to. */
+export type MapStyle = { id: string; label: string; url: string };
+
 /** Deliberately loose: we hand this straight to MapLibre. */
 export type GeoJSON = Record<string, unknown>;
 

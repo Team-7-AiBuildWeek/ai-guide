@@ -8,7 +8,13 @@
  */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type LatLng, type Place, type WalkingRoute } from "@/lib/providers/types";
+import {
+  ProviderError,
+  type LatLng,
+  type MapStyle,
+  type Place,
+  type WalkingRoute,
+} from "@/lib/providers/types";
 import { straightLineRoute, type MapProvider } from "./index";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org";
@@ -98,6 +104,14 @@ export class OSMMapProvider implements MapProvider {
   }
 
   tileStyleUrl(): string {
-    return "https://tiles.openfreemap.org/styles/liberty";
+    return this.styles()[0].url;
+  }
+
+  /** OpenFreeMap has no satellite layer — imagery is not free. */
+  styles(): MapStyle[] {
+    return [
+      { id: "liberty", label: "Map", url: "https://tiles.openfreemap.org/styles/liberty" },
+      { id: "bright", label: "Bright", url: "https://tiles.openfreemap.org/styles/bright" },
+    ];
   }
 }

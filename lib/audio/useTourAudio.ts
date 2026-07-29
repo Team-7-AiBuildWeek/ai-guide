@@ -240,8 +240,12 @@ export function useTourAudio({
     deviceChosen,
     voiceMode,
     setVoiceMode,
-    /** True while the current stop is still being synthesized. */
-    preparing: clipState === "loading" || (clipState === "idle" && active),
+    /**
+     * True while the current stop is still being synthesised. Never on the
+     * device voice — nothing is fetched there, so clipState stays "idle" for
+     * ever and the play button would be disabled for the whole tour.
+     */
+    preparing: !deviceChosen && (clipState === "loading" || (clipState === "idle" && active)),
     failed: clipState === "failed",
     start,
     play: () => audioEngine.play(),

@@ -1,7 +1,13 @@
 /** MapTiler: tiles + geocoding. Routing falls back to a straight line — MapTiler has no routing API. */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type LatLng, type Place, type WalkingRoute } from "@/lib/providers/types";
+import {
+  ProviderError,
+  type LatLng,
+  type MapStyle,
+  type Place,
+  type WalkingRoute,
+} from "@/lib/providers/types";
 import { straightLineRoute, type MapProvider } from "./index";
 
 const GEOCODE = "https://api.maptiler.com/geocoding";
@@ -56,6 +62,15 @@ export class MapTilerMapProvider implements MapProvider {
   }
 
   tileStyleUrl(): string {
-    return `https://api.maptiler.com/maps/streets-v2/style.json?key=${this.key()}`;
+    return this.styles()[0].url;
+  }
+
+  styles(): MapStyle[] {
+    const url = (m: string) => `https://api.maptiler.com/maps/${m}/style.json?key=${this.key()}`;
+    return [
+      { id: "streets-v2", label: "Map", url: url("streets-v2") },
+      { id: "satellite", label: "Satellite", url: url("satellite") },
+      { id: "outdoor-v2", label: "Outdoors", url: url("outdoor-v2") },
+    ];
   }
 }

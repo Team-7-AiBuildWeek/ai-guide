@@ -7,7 +7,7 @@
  * straight-line route between them.
  */
 
-import type { LatLng, Place, WalkingRoute } from "@/lib/providers/types";
+import type { LatLng, Place, WalkingRoute, MapStyle } from "@/lib/providers/types";
 import { straightLineRoute, type MapProvider } from "./index";
 
 const LANDMARKS: Place[] = [
@@ -64,6 +64,15 @@ export class MockMapProvider implements MapProvider {
   }
 
   tileStyleUrl(): string {
-    return "https://tiles.openfreemap.org/styles/liberty";
+    return this.styles()[0].url;
+  }
+
+  /** OpenFreeMap serves these without a key, so the mock gets a switcher too. */
+  styles(): MapStyle[] {
+    return [
+      { id: "liberty", label: "Map", url: "https://tiles.openfreemap.org/styles/liberty" },
+      { id: "bright", label: "Bright", url: "https://tiles.openfreemap.org/styles/bright" },
+      { id: "positron", label: "Pale", url: "https://tiles.openfreemap.org/styles/positron" },
+    ];
   }
 }

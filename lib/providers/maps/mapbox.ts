@@ -1,7 +1,13 @@
 /** Mapbox: tiles, geocoding and walking directions. */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type LatLng, type Place, type WalkingRoute } from "@/lib/providers/types";
+import {
+  ProviderError,
+  type LatLng,
+  type MapStyle,
+  type Place,
+  type WalkingRoute,
+} from "@/lib/providers/types";
 import type { MapProvider } from "./index";
 
 const GEOCODE = "https://api.mapbox.com/geocoding/v5/mapbox.places";
@@ -67,6 +73,15 @@ export class MapboxMapProvider implements MapProvider {
   }
 
   tileStyleUrl(): string {
-    return `https://api.mapbox.com/styles/v1/mapbox/streets-v12?access_token=${this.token()}`;
+    return this.styles()[0].url;
+  }
+
+  styles(): MapStyle[] {
+    const url = (m: string) => `https://api.mapbox.com/styles/v1/mapbox/${m}?access_token=${this.token()}`;
+    return [
+      { id: "streets-v12", label: "Map", url: url("streets-v12") },
+      { id: "satellite-streets-v12", label: "Satellite", url: url("satellite-streets-v12") },
+      { id: "outdoors-v12", label: "Outdoors", url: url("outdoors-v12") },
+    ];
   }
 }

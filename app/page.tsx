@@ -9,6 +9,7 @@ import Link from "next/link";
 import TourFlow from "@/components/TourFlow";
 import { getMaps } from "@/lib/providers/factory";
 import { DEFAULT_CENTER } from "@/lib/config";
+import type { MapStyle } from "@/lib/providers/types";
 
 export const dynamic = "force-dynamic";
 
@@ -20,9 +21,12 @@ export default async function Home({
   const params = await searchParams;
 
   let styleUrl: string | null = null;
+  let styles: MapStyle[] = [];
   let error: string | null = null;
   try {
-    styleUrl = getMaps().tileStyleUrl();
+    const maps = getMaps();
+    styleUrl = maps.tileStyleUrl();
+    styles = maps.styles();
   } catch (err) {
     error = err instanceof Error ? err.message : String(err);
   }
@@ -46,6 +50,11 @@ export default async function Home({
   }
 
   return (
-    <TourFlow styleUrl={styleUrl} center={DEFAULT_CENTER} initialSimulate={"sim" in params} />
+    <TourFlow
+      styleUrl={styleUrl}
+      styles={styles}
+      center={DEFAULT_CENTER}
+      initialSimulate={"sim" in params}
+    />
   );
 }

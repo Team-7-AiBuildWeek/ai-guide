@@ -7,15 +7,20 @@
  * data, which is precisely what this app does.
  */
 
-import type { GeoJSON, LatLng, Place, WalkingRoute } from "@/lib/providers/types";
+import type { GeoJSON, LatLng, MapStyle, Place, WalkingRoute } from "@/lib/providers/types";
 
 export interface MapProvider {
   readonly name: string;
   geocode(query: string): Promise<Place[]>;
   reverseGeocode(lat: number, lng: number): Promise<Place>;
   walkingRoute(points: LatLng[]): Promise<WalkingRoute>;
-  /** MapLibre style URL. */
+  /** MapLibre style URL for the default basemap. */
   tileStyleUrl(): string;
+  /**
+   * Every basemap this provider can offer, so the walker can switch to
+   * satellite. One entry is a perfectly good answer.
+   */
+  styles(): MapStyle[];
 }
 
 /** Metres between two points on the earth. */

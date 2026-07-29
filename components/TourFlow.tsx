@@ -21,6 +21,8 @@ import TourStep, { DirectionsPanel } from "./flow/TourStep";
 import TurnCard from "./flow/TurnCard";
 import { nextTurn } from "@/lib/tour/navigation";
 import Player from "./flow/Player";
+import MiniPlayer from "./flow/MiniPlayer";
+import LayerSwitcher from "./flow/LayerSwitcher";
 import { useTourAudio } from "@/lib/audio/useTourAudio";
 import { audioEngine, clearPlayback, type Depth } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
@@ -36,16 +38,20 @@ import {
   type Stage,
   type StoredTour,
 } from "@/lib/tour/flow";
-import type { TourRequest } from "@/lib/providers/types";
+import type { MapStyle, TourRequest } from "@/lib/providers/types";
 
-const SHEET_INSET = 190;
+/** Roughly how much of the map each sheet state covers. */
+const INSET_MINI = 120;
+const INSET_PLAYER = 340;
 
 export default function TourFlow({
   styleUrl,
+  styles,
   center,
   initialSimulate,
 }: {
   styleUrl: string;
+  styles: MapStyle[];
   center: { lat: number; lng: number };
   initialSimulate: boolean;
 }) {
@@ -60,6 +66,9 @@ export default function TourFlow({
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const [depth, setDepth] = useState<Depth>("short");
+  /** The tour sheet starts retracted so the route is visible. */
+  const [playerOpen, setPlayerOpen] = useState(false);
+  const [styleId, setStyleId] = useState(styles[0]?.id ?? "");
   const abortRef = useRef<AbortController | null>(null);
 
   const { fix, status, simulating, toggleSimulation } = useLiveLocation(initialSimulate);
@@ -342,10 +351,14 @@ export default function TourFlow({
       setDirectionsOpen(false);
       return;
     }
+    if (playerOpen) {
+      setPlayerOpen(false);
+      return;
+    }
     // Leaving the tour keeps it: the landing screen offers to resume.
     audioEngine.pause();
     setStage("start");
-  }, [askOpen, directionsOpen]);
+  }, [askOpen, directionsOpen, playerOpen]);
 
   const startOver = useCallback(() => {
     audioEngine.pause();
@@ -385,10 +398,12 @@ export default function TourFlow({
           patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
           setPicking(null);
         }}
-        bottomInset={sheetFull ? 0 : SHEET_INSET}
+        bottomInset={sheetFull ? 0 : stage === "tour" && !playerOpen ? INSET_MINI : INSET_PLAYER}
         follow={stage !== "tour"}
         fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
         showZoom={stage !== "tour"}
+        styles={styles}
+        styleId={styleId}
       />
 
       {/* Directions live behind a small icon, top right, out of the way. */}
@@ -450,6 +465,13 @@ export default function TourFlow({
           />
         </>
       ) : null}
+
+      {/* Basemap switcher, under the back button and out of the turn card's way. */}
+      <div className="pointer-events-none absolute left-0 top-20 z-30 p-4">
+        <div className="pointer-events-auto">
+          <LayerSwitcher styles={styles} value={styleId} onChange={setStyleId} />
+        </div>
+      </div>
 
       {/* Arrival, and the switch that turns it off. GPS moving the tour under
           the walker is right most of the time and infuriating the rest, so it
@@ -519,8 +541,29 @@ export default function TourFlow({
                   : undefined
           }
           collapsedContent={
-            stage === "tour" && tour ? (
+            stage === "tour" && tour && !playerOpen ? (
+              <MiniPlayer
+                stopName={currentStop?.name ?? ""}
+                index={currentIndex}
+                total={tour.plan.stops.length}
+                playing={audio.playing}
+                preparing={audio.preparing}
+                position={audio.position}
+                duration={audio.duration}
+                onToggle={audio.toggle}
+                onExpand={() => setPlayerOpen(true)}
+                onAsk={() => setAskOpen(true)}
+              />
+            ) : stage === "tour" && tour ? (
               <div className="flex flex-col gap-4">
+                <button
+                  type="button"
+                  onClick={() => setPlayerOpen(false)}
+                  className="mx-auto -mt-2 flex min-h-[44px] items-center gap-2 text-[length:var(--text-caption)] font-semibold text-[color:var(--ink-mute)]"
+                  aria-label="Retract the player"
+                >
+                  ▾ Hide controls
+                </button>
                 <Player
                   stopName={currentStop?.name ?? ""}
                   index={currentIndex}

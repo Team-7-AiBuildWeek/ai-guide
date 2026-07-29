@@ -19,6 +19,7 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Fix } from "@/lib/tour/useLiveLocation";
+import type { MapStyle } from "@/lib/providers/types";
 
 export type MapStop = { id: string; name: string; lat: number; lng: number };
 export type MapPin = { kind: "start" | "end"; lat: number; lng: number };
@@ -70,6 +71,8 @@ export default function TourMap({
   follow = true,
   fitTo = null,
   showZoom = true,
+  styles = [],
+  styleId,
 }: {
   styleUrl: string;
   center: { lat: number; lng: number };
@@ -88,6 +91,10 @@ export default function TourMap({
   fitTo?: string | null;
   /** The tour puts its turn card top-right, where these buttons live. */
   showZoom?: boolean;
+  /** Basemaps the walker can switch between. */
+  styles?: MapStyle[];
+  /** Which of them is showing. Changing this swaps the basemap in place. */
+  styleId?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -98,6 +105,7 @@ export default function TourMap({
   const routeRef = useRef<GeoJSON.Feature | null>(null);
   const styleReady = useRef(false);
   const hasCentred = useRef(false);
+  const currentStyleRef = useRef<string | undefined>(styleId);
   const onPickRef = useRef(onPick);
   const pickingRef = useRef(picking);
 
@@ -123,8 +131,11 @@ export default function TourMap({
     if (showZoom) map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
-    map.on("load", () => {
+    // Swapping the basemap throws away every source and layer on it, so this
+    // has to be callable again — not just once on first load.
+    const addOurLayers = () => {
       styleReady.current = true;
+      if (map.getSource(ROUTE)) return;
 
       map.addSource(ROUTE, {
         type: "geojson",
@@ -158,7 +169,11 @@ export default function TourMap({
         source: ACCURACY,
         paint: { "fill-color": "#5eda9b", "fill-opacity": 0.18 },
       });
-    });
+    };
+
+    map.on("load", addOurLayers);
+    // Fired after setStyle finishes; without this the route vanishes on swap.
+    map.on("style.load", addOurLayers);
 
     const click = (e: MapMouseEvent) => {
       if (!pickingRef.current) return;
@@ -175,6 +190,19 @@ export default function TourMap({
       styleReady.current = false;
     };
   }, [styleUrl, center.lat, center.lng, showZoom]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !styleId) return;
+    const target = styles.find((s) => s.id === styleId);
+    if (!target) return;
+    // Cheap guard: setStyle on the style already showing would still tear the
+    // route down and rebuild it for nothing.
+    if (map.getStyle()?.name && currentStyleRef.current === styleId) return;
+    currentStyleRef.current = styleId;
+    styleReady.current = false;
+    map.setStyle(target.url);
+  }, [styleId, styles]);
 
   // Picking mode gets a crosshair so it is obvious the map is now an input.
   useEffect(() => {

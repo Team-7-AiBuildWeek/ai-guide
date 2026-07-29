@@ -29,6 +29,17 @@ coronation regalia, or roasted oxen and free wine, or sandstone and mason
 marks. `answerQuestion` is a first-class method on `LLMProvider`, not a tour
 request in disguise.
 
+**The sheet retracts.** The tour opens at 114px covering 13% of the map — play
+or pause, the stop name with a progress bar, and a chat button. Tap the middle
+for the full player (scrubber, skip, depth, voice); "Hide controls" or Back
+retracts it again. Expanded it covers 59%, which is why it is not the default.
+
+**Basemap switcher**, under the back button: Map, Satellite, Outdoors, Dark on
+Stadia; every provider offers its own list and the button hides itself when
+there is only one. `setStyle` destroys every custom source and layer, so the
+route, stop pins and accuracy ring are re-added on `style.load` — verified as
+6 stop pins before a swap and 6 after.
+
 **The turn card, top right.** An arrow — straight, left, right, turn back, or
 a pin for arrival — and the distance to it, with the street name underneath.
 Nothing else: a walker glancing at it is already moving.
@@ -301,5 +312,10 @@ between 45 and 60:
 | 14px control padding | 16px (48px tall) | Clears the 44px target |
 | Light + dark | Light only | Dark is harder to read at full brightness in daylight |
 
-Contrast ratios are computed on `/dev/design` rather than asserted. Every
+Contrast ratios are computed on `/dev/design` rather than asserted.
+
+**Icon-only buttons must use `.btn--icon`.** `.btn` sets `padding` as a
+shorthand, and a shorthand beats a Tailwind `px-0` utility — which silently
+crushed a 27px icon into a 4px sliver. The modifier sets width and padding
+directly instead of fighting it. Every
 palette pair passes AA; mint is marked fill-only.

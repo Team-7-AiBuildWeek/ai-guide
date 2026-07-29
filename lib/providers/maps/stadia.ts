@@ -17,6 +17,7 @@ import {
   type LatLng,
   type Maneuver,
   type ManeuverKind,
+  type MapStyle,
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
@@ -264,7 +265,28 @@ export class StadiaMapProvider implements MapProvider {
    * the right setting in production.
    */
   tileStyleUrl(): string {
-    const base = `https://tiles.stadiamaps.com/styles/${config.stadiaStyle}.json`;
+    return this.styleUrl(config.stadiaStyle);
+  }
+
+  private styleUrl(style: string): string {
+    const base = `https://tiles.stadiamaps.com/styles/${style}.json`;
     return config.stadiaDomainAuth ? base : `${base}?api_key=${this.key()}`;
+  }
+
+  /**
+   * The four worth offering on a walking tour. Satellite is the one people
+   * actually reach for — it answers "which of these buildings is it".
+   */
+  styles(): MapStyle[] {
+    const options: [string, string][] = [
+      [config.stadiaStyle, "Map"],
+      ["alidade_satellite", "Satellite"],
+      ["outdoors", "Outdoors"],
+      ["alidade_smooth_dark", "Dark"],
+    ];
+    const seen = new Set<string>();
+    return options
+      .filter(([id]) => !seen.has(id) && seen.add(id))
+      .map(([id, label]) => ({ id, label, url: this.styleUrl(id) }));
   }
 }

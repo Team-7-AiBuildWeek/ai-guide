@@ -215,6 +215,16 @@ pre {
   border-color: var(--ink-mute);
 }
 
+/* Square icon button.
+   `.btn` sets `padding: 0.889rem 1.333rem` as a shorthand, and that shorthand
+   beats a Tailwind `px-0` utility — which crushed a 27px icon into a 4px
+   sliver. Anything icon-only needs this rather than a padding override. */
+.btn--icon {
+  width: 48px;
+  min-width: 48px;
+  padding: 0;
+}
+
 .btn--lg {
   min-height: 60px;
   padding: 1.111rem 1.778rem;
