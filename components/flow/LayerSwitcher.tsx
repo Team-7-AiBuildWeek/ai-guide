@@ -49,8 +49,11 @@ export default function LayerSwitcher({
         </svg>
       </button>
 
+      {/* p-1.5 against a --radius-card item is deliberate: the panel is 20px,
+          so an inner corner of 20 − 6 sits concentric inside it. At the old 3px
+          the selected block looked square against the panel's curve. */}
       {open ? (
-        <ul className="panel-dark overflow-hidden p-1">
+        <ul className="panel-dark overflow-hidden p-1.5">
           {styles.map((s) => (
             <li key={s.id}>
               <button
@@ -61,7 +64,7 @@ export default function LayerSwitcher({
                   setOpen(false);
                 }}
                 className={[
-                  "block w-full rounded-[3px] px-4 py-2 text-left font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold",
+                  "block w-full rounded-[var(--radius-card)] px-4 py-2 text-left font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold",
                   value === s.id
                     ? "bg-[color:var(--mint)] text-[color:var(--ink)]"
                     : "text-[color:var(--on-dark)]",
