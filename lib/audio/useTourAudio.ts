@@ -36,9 +36,11 @@ const SERVER_STATE: EngineState = {
 
 const IDLE_STOP: StopState = {
   script: "idle",
+  voice: "idle",
   chunksReady: 0,
   chunksTotal: 0,
   playable: false,
+  error: null,
 };
 
 export function useTourAudio({
@@ -119,8 +121,8 @@ export function useTourAudio({
 
   /** The phone is reading — either because it was chosen, or as a fallback. */
   const deviceChosen = voiceMode === "device" && deviceVoice.supported;
-  const usingDeviceVoice =
-    deviceChosen || (stopState.script === "failed" && deviceVoice.supported);
+  const broken = stopState.script === "failed" || stopState.voice === "failed";
+  const usingDeviceVoice = deviceChosen || (broken && deviceVoice.supported);
 
   const onAdvanceRef = useRef(onAdvance);
   useEffect(() => {
@@ -254,7 +256,7 @@ export function useTourAudio({
      */
     preparing: deviceChosen
       ? active && stopState.script !== "ready" && stopState.script !== "failed"
-      : active && !stopState.playable && stopState.script !== "failed",
+      : active && !stopState.playable && !broken,
     /** What the walker is waiting for, in words. */
     waitingFor:
       stopState.script === "writing"
@@ -262,7 +264,10 @@ export function useTourAudio({
         : !stopState.playable && stopState.script === "ready"
           ? "Recording the first minute"
           : null,
-    failed: stopState.script === "failed",
+    failed: broken,
+    /** What went wrong, in the provider's own words, and which half of it. */
+    failReason: stopState.error,
+    failedPart: stopState.script === "failed" ? ("script" as const) : ("voice" as const),
     start,
     play: () => audioEngine.play(),
     pause: () => audioEngine.pause(),

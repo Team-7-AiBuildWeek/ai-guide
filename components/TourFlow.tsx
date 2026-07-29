@@ -652,6 +652,8 @@ export default function TourFlow({
                   waitingFor={audio.waitingFor}
                   buffered={audio.buffered}
                   failed={audio.failed}
+                  failReason={audio.failReason}
+                  failedPart={audio.failedPart}
                   usingDeviceVoice={audio.usingDeviceVoice}
                   voiceMode={audio.voiceMode}
                   onVoiceMode={audio.setVoiceMode}

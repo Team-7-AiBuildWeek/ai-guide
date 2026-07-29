@@ -30,6 +30,8 @@ export default function Player({
   waitingFor,
   buffered,
   failed,
+  failReason,
+  failedPart,
   usingDeviceVoice,
   voiceMode,
   onVoiceMode,
@@ -51,6 +53,10 @@ export default function Player({
   /** How much of this stop has been recorded, 0–1. */
   buffered: number;
   failed: boolean;
+  /** Why, in the provider's own words. */
+  failReason: string | null;
+  /** Which half broke — the words or the voice. */
+  failedPart: "script" | "voice";
   /** The phone is reading — chosen, or because synthesis was unavailable. */
   usingDeviceVoice: boolean;
   voiceMode: VoiceMode;
@@ -67,9 +73,13 @@ export default function Player({
 
   return (
     <div className="flex flex-col gap-3">
+      {/* The reason matters: a spent daily quota is fixed by enabling billing,
+          a busy model by waiting a minute, and a failed script is not about
+          the voice at all. "Unavailable" sent people to the wrong place. */}
       {usingDeviceVoice && voiceMode !== "device" ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Read by your phone — the Gemini voice was unavailable.
+          Read by your phone —{" "}
+          {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the Gemini voice was unavailable.")}
         </p>
       ) : null}
       <div className="flex items-baseline justify-between gap-3">

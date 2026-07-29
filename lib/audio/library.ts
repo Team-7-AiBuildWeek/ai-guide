@@ -25,14 +25,30 @@ import type { Stop, TourRequest } from "@/lib/providers/types";
 export type StopState = {
   /** Have we got the words yet. */
   script: "idle" | "writing" | "ready" | "failed";
+  /**
+   * Have we got the voice. Tracked apart from the words because they fail for
+   * different reasons and only one of them is about Gemini's speech quota —
+   * telling a walker "the Gemini voice was unavailable" when it was the script
+   * that failed sends them looking in the wrong place.
+   */
+  voice: "idle" | "recording" | "ready" | "failed";
   /** Pieces synthesised out of pieces wanted. */
   chunksReady: number;
   chunksTotal: number;
   /** The first piece is the only one anyone waits for. */
   playable: boolean;
+  /** Why it failed, in the provider's own words. */
+  error: string | null;
 };
 
-const IDLE: StopState = { script: "idle", chunksReady: 0, chunksTotal: 0, playable: false };
+const IDLE: StopState = {
+  script: "idle",
+  voice: "idle",
+  chunksReady: 0,
+  chunksTotal: 0,
+  playable: false,
+  error: null,
+};
 
 type Entry = {
   stop: Stop;
@@ -172,14 +188,24 @@ export class AudioLibrary {
             total: this.stops.length,
           }),
         });
-        if (!res.ok) throw new Error(`Could not write this stop (${res.status})`);
-        const body = (await res.json()) as { script?: string; walkingCueToHere?: string };
-        if (this.disposed || !body.script) throw new Error("empty script");
+        const body = (await res.json()) as {
+          script?: string;
+          walkingCueToHere?: string;
+          error?: string;
+        };
+        if (!res.ok || !body.script) {
+          throw new Error(body?.error ?? `Could not write this stop (${res.status})`);
+        }
+        if (this.disposed) return;
         e.script = body.script;
         e.cue = body.walkingCueToHere ?? e.cue;
         this.prepareChunks(e);
-      } catch {
-        e.state = { ...e.state, script: "failed" };
+      } catch (err) {
+        e.state = {
+          ...e.state,
+          script: "failed",
+          error: err instanceof Error ? err.message : "Could not write this stop.",
+        };
       } finally {
         this.scriptJobs.delete(stopId);
         this.emit();
@@ -209,22 +235,30 @@ export class AudioLibrary {
       const e = this.entries.get(stopId);
       if (!ok || !e || this.disposed) return;
 
+      e.state = { ...e.state, voice: "recording" };
+      this.emit();
+
       for (let i = 0; i < e.chunks.length; i++) {
         if (this.disposed) return;
         if (e.urls[i]) continue;
-        const url = await this.synthesise(e.chunks[i]);
+        const made = await this.synthesise(e.chunks[i]);
         if (this.disposed) return;
-        if (!url) {
+        if ("error" in made) {
           // One failed piece stops this stop rather than leaving a hole in the
           // middle of a sentence; the caller falls back to the device voice.
-          e.state = { ...e.state, script: "failed" };
+          e.state = { ...e.state, voice: "failed", error: made.error };
           this.emit();
           return;
         }
-        e.urls[i] = url;
-        e.state = { ...e.state, chunksReady: i + 1, playable: true };
+        e.urls[i] = made.url;
+        e.state = {
+          ...e.state,
+          chunksReady: i + 1,
+          playable: true,
+          voice: i === e.chunks.length - 1 ? "ready" : "recording",
+        };
         this.emit();
-        this.onChunk(stopId, i, url);
+        this.onChunk(stopId, i, made.url);
       }
     })().finally(() => {
       this.audioJobs.delete(stopId);
@@ -234,24 +268,36 @@ export class AudioLibrary {
     return job;
   }
 
-  private synthesise(text: string): Promise<string | null> {
+  private synthesise(text: string): Promise<{ url: string } | { error: string }> {
     // Chained onto the queue so requests are serialised, and the tail is
     // caught so one failure cannot poison every later piece.
-    const job = this.queue.then(async () => {
+    const job = this.queue.then(async (): Promise<{ url: string } | { error: string }> => {
       try {
         const res = await fetch("/api/audio", {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ text, lang: this.lang }),
         });
-        if (!res.ok) throw new Error(`Synthesis failed (${res.status})`);
+        if (!res.ok) {
+          // The route answers failures as JSON, and the provider puts the
+          // useful sentence in there — "daily speech quota is spent", not
+          // "502". Losing it is what made this unexplainable to a walker.
+          let message = `Could not record this stop (${res.status})`;
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (body?.error) message = body.error;
+          } catch {
+            /* not JSON — keep the status */
+          }
+          return { error: message };
+        }
         const blob = await res.blob();
-        return URL.createObjectURL(blob);
-      } catch {
-        return null;
+        return { url: URL.createObjectURL(blob) };
+      } catch (err) {
+        return { error: err instanceof Error ? err.message : "Could not reach the voice." };
       }
     });
-    this.queue = job.catch(() => null);
+    this.queue = job.catch(() => ({ error: "Could not reach the voice." }) as const);
     return job;
   }
 

@@ -13,8 +13,21 @@
 /** Roughly a spoken word per 0.41s, matching the prompt's 145 wpm. */
 export const WORDS_PER_SECOND = 145 / 60;
 
-const FIRST_CHUNK_WORDS = 55; // ~23 seconds: enough runway to make the second
-const LATER_CHUNK_WORDS = 170; // ~70 seconds
+/**
+ * How big each piece should be, in words.
+ *
+ * It ramps, and the ramp is the whole design. The first piece is the only one
+ * anybody waits for, so it is tiny; each one after that buys time to make the
+ * next, so they grow. Flat 170-word pieces meant six synthesis calls for one
+ * stop — six times what an unsplit script cost — which burns a free-tier quota
+ * in under two stops for no benefit past the first few seconds.
+ *
+ * ~23s, then ~58s, then ~2¼ minutes each.
+ */
+const CHUNK_WORDS = [55, 140, 330];
+
+const targetWords = (index: number) =>
+  CHUNK_WORDS[Math.min(index, CHUNK_WORDS.length - 1)];
 
 /**
  * Words whose full stop does not end a sentence.
@@ -93,8 +106,7 @@ export function chunkScript(text: string): string[] {
   for (const part of parts) {
     current.push(part);
     words += wordCount(part);
-    const target = chunks.length === 0 ? FIRST_CHUNK_WORDS : LATER_CHUNK_WORDS;
-    if (words >= target) {
+    if (words >= targetWords(chunks.length)) {
       chunks.push(current.join(" "));
       current = [];
       words = 0;
