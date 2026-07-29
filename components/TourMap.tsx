@@ -278,13 +278,13 @@ export default function TourMap({
 
         .stop-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px;
           background: #fff; color: #111827; border: 2px solid #1e7a52;
-          font-family: var(--font-space-grotesk), sans-serif; font-size: 15px; font-weight: 600;
+          font-family: var(--font-archivo), Arial, sans-serif; font-size: 15px; font-weight: 600;
           font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(17,24,39,.3); cursor: pointer; }
         .stop-pin--current { background: #111827; color: #5eda9b; border-color: #5eda9b;
           width: 36px; height: 36px; font-size: 17px; }
 
         .drop-pin { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px 999px 999px 4px;
-          transform: rotate(-45deg); font-family: var(--font-space-grotesk), sans-serif; font-weight: 700;
+          transform: rotate(-45deg); font-family: var(--font-archivo), Arial, sans-serif; font-weight: 700;
           box-shadow: 0 2px 8px rgba(17,24,39,.35); }
         .drop-pin::first-line { }
         .drop-pin--start { background: #5eda9b; color: #111827; }

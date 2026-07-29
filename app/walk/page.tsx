@@ -1,5 +1,8 @@
 /**
- * The first screen: the map, with the sheet resting at the bottom.
+ * The walk itself: the map, with the sheet resting at the bottom.
+ *
+ * Reached from the site's planner, which can arrive with a brief already
+ * written — see the handoff parameters read below.
  *
  * Server component so the map key never reaches the browser except in the
  * style URL, which needs it. Everything after this is one client flow.
@@ -12,7 +15,7 @@ import { DEFAULT_CENTER } from "@/lib/config";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home({
+export default async function Walk({
   searchParams,
 }: {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -45,7 +48,28 @@ export default async function Home({
     );
   }
 
+  // A planner day arrives as a written brief plus where to start, so the
+  // walker is not asked the same questions twice.
+  const one = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+  const lat = Number(one(params.lat));
+  const lng = Number(one(params.lng));
+  const minutes = Number(one(params.minutes));
+
+  const handoff = {
+    brief: one(params.brief) ?? null,
+    label: one(params.label) ?? null,
+    interests: (one(params.interests) ?? "").split(",").filter(Boolean),
+    minutes: Number.isFinite(minutes) && minutes > 0 ? minutes : null,
+    start: Number.isFinite(lat) && Number.isFinite(lng) ? { lat, lng } : null,
+    autostart: "autostart" in params,
+  };
+
   return (
-    <TourFlow styleUrl={styleUrl} center={DEFAULT_CENTER} initialSimulate={"sim" in params} />
+    <TourFlow
+      styleUrl={styleUrl}
+      center={handoff.start ?? DEFAULT_CENTER}
+      initialSimulate={"sim" in params}
+      handoff={handoff}
+    />
   );
 }

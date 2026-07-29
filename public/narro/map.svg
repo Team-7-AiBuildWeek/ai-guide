@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 1400" preserveAspectRatio="xMidYMid slice">
+  <!-- Stylized city map for the phone mockup — brand palette, no external tiles. -->
+  <rect width="700" height="1400" fill="#f4f6fa"/>
+
+  <!-- river -->
+  <path d="M-40 1020 C 160 940, 240 1130, 430 1060 S 720 1010, 760 1080 L 760 1400 L -40 1400 Z" fill="#dbe4f3"/>
+  <path d="M-40 1050 C 160 970, 245 1155, 435 1085 S 715 1040, 760 1110" fill="none" stroke="#cfdaf0" stroke-width="10"/>
+
+  <!-- park -->
+  <rect x="430" y="180" width="230" height="260" rx="26" fill="#e3ecdf"/>
+  <circle cx="505" cy="265" r="26" fill="#d5e3cf"/>
+  <circle cx="580" cy="330" r="34" fill="#d5e3cf"/>
+  <circle cx="510" cy="375" r="20" fill="#d5e3cf"/>
+
+  <!-- city blocks -->
+  <g fill="#e8ebf3">
+    <rect x="40" y="60" width="150" height="120" rx="16"/>
+    <rect x="230" y="60" width="160" height="120" rx="16"/>
+    <rect x="40" y="220" width="150" height="180" rx="16"/>
+    <rect x="230" y="220" width="160" height="180" rx="16"/>
+    <rect x="40" y="440" width="150" height="140" rx="16"/>
+    <rect x="230" y="440" width="160" height="140" rx="16"/>
+    <rect x="430" y="480" width="110" height="100" rx="16"/>
+    <rect x="570" y="480" width="90" height="100" rx="16"/>
+    <rect x="40" y="620" width="150" height="150" rx="16"/>
+    <rect x="230" y="620" width="160" height="150" rx="16"/>
+    <rect x="430" y="620" width="230" height="150" rx="16"/>
+    <rect x="40" y="810" width="150" height="150" rx="16"/>
+    <rect x="230" y="810" width="160" height="150" rx="16"/>
+    <rect x="430" y="810" width="230" height="120" rx="16"/>
+    <rect x="60" y="1120" width="180" height="130" rx="16"/>
+    <rect x="300" y="1160" width="170" height="120" rx="16"/>
+    <rect x="520" y="1180" width="140" height="110" rx="16"/>
+  </g>
+
+  <!-- landmark squares -->
+  <rect x="266" y="256" width="88" height="88" rx="12" fill="#dde2ee"/>
+  <rect x="470" y="646" width="150" height="98" rx="12" fill="#dde2ee"/>
+
+  <!-- walked route -->
+  <path id="walk" d="M115 1330 C 100 1180, 130 1080, 210 1010 S 330 900, 310 800 C 295 720, 190 690, 185 590 C 180 490, 260 470, 300 400 C 340 330, 300 300, 310 250"
+        fill="none" stroke="#3f5fbe" stroke-width="7" stroke-linecap="round" stroke-dasharray="1 18"/>
+
+  <!-- visited stop -->
+  <circle cx="210" cy="1010" r="13" fill="#ffffff"/>
+  <circle cx="210" cy="1010" r="8" fill="#3f5fbe"/>
+  <!-- current position -->
+  <circle cx="310" cy="800" r="26" fill="#3f5fbe" opacity="0.18"/>
+  <circle cx="310" cy="800" r="14" fill="#ffffff"/>
+  <circle cx="310" cy="800" r="9" fill="#3f5fbe"/>
+  <!-- destination pin -->
+  <path d="M310 214 c -20 0 -34 15 -34 34 c 0 25 34 54 34 54 s 34 -29 34 -54 c 0 -19 -14 -34 -34 -34 Z" fill="#1e2340"/>
+  <circle cx="310" cy="247" r="12" fill="#ffffff"/>
+</svg>

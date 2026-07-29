@@ -1,28 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Inter, Space_Grotesk } from "next/font/google";
+import { Archivo } from "next/font/google";
 import "./globals.css";
 
-/** The pairing from smaut.tech: Space Grotesk for display, Inter for reading. */
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-space-grotesk",
-  subsets: ["latin", "latin-ext"], // latin-ext carries ľ š č ť ž ý á í é
-  weight: ["500", "600", "700"],
-  display: "swap",
-});
-
-const inter = Inter({
-  variable: "--font-inter",
+/** Narro's typeface, display and text alike — one family, two weights apart.
+ *  latin-ext carries ľ š č ť ž ý á í é. */
+const archivo = Archivo({
+  variable: "--font-archivo",
   subsets: ["latin", "latin-ext"],
+  weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Walk Bratislava old town",
-  description: "A free 45-minute audio walking tour of Bratislava's old town.",
+  title: "Narro — the city tells its own story, out loud",
+  description:
+    "An AI guide that narrates the street you're standing on, in real time, in your ear.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Walk Bratislava",
+    title: "Narro",
     statusBarStyle: "default",
   },
   icons: {
@@ -32,7 +29,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#f9fafb",
+  themeColor: "#ffffff",
   width: "device-width",
   initialScale: 1,
   // Zoom stays unlocked on purpose — a 55-year-old may want to pinch.
@@ -47,7 +44,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${inter.variable} h-full antialiased`}
+      className={`${archivo.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

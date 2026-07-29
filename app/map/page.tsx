@@ -33,7 +33,7 @@ export default async function MapPage({
         <p className="rounded-[var(--radius-control)] bg-[#fef2f2] p-3 text-[color:var(--danger)]">
           {error}
         </p>
-        <Link href="/" className="btn btn--quiet">Back</Link>
+        <Link href="/walk" className="btn btn--quiet">Back</Link>
       </main>
     );
   }
@@ -43,7 +43,7 @@ export default async function MapPage({
       <MapDiagnostic styleUrl={styleUrl} center={DEFAULT_CENTER} initialSimulate={"sim" in params} />
       <div className="pointer-events-none absolute inset-x-0 top-0 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <div className="pointer-events-auto mx-auto flex w-full max-w-md items-center gap-3">
-          <Link href="/" className="btn btn--quiet shrink-0" aria-label="Back">←</Link>
+          <Link href="/walk" className="btn btn--quiet shrink-0" aria-label="Back">←</Link>
           <span className="tag tag--quiet">tiles · {config.mapProvider}</span>
         </div>
       </div>

@@ -19,27 +19,27 @@
 
 :root {
   /* --- ink ------------------------------------------------------------- */
-  --ink: #111827; /* headings */
-  --ink-soft: #374151; /* body copy */
-  --ink-mute: #6b7280; /* captions, secondary */
+  --ink: #1e2340; /* headings */
+  --ink-soft: #3b4260; /* body copy */
+  --ink-mute: #6b7086; /* captions, secondary */
 
   /* --- surfaces -------------------------------------------------------- */
-  --canvas: #f9fafb; /* page */
+  --canvas: #ffffff; /* page */
   --surface: #ffffff; /* cards */
-  --line: #e5e7eb; /* hairlines */
-  --line-strong: #d1d5db;
+  --line: #e4e7f0; /* hairlines */
+  --line-strong: #cbd1e2;
 
   /* --- dark (player chrome, map overlays) ------------------------------ */
-  --dark: #1f1f1f;
-  --dark-soft: #2a2e2c;
+  --dark: #1e2340;
+  --dark-soft: #2b3157;
   --on-dark: #f9fafb;
   --on-dark-mute: #9ca3af;
 
   /* --- the signature --------------------------------------------------- */
-  --mint: #5eda9b; /* fill only */
-  --mint-press: #4bc98a;
-  --mint-wash: #eafaf2; /* tinted panel */
-  --mint-ink: #1e7a52; /* the green when it must be text: 5.3:1 on white */
+  --mint: #3f5fbe; /* Narro cobalt — a fill that also carries white text */
+  --mint-press: #34519f;
+  --mint-wash: #eef2fc; /* tinted panel */
+  --mint-ink: #2f4a9c; /* the cobalt when it must be text: 6.6:1 on white */
 
   --danger: #b91c1c;
 
@@ -54,9 +54,9 @@
   --text-h1: clamp(2.1rem, 8vw, 3.05rem);
 
   /* --- shape ----------------------------------------------------------- */
-  --radius-control: 4px; /* buttons, inputs — tight, as on the source */
-  --radius-card: 14px;
-  --radius-panel: 20px;
+  --radius-control: 999px; /* pill buttons, as on the Narro site */
+  --radius-card: 18px;
+  --radius-panel: 24px;
 
   /* --- rhythm ---------------------------------------------------------- */
   --gap: 1rem;
@@ -81,8 +81,8 @@
   --color-mint: var(--mint);
   --color-mint-wash: var(--mint-wash);
   --color-mint-ink: var(--mint-ink);
-  --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-archivo), Arial, sans-serif;
+  --font-sans: var(--font-archivo), Arial, sans-serif;
 }
 
 /* ---------------------------------------------------------------- base --- */
@@ -95,7 +95,7 @@ html {
 body {
   background: var(--canvas);
   color: var(--ink-soft);
-  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-body);
   line-height: 1.6;
   overscroll-behavior-y: none; /* no rubber-band fighting the player */
@@ -105,7 +105,7 @@ h1,
 h2,
 h3,
 h4 {
-  font-family: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   color: var(--ink);
   font-weight: 600;
   line-height: 1.1;
@@ -150,7 +150,7 @@ pre {
 /* ---------------------------------------------------------- primitives --- */
 
 .u-eyebrow {
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-caption);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -172,7 +172,7 @@ pre {
   padding: 0.889rem 1.333rem;
   border: 1px solid transparent;
   border-radius: var(--radius-control);
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-body);
   font-weight: 500;
   line-height: 1;
@@ -187,11 +187,12 @@ pre {
   transform: translateY(1px);
 }
 
-/* Primary inverts the source: mint fill, ink text. 10:1, and it is the one
-   thing on screen that stays findable with the sun behind you. */
+/* Narro's cobalt fill with white text — 7.4:1, and the one thing on screen
+   that stays findable with the sun behind you. */
 .btn--primary {
   background: var(--mint);
-  color: var(--ink);
+  color: #fff;
+  font-weight: 600;
 }
 .btn--primary:hover {
   background: var(--mint-press);
@@ -260,7 +261,7 @@ pre {
   border-radius: 999px;
   background: var(--mint);
   color: var(--ink);
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-caption);
   font-weight: 600;
   white-space: nowrap;
@@ -318,7 +319,7 @@ pre {
   border-radius: 999px;
   background: var(--mint);
   color: var(--ink);
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-caption);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
@@ -336,7 +337,7 @@ pre {
 }
 
 .spine__title {
-  font-family: var(--font-space-grotesk), sans-serif;
+  font-family: var(--font-archivo), Arial, sans-serif;
   font-size: var(--text-lead);
   font-weight: 600;
   color: var(--ink);

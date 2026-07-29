@@ -31,18 +31,53 @@ import {
   type Stage,
   type StoredTour,
 } from "@/lib/tour/flow";
-import type { TourRequest } from "@/lib/providers/types";
+import type { Duration, Interest, TourRequest } from "@/lib/providers/types";
 
 const SHEET_INSET = 190;
+
+/** The handoff carries free numbers and strings; the flow needs its own
+ *  unions, so both are narrowed here rather than trusted. */
+const DURATION_CHOICES: Duration[] = [30, 45, 60, 90];
+
+function nearestDuration(minutes: number | null): Duration {
+  if (!minutes) return EMPTY_DRAFT.durationMinutes;
+  return DURATION_CHOICES.reduce((best, d) =>
+    Math.abs(d - minutes) < Math.abs(best - minutes) ? d : best,
+  );
+}
+
+const KNOWN_INTERESTS: Interest[] = ["history", "architecture", "food", "art", "hidden"];
+
+function keepKnownInterests(values: string[]): Interest[] {
+  const kept = values.filter((v): v is Interest =>
+    (KNOWN_INTERESTS as string[]).includes(v),
+  );
+  return kept.length ? kept : EMPTY_DRAFT.interests;
+}
+
+
+
+/** What the planner can hand over in the URL, so the walk starts already
+ *  knowing what this day is meant to be about. */
+export type Handoff = {
+  brief: string | null;
+  label: string | null;
+  interests: string[];
+  minutes: number | null;
+  start: { lat: number; lng: number } | null;
+  autostart: boolean;
+};
 
 export default function TourFlow({
   styleUrl,
   center,
   initialSimulate,
+  handoff,
 }: {
   styleUrl: string;
   center: { lat: number; lng: number };
   initialSimulate: boolean;
+  handoff?: Handoff;
 }) {
   const [stage, setStage] = useState<Stage>("start");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -55,15 +90,37 @@ export default function TourFlow({
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  const autostartRef = useRef(false);
 
   const { fix, status, simulating, toggleSimulation } = useLiveLocation(initialSimulate);
 
-  // Restore whatever the last session left behind.
+  // Restore whatever the last session left behind — unless the planner sent
+  // us here with a brief, which is a fresh intent and wins over the old one.
   useEffect(() => {
     // localStorage is unreadable during SSR, so this cannot be a lazy initial
     // state without a hydration mismatch. Deferred a tick so it never writes
     // state during the mount commit.
     queueMicrotask(() => {
+      if (handoff?.brief) {
+        const next: Draft = {
+          ...EMPTY_DRAFT,
+          freeText: handoff.brief,
+          useSimpleSettings: false,
+          durationMinutes: nearestDuration(handoff.minutes),
+          interests: keepKnownInterests(handoff.interests),
+          start: handoff.start
+            ? { ...handoff.start, label: handoff.label ?? undefined }
+            : null,
+        };
+        setDraft(next);
+        saveDraft(next);
+        // With a starting point we can go straight to generating; without one
+        // the walker still has to say where they are.
+        if (handoff.autostart && next.start) autostartRef.current = true;
+        setStage(next.start ? "brief" : "points");
+        return;
+      }
+
       const d = loadDraft();
       if (d) setDraft(d);
       const t = loadTour();
@@ -72,7 +129,7 @@ export default function TourFlow({
         setStage("tour");
       }
     });
-  }, []);
+  }, [handoff]);
 
   const patchDraft = useCallback((patch: Partial<Draft>) => {
     setDraft((d) => {
@@ -153,6 +210,15 @@ export default function TourFlow({
       setGenError(err instanceof Error ? err.message : "Could not build the tour.");
     }
   }, [draft]);
+
+  // The draft is set a tick after mount, so generation waits for it rather
+  // than reading a stale closure.
+  useEffect(() => {
+    if (!autostartRef.current) return;
+    if (!draft.start || !draft.freeText) return;
+    autostartRef.current = false;
+    void generate();
+  }, [draft, generate]);
 
   // ------------------------------------------------------------ tour data --
   const stops = useMemo(
