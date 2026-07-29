@@ -45,5 +45,6 @@ export function straightLineRoute(points: LatLng[]): WalkingRoute {
     },
   };
   // 4.5 km/h is an unhurried walking pace for someone stopping to look.
-  return { geojson, meters, seconds: Math.round((meters / 4500) * 3600) };
+  // A straight line has no turns to describe.
+  return { geojson, meters, seconds: Math.round((meters / 4500) * 3600), maneuvers: [] };
 }

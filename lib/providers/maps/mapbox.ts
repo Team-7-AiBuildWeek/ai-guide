@@ -61,6 +61,8 @@ export class MapboxMapProvider implements MapProvider {
       geojson: { type: "Feature", properties: {}, geometry: route.geometry as object },
       meters: route.distance,
       seconds: route.duration,
+      // Mapbox returns steps too; not parsed yet, so no arrows from this one.
+      maneuvers: [],
     };
   }
 

@@ -12,7 +12,14 @@
  */
 
 import { config, requireKey, DEFAULT_CENTER } from "@/lib/config";
-import { ProviderError, type LatLng, type Place, type WalkingRoute } from "@/lib/providers/types";
+import {
+  ProviderError,
+  type LatLng,
+  type Maneuver,
+  type ManeuverKind,
+  type Place,
+  type WalkingRoute,
+} from "@/lib/providers/types";
 import type { MapProvider } from "./index";
 
 type GeocodeFeature = {
@@ -29,12 +36,44 @@ type GeocodeFeature = {
 
 type GeocodeResponse = { features?: GeocodeFeature[] };
 
+type ValhallaManeuver = {
+  type: number;
+  instruction?: string;
+  street_names?: string[];
+  length?: number;
+  begin_shape_index?: number;
+};
+
 type RouteResponse = {
   trip?: {
-    legs?: Array<{ shape: string; summary?: { time: number; length: number } }>;
+    legs?: Array<{
+      shape: string;
+      maneuvers?: ValhallaManeuver[];
+      summary?: { time: number; length: number };
+    }>;
     summary?: { time: number; length: number };
   };
 };
+
+/**
+ * Valhalla's 39 maneuver codes, reduced to the four an arrow can express.
+ *
+ * Ramps, merges and roundabout entries all read as "keep going" to someone on
+ * foot in an old town, so they collapse into straight rather than inventing a
+ * distinction the walker cannot act on.
+ */
+const KIND_BY_CODE: Record<number, ManeuverKind> = {
+  4: "arrive", 5: "arrive", 6: "arrive",
+  2: "right", 5.1: "right", 9: "right", 10: "right", 11: "right",
+  18: "right", 20: "right", 23: "right", 37: "right",
+  3: "left", 14: "left", 15: "left", 16: "left",
+  19: "left", 21: "left", 24: "left", 38: "left",
+  12: "uturn", 13: "uturn",
+};
+
+function maneuverKind(code: number): ManeuverKind {
+  return KIND_BY_CODE[code] ?? "straight";
+}
 
 /**
  * Decode a Google-style encoded polyline.
@@ -173,6 +212,26 @@ export class StadiaMapProvider implements MapProvider {
       return i === 0 ? decoded : decoded.slice(1);
     });
 
+    // Maneuvers are per leg and their shape indices are leg-local, so they need
+    // shifting onto the stitched line — and each leg after the first lost its
+    // duplicated opening point above.
+    const maneuvers: Maneuver[] = [];
+    let offset = 0;
+    legs.forEach((leg, i) => {
+      const legPoints = decodePolyline(leg.shape).length;
+      for (const m of leg.maneuvers ?? []) {
+        maneuvers.push({
+          kind: maneuverKind(m.type),
+          // Valhalla reports length in the request's units — kilometres here.
+          meters: Math.round((m.length ?? 0) * 1000),
+          instruction: m.instruction ?? "",
+          street: m.street_names?.[0],
+          beginShapeIndex: offset + (m.begin_shape_index ?? 0),
+        });
+      }
+      offset += i === 0 ? legPoints : legPoints - 1;
+    });
+
     const summary =
       body.trip?.summary ??
       legs.reduce(
@@ -191,6 +250,7 @@ export class StadiaMapProvider implements MapProvider {
       },
       meters: summary.length * 1000, // `units: kilometers` above
       seconds: summary.time,
+      maneuvers,
     };
   }
 

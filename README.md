@@ -29,6 +29,21 @@ coronation regalia, or roasted oxen and free wine, or sandstone and mason
 marks. `answerQuestion` is a first-class method on `LLMProvider`, not a tour
 request in disguise.
 
+**The turn card, top right.** An arrow — straight, left, right, turn back, or
+a pin for arrival — and the distance to it, with the street name underneath.
+Nothing else: a walker glancing at it is already moving.
+
+The turns are real. Valhalla returns 39 maneuver codes per leg; the Stadia
+provider now keeps them instead of discarding them, collapses them to the four
+an arrow can express (ramps, merges and roundabouts all read as "keep going" on
+foot), and shifts each leg's shape indices onto the stitched route line.
+`lib/tour/navigation.ts` finds the walker's nearest point on that line and
+measures forward **along the route** to the next maneuver, not straight through
+the buildings between.
+
+Tapping the card opens the written cue. Providers that do not return maneuvers
+fall back to the signpost button, so nothing breaks on the mock.
+
 **Stops trigger on approach.** Within 35 m of a stop the tour moves to it and
 plays. Each stop fires once, and everything before it is marked seen, so GPS
 jitter cannot re-trigger and stepping back toward the previous stop does not

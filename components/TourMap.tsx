@@ -69,6 +69,7 @@ export default function TourMap({
   bottomInset = 0,
   follow = true,
   fitTo = null,
+  showZoom = true,
 }: {
   styleUrl: string;
   center: { lat: number; lng: number };
@@ -85,6 +86,8 @@ export default function TourMap({
   follow?: boolean;
   /** Bump this to refit the camera to the whole route. */
   fitTo?: string | null;
+  /** The tour puts its turn card top-right, where these buttons live. */
+  showZoom?: boolean;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapLibreMap | null>(null);
@@ -117,7 +120,7 @@ export default function TourMap({
       attributionControl: { compact: true },
     });
     mapRef.current = map;
-    map.addControl(new NavigationControl({ showCompass: false }), "top-right");
+    if (showZoom) map.addControl(new NavigationControl({ showCompass: false }), "top-right");
     map.addControl(new ScaleControl({ maxWidth: 110, unit: "metric" }), "bottom-left");
 
     map.on("load", () => {
@@ -171,7 +174,7 @@ export default function TourMap({
       pinMarkers.current = [];
       styleReady.current = false;
     };
-  }, [styleUrl, center.lat, center.lng]);
+  }, [styleUrl, center.lat, center.lng, showZoom]);
 
   // Picking mode gets a crosshair so it is obvious the map is now an input.
   useEffect(() => {

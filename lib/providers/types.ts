@@ -105,10 +105,26 @@ export type Voice = {
 /** Deliberately loose: we hand this straight to MapLibre. */
 export type GeoJSON = Record<string, unknown>;
 
+/** What the walker has to do next, reduced to the four things an arrow can say. */
+export type ManeuverKind = "straight" | "left" | "right" | "uturn" | "arrive";
+
+export type Maneuver = {
+  kind: ManeuverKind;
+  /** Metres of walking this maneuver covers. */
+  meters: number;
+  /** The router's own words, for the expanded panel. */
+  instruction: string;
+  street?: string;
+  /** Where this maneuver starts, as an index into the route LineString. */
+  beginShapeIndex: number;
+};
+
 export type WalkingRoute = {
   geojson: GeoJSON;
   meters: number;
   seconds: number;
+  /** Empty when the provider cannot route — the UI falls back to the cue text. */
+  maneuvers: Maneuver[];
 };
 
 // ------------------------------------------------------------------ errors

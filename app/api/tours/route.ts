@@ -49,17 +49,19 @@ export async function POST(request: Request) {
         let route: GeoJSON.Feature | null = null;
         let meters = 0;
         let seconds = 0;
+        let maneuvers: unknown[] = [];
         try {
           const r = await maps.walkingRoute(points);
           route = r.geojson as unknown as GeoJSON.Feature;
           meters = r.meters;
           seconds = r.seconds;
+          maneuvers = r.maneuvers;
         } catch {
           // A missing line is a worse tour, not a failed one. Carry on.
           send({ phase: "route", message: "Routing unavailable — showing stops only" });
         }
 
-        send({ phase: "done", data: { plan, route, meters, seconds } });
+        send({ phase: "done", data: { plan, route, meters, seconds, maneuvers } });
       } catch (err) {
         send({
           phase: "error",

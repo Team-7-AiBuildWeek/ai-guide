@@ -18,6 +18,8 @@ import PointsStep from "./flow/PointsStep";
 import GeneratingStep from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
+import TurnCard from "./flow/TurnCard";
+import { nextTurn } from "@/lib/tour/navigation";
 import Player from "./flow/Player";
 import { useTourAudio } from "@/lib/audio/useTourAudio";
 import { audioEngine, clearPlayback, type Depth } from "@/lib/audio/engine";
@@ -171,6 +173,12 @@ export default function TourFlow({
     if (stage !== "tour" && draft.end) out.push({ kind: "end", ...draft.end });
     return out;
   }, [stage, draft.start, draft.end]);
+
+  /** Recomputed on every fix — this is the arrow in the corner. */
+  const turn = useMemo(
+    () => nextTurn(tour?.route ?? null, tour?.maneuvers, fix),
+    [tour?.route, tour?.maneuvers, fix],
+  );
 
   const currentStop = tour?.plan.stops[currentIndex] ?? null;
   const distanceToStop =
@@ -349,6 +357,7 @@ export default function TourFlow({
         bottomInset={sheetFull ? 0 : SHEET_INSET}
         follow={stage !== "tour"}
         fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
+        showZoom={stage !== "tour"}
       />
 
       {/* Directions live behind a small icon, top right, out of the way. */}
@@ -367,29 +376,43 @@ export default function TourFlow({
               >
                 ←
               </button>
-              <button
-                type="button"
-                onClick={() => setDirectionsOpen((o) => !o)}
-                className="btn btn--dark px-4"
-                aria-label="Walking directions"
-                aria-expanded={directionsOpen}
-              >
-                {/* A signpost arrow, not a hamburger. */}
-                <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
-                  <path
-                    d="M12 21V10M12 4v2M4 7h11l3 3-3 3H4z"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                </svg>
-              </button>
+              {/* With a routed tour this is the arrow and the distance to it.
+                  Without maneuvers — mock provider, or routing that failed —
+                  it falls back to the signpost that opens the written cue. */}
+              {turn ? (
+                <TurnCard
+                  kind={turn.maneuver.kind}
+                  meters={turn.meters}
+                  street={turn.maneuver.street}
+                  open={directionsOpen}
+                  onOpen={() => setDirectionsOpen((o) => !o)}
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setDirectionsOpen((o) => !o)}
+                  className="btn btn--dark px-4"
+                  aria-label="Walking directions"
+                  aria-expanded={directionsOpen}
+                >
+                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+                    <path
+                      d="M12 21V10M12 4v2M4 7h11l3 3-3 3H4z"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </button>
+              )}
             </div>
           </div>
           <DirectionsPanel
             stop={currentStop}
             distanceMeters={distanceToStop}
+            turnInstruction={turn?.maneuver.instruction}
+            turnMeters={turn?.meters}
             open={directionsOpen}
             onClose={() => setDirectionsOpen(false)}
             onSpeak={speak}
@@ -401,7 +424,7 @@ export default function TourFlow({
           the walker is right most of the time and infuriating the rest, so it
           has to be visible and it has to be defeatable. */}
       {stage === "tour" && !askOpen ? (
-        <div className="pointer-events-none absolute inset-x-0 top-20 z-20 px-4">
+        <div className="pointer-events-none absolute inset-x-0 top-36 z-20 px-4">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
             {justArrived ? (
               <div className="panel-dark w-full px-4 py-3">

@@ -7,7 +7,7 @@
  * are the screens in order, so `stage` alone says what the user is looking at.
  */
 
-import type { Detail, Duration, Interest, Pace, TourPlan } from "@/lib/providers/types";
+import type { Detail, Duration, Interest, Maneuver, Pace, TourPlan } from "@/lib/providers/types";
 
 export type Stage =
   | "start" // map, collapsed sheet: Build my tour
@@ -100,7 +100,14 @@ export function saveDraft(d: Draft) {
   }
 }
 
-export type StoredTour = { plan: TourPlan; route: GeoJSON.Feature | null; meters: number; seconds: number };
+export type StoredTour = {
+  plan: TourPlan;
+  route: GeoJSON.Feature | null;
+  meters: number;
+  seconds: number;
+  /** Empty when the provider could not route — the UI shows the cue instead. */
+  maneuvers?: Maneuver[];
+};
 
 export function loadTour(): StoredTour | null {
   try {

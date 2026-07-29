@@ -92,6 +92,8 @@ export class OSMMapProvider implements MapProvider {
       geojson: { type: "Feature", properties: {}, geometry: feature.geometry as object },
       meters: feature.properties.summary?.distance ?? 0,
       seconds: feature.properties.summary?.duration ?? 0,
+      // OpenRouteService returns segments/steps; not parsed yet.
+      maneuvers: [],
     };
   }
 

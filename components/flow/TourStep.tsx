@@ -16,12 +16,17 @@ type QA = { question: string; answer: string | null; failed?: boolean };
 export function DirectionsPanel({
   stop,
   distanceMeters,
+  turnInstruction,
+  turnMeters,
   open,
   onClose,
   onSpeak,
 }: {
   stop: Stop | null;
   distanceMeters: number | null;
+  /** The router's own words for the next turn, when the route provided them. */
+  turnInstruction?: string;
+  turnMeters?: number;
   open: boolean;
   onClose: () => void;
   onSpeak: (text: string) => void;
@@ -48,14 +53,27 @@ export function DirectionsPanel({
           </button>
         </div>
 
+        {/* The turn first — it is the thing that expires. The guide's cue is
+            the context, and it stays true for the whole leg. */}
+        {turnInstruction ? (
+          <p className="mt-4 text-[length:var(--text-lead)] font-semibold leading-relaxed">
+            {turnInstruction}
+            {typeof turnMeters === "number" && turnMeters >= 10 ? (
+              <span className="text-[color:var(--mint)]"> · {Math.round(turnMeters)} m</span>
+            ) : null}
+          </p>
+        ) : null}
+
         {/* Large, because this is read while walking. */}
-        <p className="mt-4 text-[length:var(--text-lead)] leading-relaxed">
+        <p
+          className={`text-[length:var(--text-lead)] leading-relaxed ${turnInstruction ? "mt-3 text-[color:var(--on-dark-mute)]" : "mt-4"}`}
+        >
           {stop.walkingCueToHere}
         </p>
 
         <button
           type="button"
-          onClick={() => onSpeak(stop.walkingCueToHere)}
+          onClick={() => onSpeak(turnInstruction ? `${turnInstruction}. ${stop.walkingCueToHere}` : stop.walkingCueToHere)}
           className="btn btn--primary mt-5 w-full"
         >
           Repeat directions
