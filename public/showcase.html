@@ -1,0 +1,129 @@
+<!doctype html>
+<html lang="sk">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Narro — ukážky zlúčenej verzie</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap" rel="stylesheet" />
+<style>
+  :root { --ink:#1e2340; --muted:#6b7086; --accent:#3f5fbe; --line:#e4e7f0; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #fff; color: var(--ink);
+    font-family: "Archivo", Arial, sans-serif; line-height: 1.6;
+  }
+  header { padding: 46px 28px 10px; text-align: center; }
+  h1 { margin: 0 0 8px; font-size: clamp(30px, 4.5vw, 46px); letter-spacing: -0.03em; }
+  h1 em { font-style: italic; }
+  header p { margin: 0 auto; max-width: 620px; color: var(--muted); }
+  .grid {
+    display: grid; gap: 26px; padding: 30px 28px 70px;
+    grid-template-columns: repeat(auto-fit, minmax(330px, 1fr));
+    max-width: 1500px; margin-inline: auto;
+  }
+  figure {
+    margin: 0; border: 1px solid var(--line); border-radius: 20px; overflow: hidden;
+    background: #fff; box-shadow: 0 24px 48px -34px rgba(30,35,64,.55);
+    display: flex; flex-direction: column;
+  }
+  figcaption { padding: 16px 20px; border-bottom: 1px solid var(--line); }
+  figcaption strong { display: block; font-size: 15.5px; letter-spacing: -0.01em; }
+  figcaption span { font-size: 13px; color: var(--muted); }
+  .frame { position: relative; height: 620px; background: #fafbfe; }
+  iframe { width: 100%; height: 100%; border: 0; display: block; }
+  .foot { display: flex; gap: 10px; padding: 12px 20px; border-top: 1px solid var(--line); }
+  .foot a {
+    font-size: 13px; font-weight: 600; text-decoration: none; color: var(--accent);
+  }
+  .foot a:hover { text-decoration: underline; }
+  .note {
+    max-width: 760px; margin: 0 auto 30px; padding: 16px 20px;
+    border: 1px solid var(--line); border-radius: 16px; background: #f7f9fe;
+    color: var(--muted); font-size: 14px;
+  }
+  .note b { color: var(--ink); }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Narro — <em>zlúčená verzia</em></h1>
+    <p>Landing page, katalóg miest, plánovač aj prehrávač s mapou v jednom produkte.
+       Rámy nižšie sú živé — dá sa v nich klikať.</p>
+  </header>
+
+  <div class="note">
+    <b>Ako to čítať:</b> plánovač aj prehrávač sú interaktívne. V plánovači preklikajte
+    otázky a na konci pri každom dni uvidíte tlačidlo <b>Start</b>, ktoré otvorí prehrávač
+    s hotovým zadaním. V prehrávači beží mapa; generovanie prehliadky teraz používa
+    testovacieho providera, takže odpovedá vždy Bratislavou — s reálnym API kľúčom
+    bude generovať pre zvolené mesto.
+  </div>
+
+  <div class="grid">
+    <figure>
+      <figcaption>
+        <strong>Landing page</strong>
+        <span>Kartičky na elipse, biele pozadie, kobaltové akcenty</span>
+      </figcaption>
+      <div class="frame"><iframe src="/" title="Landing page" loading="lazy"></iframe></div>
+      <div class="foot"><a href="/" target="_blank">Otvoriť na celú obrazovku ↗</a></div>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <strong>Katalóg miest</strong>
+        <span>12 miest s vyhľadávaním, fotky skutočných pamiatok</span>
+      </figcaption>
+      <div class="frame"><iframe src="/cities" title="Katalóg miest" loading="lazy"></iframe></div>
+      <div class="foot"><a href="/cities" target="_blank">Otvoriť na celú obrazovku ↗</a></div>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <strong>Detail mesta</strong>
+        <span>Tailor-made panel navrchu, jednotlivé trasy až pod ním</span>
+      </figcaption>
+      <div class="frame"><iframe src="/cities/prague" title="Detail mesta" loading="lazy"></iframe></div>
+      <div class="foot"><a href="/cities/prague" target="_blank">Otvoriť na celú obrazovku ↗</a></div>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <strong>Plánovač</strong>
+        <span>Päť otázok → itinerár po dňoch, počasie a pamiatky naživo</span>
+      </figcaption>
+      <div class="frame"><iframe src="/plan?city=prague" title="Plánovač" loading="lazy"></iframe></div>
+      <div class="foot">
+        <a href="/plan?city=prague" target="_blank">Otvoriť na celú obrazovku ↗</a>
+        <a href="/plan" target="_blank">Bez predvoleného mesta ↗</a>
+      </div>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <strong>Prehrávač s mapou</strong>
+        <span>Kolegova appka — už v Narro dizajne a fontoch</span>
+      </figcaption>
+      <div class="frame"><iframe src="/walk" title="Prehrávač" loading="lazy"></iframe></div>
+      <div class="foot"><a href="/walk" target="_blank">Otvoriť na celú obrazovku ↗</a></div>
+    </figure>
+
+    <figure>
+      <figcaption>
+        <strong>Odovzdanie z plánovača</strong>
+        <span>Takto príde deň z itinerára do prehrávača — zadanie je už vyplnené</span>
+      </figcaption>
+      <div class="frame">
+        <iframe
+          src="/walk?brief=Prague%20astronomical%20clock%20%E2%80%94%20narrated%20visit.%20In%20Prague.&minutes=60&interests=history,art&lat=50.08804&lng=14.42076&label=Prague"
+          title="Odovzdanie" loading="lazy"></iframe>
+      </div>
+      <div class="foot">
+        <a href="/walk?brief=Prague%20astronomical%20clock%20%E2%80%94%20narrated%20visit.%20In%20Prague.&minutes=60&interests=history,art&lat=50.08804&lng=14.42076&label=Prague&autostart=1" target="_blank">
+          Spustiť aj generovanie ↗
+        </a>
+      </div>
+    </figure>
+  </div>
+</body>
+</html>

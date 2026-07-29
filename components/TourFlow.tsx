@@ -10,6 +10,7 @@
  * a page transition — and it means the tiles are paid for once.
  */
 
+import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet from "./BottomSheet";
@@ -402,7 +403,9 @@ export default function TourFlow({
               />
             ) : (
               <>
-                <h1 className="text-[length:var(--text-h3)]">Walk Bratislava old town</h1>
+                <h1 className="text-[length:var(--text-h3)]">
+                  {handoff?.label ? `Walk ${handoff.label}` : "Walk Bratislava old town"}
+                </h1>
                 <p className="mt-2 text-[color:var(--ink-soft)]">
                   A guide in your ear, built around what you actually want to see.
                 </p>
@@ -413,6 +416,14 @@ export default function TourFlow({
                 >
                   Build my tour
                 </button>
+                <p className="mt-3 text-center">
+                  <Link
+                    href="/plan"
+                    className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)] underline"
+                  >
+                    Or plan a whole trip first
+                  </Link>
+                </p>
               </>
             )
           }

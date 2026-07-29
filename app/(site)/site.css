@@ -842,7 +842,18 @@ a { color: inherit; text-decoration: none; }
 
 @media (max-width: 900px) {
   .hero-floats { display: none; }
-  .nav-links { display: none; }
+  .nav { flex-wrap: wrap; gap: 12px 20px; }
+  .nav-links {
+    order: 3;
+    width: 100%;
+    gap: 20px;
+    font-size: 13.5px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding-bottom: 2px;
+  }
+  .nav-links::-webkit-scrollbar { display: none; }
+  .nav-links li { white-space: nowrap; }
   .feature-grid { grid-template-columns: repeat(2, 1fr); }
   .quote-grid { grid-template-columns: 1fr; }
   .how-grid { grid-template-columns: 1fr; gap: 44px; }
