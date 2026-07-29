@@ -19,36 +19,58 @@ type Target = "start" | "end";
 function PointRow({
   t,
   point,
+  hasFix,
+  onUseLocation,
   onClear,
 }: {
   t: Target;
   point: Point | null;
+  hasFix: boolean;
+  onUseLocation: () => void;
   onClear: () => void;
 }) {
+  const label = t === "start" ? "Starting point" : "End point";
   return (
     <div className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="u-eyebrow">{t === "start" ? "Starting point" : "End point"}</p>
+          <p className="u-eyebrow">{label}</p>
           <p className="mt-1 truncate font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
             {point?.label ?? "Not set"}
           </p>
-          {point ? (
-            <p className="text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
-              {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
-            </p>
-          ) : null}
         </div>
-        {point ? (
+        {/* GPS sits with the point it fills in. At the bottom of the sheet it
+            applied to whichever row was selected, which is one thing too many
+            to remember while standing in the street. */}
+        <div className="flex shrink-0 flex-col items-end gap-2">
           <button
             type="button"
-            onClick={onClear}
-            className="shrink-0 text-[length:var(--text-caption)] font-semibold text-[color:var(--mint-ink)] underline underline-offset-4"
+            onClick={onUseLocation}
+            disabled={!hasFix}
+            aria-label={`Use my location as the ${label.toLowerCase()}`}
+            className="btn btn--quiet px-4"
+            style={{ minHeight: 44 }}
           >
-            Clear
+            {hasFix ? "Use my location" : "Locating…"}
           </button>
-        ) : null}
+          {point ? (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-[length:var(--text-caption)] font-semibold text-[color:var(--mint-ink)] underline underline-offset-4"
+            >
+              Clear
+            </button>
+          ) : null}
+        </div>
       </div>
+      {/* Full width, below the button: sharing the line with it wrapped the
+          longitude onto its own row. */}
+      {point ? (
+        <p className="mt-1 text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
+          {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
+        </p>
+      ) : null}
     </div>
   );
 }
@@ -109,9 +131,9 @@ export default function PointsStep({
     [onChange, setPicking],
   );
 
-  const useMyLocation = () => {
+  const useMyLocation = (t: Target) => {
     if (!fix) return;
-    setPoint(target, { lat: fix.lat, lng: fix.lng, label: "Where I am now" });
+    setPoint(t, { lat: fix.lat, lng: fix.lng, label: "Where I am now" });
   };
 
   // Stale results stay in state but are never shown for a too-short query.
@@ -119,9 +141,21 @@ export default function PointsStep({
 
   return (
     <div className="flex flex-col gap-5">
-      <PointRow t="start" point={draft.start} onClear={() => setPoint("start", null)} />
+      <PointRow
+        t="start"
+        point={draft.start}
+        hasFix={fix !== null}
+        onUseLocation={() => useMyLocation("start")}
+        onClear={() => setPoint("start", null)}
+      />
       {showEnd || draft.end ? (
-        <PointRow t="end" point={draft.end} onClear={() => setPoint("end", null)} />
+        <PointRow
+          t="end"
+          point={draft.end}
+          hasFix={fix !== null}
+          onUseLocation={() => useMyLocation("end")}
+          onClear={() => setPoint("end", null)}
+        />
       ) : (
         <button
           type="button"
@@ -191,23 +225,13 @@ export default function PointsStep({
         ) : null}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={useMyLocation}
-          disabled={!fix}
-          className="btn btn--quiet"
-        >
-          Use my location
-        </button>
-        <button
-          type="button"
-          onClick={() => setPicking(picking ? null : target)}
-          className={`btn ${picking ? "btn--dark" : "btn--quiet"}`}
-        >
-          {picking ? "Tap the map…" : "Drop a pin"}
-        </button>
-      </div>
+      <button
+        type="button"
+        onClick={() => setPicking(picking ? null : target)}
+        className={`btn w-full ${picking ? "btn--dark" : "btn--quiet"}`}
+      >
+        {picking ? "Tap the map…" : "Drop a pin"}
+      </button>
       {picking ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           The sheet is out of the way — tap anywhere on the map to place the{" "}
