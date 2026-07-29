@@ -355,26 +355,42 @@ pre {
   0%,
   100% {
     transform: scale(1);
-    box-shadow: 0 0 0 0 rgb(94 218 155 / 0.55);
   }
   50% {
-    transform: scale(1.09);
-    box-shadow: 0 0 0 11px rgb(94 218 155 / 0);
+    transform: scale(1.22);
+  }
+}
+
+/* A halo leaving the node, like a sonar ping. The first version used a
+   box-shadow growing 11px on a 30px circle — under three pixels of movement,
+   which is technically an animation and perceptually nothing. */
+@keyframes spine-ping {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.85;
+  }
+  70% {
+    opacity: 0.25;
+  }
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
   }
 }
 
 .spine__node--working {
-  animation: spine-breathe 2.1s cubic-bezier(0.4, 0, 0.4, 1) infinite;
+  animation: spine-breathe 1.8s cubic-bezier(0.45, 0, 0.4, 1) infinite;
+  box-shadow: 0 0 0 3px rgb(94 218 155 / 0.35);
 }
 
-/* The line below a working step fills toward the next one. */
-@keyframes spine-trickle {
-  from {
-    background-position: 0 -28px;
-  }
-  to {
-    background-position: 0 28px;
-  }
+.spine__node--working::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 999px;
+  border: 3px solid var(--mint);
+  animation: spine-ping 1.8s cubic-bezier(0, 0.4, 0.6, 1) infinite;
+  pointer-events: none;
 }
 
 .spine__item--working:not(:last-child)::before {

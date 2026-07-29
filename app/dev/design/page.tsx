@@ -158,7 +158,7 @@ export default function DesignReferencePage() {
 
       <Section
         title="Route spine"
-        note="The signature, lifted from the source's six-step timeline. Numbering earns its place here: the stops are walked in order, so the number is the instruction."
+        note="The signature, lifted from the source's six-step timeline. Numbering earns its place here: the stops are walked in order, so the number is the instruction. Node 2 is in its working state — the same pulse the generating screen uses while a tour is being built."
       >
         <ol className="spine">
           <li className="spine__item spine__item--done">
@@ -168,8 +168,8 @@ export default function DesignReferencePage() {
             <p className="spine__title">Michalská brána</p>
             <p className="spine__meta mt-1">Done</p>
           </li>
-          <li className="spine__item spine__item--current">
-            <span className="spine__node" aria-hidden="true">
+          <li className="spine__item spine__item--current spine__item--working">
+            <span className="spine__node spine__node--working" aria-hidden="true">
               2
             </span>
             <p className="spine__title">Hlavné námestie</p>

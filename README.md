@@ -51,6 +51,12 @@ the tiles are paid for once.
 | `headphones` | Use headphones. The tap on Start is the iOS audio-unlock gesture |
 | `tour` | Route drawn, stops numbered, directions behind the top-right icon, **Ask anything** |
 
+The generating screen's active step pulses: the node scales to 1.22 and a
+mint halo pings outward to 2.4x. The first attempt scaled to 1.09 with an 11px
+box-shadow — on a 30px circle that is under three pixels of movement, which is
+technically an animation and perceptually nothing. See it without waiting for
+a tour at `/dev/design`, in the route-spine section.
+
 Back always goes exactly one step and never destroys anything:
 `ask → tour`, `directions → tour`, `tour → landing (tour kept, resumable)`.
 The map's top bar is hidden while the sheet is full — it sits at `z-30` above
