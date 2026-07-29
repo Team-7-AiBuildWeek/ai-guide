@@ -8,7 +8,7 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import type { MapProvider } from "./index";
+import type { MapProvider, GeocodeBounds } from "./index";
 
 const GEOCODE = "https://api.mapbox.com/geocoding/v5/mapbox.places";
 const DIRECTIONS = "https://api.mapbox.com/directions/v5/mapbox/walking";
@@ -28,7 +28,8 @@ export class MapboxMapProvider implements MapProvider {
     return requireKey(config.mapboxAccessToken, "MAPBOX_ACCESS_TOKEN", "mapbox");
   }
 
-  async geocode(query: string): Promise<Place[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async geocode(query: string, _bounds?: GeocodeBounds): Promise<Place[]> {
     const url =
       `${GEOCODE}/${encodeURIComponent(query)}.json` +
       `?access_token=${this.token()}&limit=6&language=sk,en&country=sk`;

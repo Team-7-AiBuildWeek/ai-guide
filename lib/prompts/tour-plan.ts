@@ -62,7 +62,15 @@ Every stop needs two versions of the same material. The full version must not re
 
 walkingCueToHere is a spoken direction from the previous stop to this one, one or two sentences, using what the walker can see: street names, a church on the right, a corner with a tram stop. For the first stop, describe how to get there from the given starting point.
 
-Coordinates must be real. If you are not certain of a place's coordinates, choose somewhere you are certain about instead.`;
+For every stop give BOTH names:
+- name: what you call it when speaking to the walker, in their language.
+- localName: exactly what is written on the building and on a local map, in the
+  local language, with correct diacritics — "Michalská brána", not "Michael's
+  Gate"; "Hlavné námestie", not "Main Square". This is what gets looked up
+  against real map data, so it must be the real local name, not a translation.
+
+Give your best coordinates, but they will be checked against a map and
+corrected, so the localName matters more than the numbers.`;
 
 export function buildTourPlanPrompt(req: TourRequest): string {
   const count = stopCount(req);
@@ -147,14 +155,18 @@ export const TOUR_PLAN_JSON_SCHEMA = {
         type: "object",
         properties: {
           id: { type: "string", description: "kebab-case slug, unique in this tour" },
-          name: { type: "string" },
+          name: { type: "string", description: "Spoken name, in the walker's language." },
+          localName: {
+            type: "string",
+            description: "The real local name as on the map and the building, with diacritics.",
+          },
           lat: { type: "number" },
           lng: { type: "number" },
           walkingCueToHere: { type: "string" },
           scriptShort: { type: "string", description: "Spoken narration, see the word count given." },
           scriptFull: { type: "string", description: "Spoken narration, much longer than scriptShort." },
         },
-        required: ["id", "name", "lat", "lng", "walkingCueToHere", "scriptShort", "scriptFull"],
+        required: ["id", "name", "localName", "lat", "lng", "walkingCueToHere", "scriptShort", "scriptFull"],
         additionalProperties: false,
       },
     },

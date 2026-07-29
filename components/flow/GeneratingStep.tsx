@@ -13,6 +13,7 @@ import { useEffect, useState } from "react";
 
 export const PHASE_LABELS: { key: string; label: string }[] = [
   { key: "stops", label: "Choosing your stops" },
+  { key: "locating", label: "Finding them on the map" },
   { key: "route", label: "Planning the walking route" },
   { key: "done", label: "Ready" },
 ];

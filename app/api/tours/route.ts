@@ -8,11 +8,12 @@
 
 import { getLLM, getMaps } from "@/lib/providers/factory";
 import type { TourRequest } from "@/lib/providers/types";
+import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
 
-type Phase = "stops" | "route" | "done" | "error";
+type Phase = "stops" | "locating" | "route" | "done" | "error";
 
 function sse(event: { phase: Phase; message?: string; data?: unknown }): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
@@ -38,8 +39,25 @@ export async function POST(request: Request) {
         send({ phase: "stops", message: "Choosing your stops" });
         const plan = await getLLM().generateTourPlan(req);
 
-        send({ phase: "route", message: "Planning the walking route" });
         const maps = getMaps();
+
+        // The model's coordinates are plausible, not correct. Look each stop up
+        // on the real map before anything is drawn or routed.
+        send({ phase: "locating", message: "Checking the stops against the map" });
+        try {
+          const snapped = await snapStopsToRealPlaces(maps, plan.stops, req.start);
+          plan.stops = snapped.stops;
+          if (snapped.unmatched.length) {
+            send({
+              phase: "locating",
+              message: `${snapped.corrected} placed exactly · ${snapped.unmatched.length} kept as estimated`,
+            });
+          }
+        } catch {
+          // Estimated coordinates beat no tour.
+        }
+
+        send({ phase: "route", message: "Planning the walking route" });
         const points = [
           { lat: req.start.lat, lng: req.start.lng },
           ...plan.stops.map((s) => ({ lat: s.lat, lng: s.lng })),

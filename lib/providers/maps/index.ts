@@ -9,9 +9,14 @@
 
 import type { GeoJSON, LatLng, MapStyle, Place, WalkingRoute } from "@/lib/providers/types";
 
+/** Confine a search to a circle. A soft bias is not enough: "Michael's Gate"
+ *  outranks Michalská brána from England unless the rest of the world is
+ *  excluded outright. */
+export type GeocodeBounds = { lat: number; lng: number; radiusKm: number };
+
 export interface MapProvider {
   readonly name: string;
-  geocode(query: string): Promise<Place[]>;
+  geocode(query: string, bounds?: GeocodeBounds): Promise<Place[]>;
   reverseGeocode(lat: number, lng: number): Promise<Place>;
   walkingRoute(points: LatLng[]): Promise<WalkingRoute>;
   /** MapLibre style URL for the default basemap. */

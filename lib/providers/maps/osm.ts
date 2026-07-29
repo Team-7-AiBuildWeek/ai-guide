@@ -15,7 +15,7 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import { straightLineRoute, type MapProvider } from "./index";
+import { straightLineRoute, type MapProvider, type GeocodeBounds } from "./index";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 const ORS = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
@@ -42,7 +42,8 @@ export class OSMMapProvider implements MapProvider {
     return { "user-agent": config.nominatimUserAgent, accept: "application/json" };
   }
 
-  async geocode(query: string): Promise<Place[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async geocode(query: string, _bounds?: GeocodeBounds): Promise<Place[]> {
     const url =
       `${NOMINATIM}/search?format=jsonv2&limit=6&accept-language=sk,en` +
       `&countrycodes=sk&q=${encodeURIComponent(query)}`;

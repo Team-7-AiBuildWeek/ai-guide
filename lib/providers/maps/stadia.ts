@@ -21,7 +21,7 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import type { MapProvider } from "./index";
+import type { GeocodeBounds, MapProvider } from "./index";
 
 type GeocodeFeature = {
   geometry: { coordinates: [number, number] } | null;
@@ -157,14 +157,22 @@ export class StadiaMapProvider implements MapProvider {
     return (await res.json()) as T;
   }
 
-  async geocode(query: string): Promise<Place[]> {
-    // Focus on the old town so "Michalská" ranks the Bratislava gate first
-    // rather than a same-named street elsewhere.
+  async geocode(query: string, bounds?: GeocodeBounds): Promise<Place[]> {
+    // With bounds this is a hard circle, not a preference — anything outside
+    // is not returned at all. Without them, a focus point still ranks the old
+    // town first for the free-text search box.
     const body = await this.json<GeocodeResponse>(
       this.url("/geocoding/v2/search", {
         text: query,
-        "focus.point.lat": DEFAULT_CENTER.lat,
-        "focus.point.lon": DEFAULT_CENTER.lng,
+        ...(bounds
+          ? {
+              "boundary.circle.lat": bounds.lat,
+              "boundary.circle.lon": bounds.lng,
+              "boundary.circle.radius": bounds.radiusKm,
+            }
+          : {}),
+        "focus.point.lat": bounds?.lat ?? DEFAULT_CENTER.lat,
+        "focus.point.lon": bounds?.lng ?? DEFAULT_CENTER.lng,
         size: 6,
         lang: "sk",
       }),

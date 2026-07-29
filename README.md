@@ -14,6 +14,28 @@ AI audio walking tour, MVP. Mobile-first PWA, no accounts, no database.
 
 ## Personalisation, length, and arrival
 
+**Coordinates come from the map, not the model.** Measured on a real tour,
+Gemini's own coordinates were 11–183 m out — in an old town that is the wrong
+side of a square, or the wrong building. So every stop is looked up against
+real map data and its position replaced (`lib/tour/snapStops.ts`, the
+`locating` phase).
+
+Two things make that work:
+
+- The model must return a **`localName`** — the name as written on the building
+  and in the map data, with diacritics. "Main Square" finds nothing;
+  *Hlavné námestie* finds the square. This is the fix that mattered.
+- Geocoding is **hard-bounded to a 3 km circle** (`boundary.circle`), not
+  merely biased. Without it "Michael's Gate" returned a match in England and
+  "Franciscan Church" one in Kentucky, ranked above the real ones.
+
+A match more than 600 m from the model's guess is treated as a different place
+with the same name and rejected. Stops that cannot be matched keep their
+estimate rather than being dropped — an approximate stop beats a missing one.
+
+After the change: four of six stops land exactly on the geocoded position, the
+other two within 70 m.
+
 **Length is measured, not requested.** Models return roughly half of whatever
 word count you ask for. `lib/prompts/tour-plan.ts` sets a floor per `detail`
 setting, and `generateTourPlanVia` counts the words that came back and hands

@@ -8,7 +8,7 @@
  */
 
 import type { LatLng, Place, WalkingRoute, MapStyle } from "@/lib/providers/types";
-import { straightLineRoute, type MapProvider } from "./index";
+import { straightLineRoute, type MapProvider, type GeocodeBounds } from "./index";
 
 const LANDMARKS: Place[] = [
   { id: "michalska-brana", name: "Michalská brána", address: "Michalská, 811 01 Bratislava", lat: 48.1447, lng: 17.1063 },
@@ -29,7 +29,8 @@ function fold(s: string): string {
 export class MockMapProvider implements MapProvider {
   readonly name = "mock";
 
-  async geocode(query: string): Promise<Place[]> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async geocode(query: string, _bounds?: GeocodeBounds): Promise<Place[]> {
     const q = fold(query.trim());
     if (!q) return [];
     const hits = LANDMARKS.filter(

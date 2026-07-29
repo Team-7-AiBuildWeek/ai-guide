@@ -27,6 +27,12 @@ export type Place = {
 export const StopSchema = z.object({
   id: z.string(),
   name: z.string(),
+  /**
+   * The name as written on the building and in the map data, in the local
+   * language. Without it a stop called "Main Square" cannot be found on a map
+   * that calls it Hlavné námestie.
+   */
+  localName: z.string().optional(),
   lat: z.number(),
   lng: z.number(),
   /** "walk down the lane, the church is on your right" */
