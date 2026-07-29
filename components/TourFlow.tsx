@@ -382,8 +382,11 @@ export default function TourFlow({
   // While dropping a pin the sheet must get out of the way of the map.
   const sheetHidden = picking !== null && stage === "points";
 
+  // Hidden while the player is open: on a phone-sized screen the expanded
+  // sheet reaches up past the button, and it is the sheet that has the text.
+  // A 430x900 window has the clearance a real phone does not.
   const showLayerSwitcher =
-    !directionsOpen && (sheetHidden || (stage === "tour" && !sheetFull));
+    !directionsOpen && !playerOpen && (sheetHidden || (stage === "tour" && !sheetFull));
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
