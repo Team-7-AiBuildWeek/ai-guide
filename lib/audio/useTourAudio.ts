@@ -3,17 +3,19 @@
 /**
  * Binds the engine and the library to a tour, and to React.
  *
- * Everything the player UI needs is here: what is playing, whether it is
- * ready, and the four things a walker can do — play, change depth, skip, seek.
+ * Everything the player UI needs is here: what is playing, how much of it has
+ * been written and spoken so far, and the things a walker can do — play, skip,
+ * seek, and choose whose voice reads it.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { audioEngine, type Depth, type EngineState } from "./engine";
-import { AudioLibrary, type ClipState, type LibraryStop } from "./library";
+import { audioEngine, type EngineState } from "./engine";
+import { AudioLibrary, type StopState } from "./library";
 import { deviceVoice, type DeviceVoiceState } from "./deviceVoice";
+import type { Stop, TourRequest } from "@/lib/providers/types";
 
 /** Hoisted: returning a fresh object from getServerSnapshot loops forever. */
-const NO_CLIPS: Record<string, ClipState> = {};
+const NO_STATES: Record<string, StopState> = {};
 
 const NO_SPEECH: DeviceVoiceState = { speaking: false, paused: false };
 
@@ -28,24 +30,33 @@ const SERVER_STATE: EngineState = {
   loading: false,
   position: 0,
   duration: 0,
+  buffered: 0,
   error: null,
+};
+
+const IDLE_STOP: StopState = {
+  script: "idle",
+  chunksReady: 0,
+  chunksTotal: 0,
+  playable: false,
 };
 
 export function useTourAudio({
   stops,
+  req,
   lang,
   album,
   index,
-  depth,
   onAdvance,
   active,
 }: {
-  stops: LibraryStop[];
+  stops: Stop[];
+  /** The brief, so a stop written mid-walk matches the one written up front. */
+  req: TourRequest | null;
   lang: string;
   /** Lock-screen album — the city. */
   album?: string;
   index: number;
-  depth: Depth;
   /** Called when a stop finishes, so the tour can walk on by itself. */
   onAdvance: () => void;
   /** False before the headphones screen — nothing should be fetched yet. */
@@ -57,23 +68,22 @@ export function useTourAudio({
     () => SERVER_STATE,
   );
 
-  const library = useMemo(() => new AudioLibrary(stops, lang), [stops, lang]);
+  const library = useMemo(
+    () =>
+      new AudioLibrary(stops, req, lang, (stopId, i, url) => {
+        audioEngine.setChunk(stopId, i, url);
+      }),
+    [stops, req, lang],
+  );
   useEffect(() => () => library.dispose(), [library]);
 
-  const clipStates = useSyncExternalStore(
-    library.subscribe,
-    library.getSnapshot,
-    () => NO_CLIPS,
-  );
+  const stopStates = useSyncExternalStore(library.subscribe, library.getSnapshot, () => NO_STATES);
 
-  const speech = useSyncExternalStore(
-    deviceVoice.subscribe,
-    deviceVoice.getState,
-    () => NO_SPEECH,
-  );
+  const speech = useSyncExternalStore(deviceVoice.subscribe, deviceVoice.getState, () => NO_SPEECH);
 
   const stop = stops[index];
-  const clipState: ClipState = stop ? (clipStates[`${stop.id}:${depth}`] ?? "idle") : "idle";
+  const stopState: StopState = stop ? (stopStates[stop.id] ?? IDLE_STOP) : IDLE_STOP;
+
   /**
    * Tracks whether the element exists yet, so the loading effect re-runs the
    * moment it does. Without this a tour restored from localStorage lands on
@@ -83,8 +93,8 @@ export function useTourAudio({
   const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
 
   /**
-   * Gemini charges per synthesis call and a six-stop tour is a dozen of them,
-   * so development runs on the phone's own voice by default of the toggle.
+   * Gemini charges per synthesis call and a long tour is dozens of them, so
+   * testing runs on the phone's own voice by way of the toggle.
    * localStorage is unreadable during SSR, hence the deferred read.
    */
   const [voiceMode, setVoiceModeState] = useState<VoiceMode>("gemini");
@@ -109,18 +119,8 @@ export function useTourAudio({
 
   /** The phone is reading — either because it was chosen, or as a fallback. */
   const deviceChosen = voiceMode === "device" && deviceVoice.supported;
-  const usingDeviceVoice = deviceChosen || (clipState === "failed" && deviceVoice.supported);
-
-
-  /**
-   * Set while a depth change is being synthesised.
-   *
-   * The short recording can run out during that wait, and end-of-stop
-   * auto-advance would then walk the tour on to the next stop — so asking for
-   * more detail would silently skip you forward. Advancing is suppressed until
-   * the swap lands.
-   */
-  const swapPendingRef = useRef(false);
+  const usingDeviceVoice =
+    deviceChosen || (stopState.script === "failed" && deviceVoice.supported);
 
   const onAdvanceRef = useRef(onAdvance);
   useEffect(() => {
@@ -130,88 +130,90 @@ export function useTourAudio({
   // Lock-screen next/previous and end-of-stop auto-advance.
   useEffect(() => {
     audioEngine.setHandlers({
-      onEnded: () => {
-        if (swapPendingRef.current) return;
-        onAdvanceRef.current();
-      },
+      onEnded: () => onAdvanceRef.current(),
       onNext: () => onAdvanceRef.current(),
     });
   }, []);
 
   /**
-   * Load whatever the tour says is current. Keyed on stop and depth only —
-   * position is the engine's business, not this effect's.
+   * Fetch the words, and the voice, for whatever stop the tour is on.
+   *
+   * Deliberately NOT gated on the engine being unlocked. It used to be, and
+   * that deadlocked: nothing was fetched until the walker pressed play, and
+   * play was disabled until something had been fetched. Neither of these calls
+   * touches the audio element, so there is nothing to wait for.
    */
   useEffect(() => {
-    if (!active || !stop || !unlocked) return;
+    if (!active || !stop) return;
     let cancelled = false;
 
-    // Device mode never calls the API at all — that is the whole point of it.
-    if (deviceChosen) {
-      audioEngine.pause();
-      const text = depth === "short" ? stop.scriptShort : stop.scriptFull;
-      deviceVoice.speak(text, lang, () => onAdvanceRef.current());
-      return () => deviceVoice.stop();
-    }
-
-    // Captured NOW, before the await. Synthesising the other depth takes
-    // tens of seconds, and reading the ratio afterwards measures wherever the
-    // old recording had drifted to by then — usually its very end.
-    const ratioAtSwitch = audioEngine.ratio;
-    const wasListening = audioEngine.getState().playing;
-
-    // A depth change on the stop already loaded: hold the auto-advance until
-    // the new recording is in.
-    const current = audioEngine.getState().track;
-    const isDepthChange = current?.stopId === stop.id && current.depth !== depth;
-    if (isDepthChange) swapPendingRef.current = true;
-
     void (async () => {
-      const clip = await library.fetch(stop.id, depth);
-      if (cancelled) return;
+      // The words come first either way: the phone's own voice needs them just
+      // as much as Gemini does.
+      const written = await library.ensureScript(stop.id);
+      if (cancelled || !written) return; // the failed state drives the fallback
 
-      if (!clip) {
-        // Synthesis failed — usually the daily quota. Read it with the phone's
-        // own voice rather than leaving the walker in silence.
-        swapPendingRef.current = false;
-        if (deviceVoice.supported) {
-          audioEngine.pause();
-          const text = depth === "short" ? stop.scriptShort : stop.scriptFull;
-          deviceVoice.speak(text, lang, () => onAdvanceRef.current());
-        }
+      if (deviceChosen) {
+        audioEngine.pause();
+        deviceVoice.speak(library.scriptOf(stop.id) ?? "", lang, () => onAdvanceRef.current());
         return;
       }
       deviceVoice.stop();
-
-      const now = audioEngine.getState().track;
-      const sameStop = now?.stopId === stop.id;
-      const track = {
-        stopId: stop.id,
-        index,
-        depth,
-        src: clip.url,
-        title: stop.name,
-        subtitle: `Stop ${index + 1} of ${stops.length}`,
-        album,
-      };
-
-      if (sameStop && now?.depth !== depth) {
-        // Depth toggle: keep the walker's place in the story.
-        await audioEngine.swapDepth(track, ratioAtSwitch, wasListening);
-      } else if (!sameStop || !now) {
-        await audioEngine.load(track, { autoplay: true });
-      }
-      swapPendingRef.current = false;
-      library.prefetchAround(index, depth);
+      // Started before the synthesis rather than after it: writing the next
+      // stop takes about ninety seconds and hits a different endpoint, so it
+      // costs nothing to run it alongside. Waiting until this stop was fully
+      // recorded spent the walker's listening time twice over.
+      library.prefetchAround(index);
+      await library.ensureAudio(stop.id);
     })();
 
     return () => {
       cancelled = true;
-      swapPendingRef.current = false;
+    };
+  }, [active, stop, index, library, lang, deviceChosen]);
+
+  /**
+   * Point the engine at the current stop, once there is an element to point.
+   *
+   * Separate from the fetching above because the two are unlocked at different
+   * moments: pieces of narration can pile up in the library long before the
+   * walker taps anything, and they are handed over here rather than lost.
+   */
+  useEffect(() => {
+    if (!active || !stop || !unlocked || deviceChosen) return;
+    let cancelled = false;
+
+    void (async () => {
+      const already = audioEngine.getState().track;
+      if (already?.stopId === stop.id) return;
+
+      // The estimates are the whole stop's length, known from the word count
+      // before a second of it has been recorded — so the scrubber has a scale
+      // from the start rather than growing as pieces arrive.
+      await audioEngine.loadStop(
+        {
+          stopId: stop.id,
+          index,
+          title: stop.name,
+          subtitle: `Stop ${index + 1} of ${stops.length}`,
+          album,
+          chunkEstimates: library.estimatesFor(stop.id),
+        },
+        { autoplay: true },
+      );
+      if (cancelled) return;
+      // Anything already synthesised while we were locked.
+      for (const [i, url] of library.readyChunks(stop.id)) {
+        audioEngine.setChunk(stop.id, i, url);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
     };
     // `album` is in here only to satisfy the linter — it is settled on the
     // city screen, long before `active` is ever true, so it cannot re-run this.
-  }, [active, stop, index, depth, library, stops.length, lang, unlocked, deviceChosen, album]);
+  }, [active, stop, index, library, stops.length, unlocked, deviceChosen, album, stopState.chunksTotal]);
 
   useEffect(() => {
     if (!active) deviceVoice.stop();
@@ -232,7 +234,7 @@ export function useTourAudio({
     if (!audioEngine.unlocked) {
       audioEngine.unlock();
       setUnlocked(true);
-      return; // the effect below loads and plays as soon as it sees this
+      return; // the effect above loads and plays as soon as it sees this
     }
     audioEngine.toggle();
   }, [usingDeviceVoice]);
@@ -241,18 +243,26 @@ export function useTourAudio({
     ...engine,
     // While the phone is reading, it is the thing that is playing.
     playing: usingDeviceVoice ? speech.speaking && !speech.paused : engine.playing,
-    clipState,
+    stopState,
     usingDeviceVoice,
     deviceChosen,
     voiceMode,
     setVoiceMode,
     /**
-     * True while the current stop is still being synthesised. Never on the
-     * device voice — nothing is fetched there, so clipState stays "idle" for
-     * ever and the play button would be disabled for the whole tour.
+     * True until there is something to press play on. The device voice needs
+     * only the words; Gemini needs the words and the first piece of speech.
      */
-    preparing: !deviceChosen && (clipState === "loading" || (clipState === "idle" && active)),
-    failed: clipState === "failed",
+    preparing: deviceChosen
+      ? active && stopState.script !== "ready" && stopState.script !== "failed"
+      : active && !stopState.playable && stopState.script !== "failed",
+    /** What the walker is waiting for, in words. */
+    waitingFor:
+      stopState.script === "writing"
+        ? "Writing this stop"
+        : !stopState.playable && stopState.script === "ready"
+          ? "Recording the first minute"
+          : null,
+    failed: stopState.script === "failed",
     start,
     play: () => audioEngine.play(),
     pause: () => audioEngine.pause(),

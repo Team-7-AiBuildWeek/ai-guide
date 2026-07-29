@@ -1,11 +1,30 @@
-import type { AskRequest, TourPlan, TourRequest } from "@/lib/providers/types";
-import { TourPlanSchema, ProviderError } from "@/lib/providers/types";
-import { buildTourPlanPrompt, lengthFloors, SYSTEM_PROMPT } from "@/lib/prompts/tour-plan";
+import type { AskRequest, Stop, StopScript, TourPlan, TourRequest } from "@/lib/providers/types";
+import { StopScriptSchema, TourPlanSchema, ProviderError } from "@/lib/providers/types";
+import {
+  ITINERARY_SYSTEM_PROMPT,
+  SCRIPT_SYSTEM_PROMPT,
+  buildItineraryPrompt,
+  buildScriptPrompt,
+  scriptFloor,
+  stopCount,
+} from "@/lib/prompts/tour-plan";
 import { ASK_SYSTEM_PROMPT, buildAskPrompt } from "@/lib/prompts/ask";
+
+/** What the script pass needs to know beyond the stop itself. */
+export type ScriptRequest = {
+  req: TourRequest;
+  stop: Stop;
+  previous: Stop | null;
+  position: number;
+  total: number;
+};
 
 export interface LLMProvider {
   readonly name: string;
+  /** Pass one: which places, in what order. No narration. */
   generateTourPlan(input: TourRequest): Promise<TourPlan>;
+  /** Pass two: the narration for a single stop, written while walking. */
+  generateStopScript(input: ScriptRequest): Promise<StopScript>;
   /** A question from the street, answered against the walker's own brief. */
   answerQuestion(input: AskRequest): Promise<string>;
 }
@@ -35,24 +54,21 @@ function stripFence(text: string): string {
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
 
-/**
- * Which stops came back too short.
- *
- * Asking for length is not enough — models routinely return half of what was
- * requested. Measuring it and handing the shortfall back, stop by stop, is
- * what actually gets a three-minute script instead of a ninety-second one.
- */
-function shortfalls(plan: TourPlan, detail: TourRequest["detail"]): string[] {
-  const floor = lengthFloors(detail);
-  const out: string[] = [];
-  for (const stop of plan.stops) {
-    const s = words(stop.scriptShort);
-    const f = words(stop.scriptFull);
-    if (f < floor.full) out.push(`"${stop.name}" scriptFull is ${f} words, needs at least ${floor.full}`);
-    else if (s < floor.short) out.push(`"${stop.name}" scriptShort is ${s} words, needs at least ${floor.short}`);
+class SchemaError extends Error {
+  constructor(readonly issues: string[]) {
+    super(issues.join("; "));
+    this.name = "SchemaError";
   }
-  return out;
 }
+
+/** Why a response was unusable, when that is something a retry could fix. */
+function retryableReason(err: unknown): string | null {
+  if (err instanceof SchemaError) return err.issues.join("; ");
+  if (err instanceof SyntaxError) return `the response was not valid JSON (${err.message})`;
+  return null;
+}
+
+// --------------------------------------------------------------- itinerary --
 
 /**
  * Parse and validate, retrying once with the error fed back to the model.
@@ -64,16 +80,17 @@ export async function generateTourPlanVia(
   complete: CompleteFn,
   req: TourRequest,
 ): Promise<TourPlan> {
-  const user = buildTourPlanPrompt(req);
+  const user = buildItineraryPrompt(req);
+  const wanted = stopCount(req);
 
   const attempt = async (extra?: string): Promise<TourPlan> => {
     const raw = await complete({
-      system: SYSTEM_PROMPT,
+      system: ITINERARY_SYSTEM_PROMPT,
       user: extra ? `${user}\n\n${extra}` : user,
-      // Generous: six stops of ~800 words each, plus cues and JSON overhead,
-      // and on thinking models the reasoning counts against this too. Running
-      // out shows up as a truncated plan, not an error.
-      maxTokens: 48000,
+      // No narration in this pass, so a stop is a few dozen tokens even at
+      // twenty-six of them. The headroom is for thinking models, whose
+      // reasoning counts against the same budget.
+      maxTokens: 16000,
     });
     const parsed = TourPlanSchema.safeParse(JSON.parse(stripFence(raw)));
     if (!parsed.success) {
@@ -84,33 +101,27 @@ export async function generateTourPlanVia(
 
   try {
     const plan = await attempt();
-    const short = shortfalls(plan, req.detail);
-    if (short.length === 0) return plan;
+    // Short by a stop or two is a judgement call about the city. Short by half
+    // is the model ignoring the number, which is the thing being fixed here.
+    if (plan.stops.length >= Math.ceil(wanted * 0.75)) return plan;
 
-    // One expansion pass. If it still comes back thin, the walker gets the
-    // shorter tour rather than an error — a real tour beats a failed one.
     try {
       return await attempt(
-        `Your previous answer was too short. Specifically: ${short.join("; ")}. ` +
-          `Return the SAME stops, in the same order, with the same coordinates — ` +
-          `only rewrite the scripts that fall short, at the required length. ` +
-          `Do not pad: add substance, detail and story until each one genuinely covers its stop.`,
+        `Your previous answer had only ${plan.stops.length} stops. The walk asked for ` +
+          `${req.durationMinutes} minutes, which is ${wanted} stops. Return the SAME good ` +
+          `stops and add the missing ones, spreading them across the city rather than ` +
+          `crowding the centre. ${wanted} stops.`,
       );
     } catch {
-      return plan;
+      return plan; // a short tour beats no tour
     }
   } catch (err) {
-    const detail =
-      err instanceof SchemaError
-        ? err.issues.join("; ")
-        : err instanceof SyntaxError
-          ? `the response was not valid JSON (${err.message})`
-          : null;
-    if (detail === null) throw err; // network / auth — retrying won't fix it
+    const reason = retryableReason(err);
+    if (reason === null) throw err; // network / auth — retrying won't fix it
 
     try {
       return await attempt(
-        `Your previous answer was rejected: ${detail}. ` +
+        `Your previous answer was rejected: ${reason}. ` +
           `Return the corrected JSON object only, matching the schema exactly.`,
       );
     } catch (retryErr) {
@@ -123,10 +134,66 @@ export async function generateTourPlanVia(
   }
 }
 
-class SchemaError extends Error {
-  constructor(readonly issues: string[]) {
-    super(issues.join("; "));
-    this.name = "SchemaError";
+// ------------------------------------------------------------- one script --
+
+/**
+ * The narration for a single stop.
+ *
+ * Same retry shape as the itinerary, plus one length pass — models write half
+ * of what is asked for, reliably enough that measuring it is the only way to
+ * get five minutes instead of two.
+ */
+export async function generateStopScriptVia(
+  providerName: string,
+  complete: CompleteFn,
+  input: ScriptRequest,
+): Promise<StopScript> {
+  const user = buildScriptPrompt(input);
+  const floor = scriptFloor(input.req.detail);
+
+  const attempt = async (extra?: string): Promise<StopScript> => {
+    const raw = await complete({
+      system: SCRIPT_SYSTEM_PROMPT,
+      user: extra ? `${user}\n\n${extra}` : user,
+      maxTokens: 8000,
+    });
+    const parsed = StopScriptSchema.safeParse(JSON.parse(stripFence(raw)));
+    if (!parsed.success) {
+      throw new SchemaError(parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`));
+    }
+    return parsed.data;
+  };
+
+  try {
+    const first = await attempt();
+    const got = words(first.script);
+    if (got >= floor) return first;
+
+    try {
+      const longer = await attempt(
+        `Your previous script was ${got} words, and this stop needs at least ${floor}. ` +
+          `Write it again at the proper length. Do not pad: add substance — what happened ` +
+          `here, who was involved, what to look at and why it is the way it is.`,
+      );
+      // If the second go is somehow worse, keep the better of the two.
+      return words(longer.script) > got ? longer : first;
+    } catch {
+      return first;
+    }
+  } catch (err) {
+    const reason = retryableReason(err);
+    if (reason === null) throw err;
+    try {
+      return await attempt(
+        `Your previous answer was rejected: ${reason}. Return the corrected JSON only.`,
+      );
+    } catch (retryErr) {
+      throw new ProviderError(
+        providerName,
+        `could not write the narration for "${input.stop.name}"`,
+        retryErr,
+      );
+    }
   }
 }
 

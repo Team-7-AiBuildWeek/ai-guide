@@ -1,15 +1,18 @@
 "use client";
 
 /**
- * The mini player.
+ * The expanded player.
  *
- * Visible at all times during the tour — play/pause, which stop, and the
- * short/full depth toggle. The depth control is not in a settings menu on
- * purpose: it is the one thing here no competitor has, and burying it would
- * waste it.
+ * Play/pause, where you are in the stop, and which voice reads it. There used
+ * to be a short/full toggle here; every stop is four to five minutes now, so
+ * there is nothing to choose between.
+ *
+ * The scrubber shows two things at once: how far the walker has listened, and
+ * how much of the narration has actually been recorded. Narration is
+ * synthesised while it plays, so the second bar is genuinely behind the end of
+ * the track — pretending otherwise would make a seek past it look broken.
  */
 
-import type { Depth } from "@/lib/audio/engine";
 import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
 function mmss(s: number) {
@@ -22,10 +25,10 @@ export default function Player({
   stopName,
   index,
   total,
-  depth,
-  onDepth,
   playing,
   preparing,
+  waitingFor,
+  buffered,
   failed,
   usingDeviceVoice,
   voiceMode,
@@ -41,10 +44,12 @@ export default function Player({
   stopName: string;
   index: number;
   total: number;
-  depth: Depth;
-  onDepth: (d: Depth) => void;
   playing: boolean;
   preparing: boolean;
+  /** What is being waited for, when something is. */
+  waitingFor: string | null;
+  /** How much of this stop has been recorded, 0–1. */
+  buffered: number;
   failed: boolean;
   /** The phone is reading — chosen, or because synthesis was unavailable. */
   usingDeviceVoice: boolean;
@@ -79,7 +84,20 @@ export default function Player({
       {/* Scrubber. A range input rather than a bar, because a walker who
           missed a sentence wants to go back ten seconds, not restart. */}
       <div>
-        <input
+        {/* The recorded-so-far bar sits behind the handle. Two pixels of grey
+            is enough to explain why the end of the track is not reachable yet
+            without adding a second control to read. */}
+        <div className="relative">
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 overflow-hidden rounded-full bg-[color:var(--line)]"
+          >
+            <div
+              className="h-full rounded-full bg-[color:var(--line-strong)] transition-[width] duration-700"
+              style={{ width: `${Math.round(Math.min(1, Math.max(0, buffered)) * 100)}%` }}
+            />
+          </div>
+          <input
           type="range"
           min={0}
           max={Math.max(1, duration)}
@@ -88,12 +106,16 @@ export default function Player({
           onChange={(e) => onSeek(Number(e.target.value))}
           disabled={duration <= 0}
           aria-label="Position in this stop"
-          className="h-6 w-full accent-[color:var(--mint-ink)]"
+          className="relative h-6 w-full accent-[color:var(--mint-ink)]"
           style={{ background: "transparent" }}
         />
+        </div>
         <div className="-mt-1 flex justify-between text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
           <span>{mmss(position)}</span>
-          <span>{duration > 0 ? mmss(duration) : preparing ? "preparing…" : "—"}</span>
+          {/* The right-hand figure is the total, or — while there is not one
+              yet — what is being waited for. It reads better here than on the
+              button, which wrapped "Writing this stop" onto three lines. */}
+          <span>{preparing && waitingFor ? waitingFor : duration > 0 ? mmss(duration) : "—"}</span>
         </div>
         <div className="sr-only" aria-live="polite">
           {Math.round(pct)}% through {stopName}
@@ -126,11 +148,10 @@ export default function Player({
           <button
             type="button"
             onClick={onToggle}
-            disabled={preparing && duration <= 0}
             className="btn btn--primary min-w-0 flex-1"
             aria-label={playing ? "Pause" : "Play"}
           >
-            {preparing && duration <= 0 ? "Preparing…" : playing ? "Pause" : "Play"}
+            {playing ? "Pause" : "Play"}
           </button>
           <button
             type="button"
@@ -143,30 +164,6 @@ export default function Player({
           </button>
         </div>
       )}
-
-      {/* The depth toggle. Two taps from anywhere, never hidden. */}
-      <div
-        role="group"
-        aria-label="How much detail"
-        className="grid grid-cols-2 gap-1 rounded-[var(--radius-control)] bg-[color:var(--canvas)] p-1"
-      >
-        {(["short", "full"] as Depth[]).map((d) => (
-          <button
-            key={d}
-            type="button"
-            aria-pressed={depth === d}
-            onClick={() => onDepth(d)}
-            className={[
-              "min-h-[44px] rounded-[3px] font-[family-name:var(--font-display)] font-medium transition-colors",
-              depth === d
-                ? "bg-[color:var(--ink)] text-[color:var(--on-dark)]"
-                : "text-[color:var(--ink-soft)]",
-            ].join(" ")}
-          >
-            {d === "short" ? "Short · 40 sec" : "Full · 3 min"}
-          </button>
-        ))}
-      </div>
 
       {/* Which voice reads the tour. Gemini bills per stop and a tour is a
           dozen calls, so testing runs on the phone's free voice. Remove this

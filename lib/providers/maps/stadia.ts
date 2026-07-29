@@ -230,6 +230,21 @@ export class StadiaMapProvider implements MapProvider {
       body: JSON.stringify({
         locations: points.map((p) => ({ lat: p.lat, lon: p.lng, type: "break" })),
         costing: "pedestrian",
+        costing_options: {
+          pedestrian: {
+            // Distance, not time. Valhalla's default pedestrian costing is a
+            // time model with preferences baked in — it will happily add a
+            // block to stay on a nicer footway. Between two stops a walker can
+            // see, that reads as the app sending them the wrong way.
+            shortest: true,
+            // A tour is not a hike: these are the shortcuts people actually
+            // take through an old town.
+            walkway_factor: 1,
+            sidewalk_factor: 1,
+            alley_factor: 1,
+            use_ferry: 0,
+          },
+        },
         units: "kilometers",
       }),
     });

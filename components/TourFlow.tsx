@@ -24,7 +24,7 @@ import Player from "./flow/Player";
 import MiniPlayer from "./flow/MiniPlayer";
 import LayerSwitcher from "./flow/LayerSwitcher";
 import { useTourAudio } from "@/lib/audio/useTourAudio";
-import { audioEngine, clearPlayback, type Depth } from "@/lib/audio/engine";
+import { audioEngine, clearPlayback } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
 import { distanceMeters } from "@/lib/tour/route";
 import {
@@ -71,7 +71,6 @@ export default function TourFlow({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
-  const [depth, setDepth] = useState<Depth>("short");
   /** The tour sheet starts retracted so the route is visible. */
   const [playerOpen, setPlayerOpen] = useState(false);
   const [styleId, setStyleId] = useState(styles[0]?.id ?? "");
@@ -185,8 +184,12 @@ export default function TourFlow({
           if (evt.phase === "error") throw new Error(evt.message ?? "Generation failed.");
           if (evt.phase === "done" && evt.data) {
             sawDone = true;
-            setTour(evt.data);
-            saveTour(evt.data);
+            // The brief travels with the tour: stops written later in the walk
+            // must be written from the same one, or stop nine reads like a
+            // different guide from stop one.
+            const built: StoredTour = { ...evt.data, req: body };
+            setTour(built);
+            saveTour(built);
             setCurrentIndex(0);
             setStage("headphones");
           }
@@ -284,16 +287,7 @@ export default function TourFlow({
     fix && currentStop ? distanceMeters(fix, { lat: currentStop.lat, lng: currentStop.lng }) : null;
 
   // ---------------------------------------------------------------- audio --
-  const audioStops = useMemo(
-    () =>
-      tour?.plan.stops.map((s) => ({
-        id: s.id,
-        name: s.name,
-        scriptShort: s.scriptShort,
-        scriptFull: s.scriptFull,
-      })) ?? [],
-    [tour],
-  );
+  const audioStops = useMemo(() => tour?.plan.stops ?? [], [tour]);
 
   const advance = useCallback(() => {
     // End of a stop walks on by itself, so there is no silence between stops.
@@ -302,10 +296,12 @@ export default function TourFlow({
 
   const audio = useTourAudio({
     stops: audioStops,
+    // Stops written mid-walk need the same brief the first one was written
+    // from, so the tour keeps its own copy of the request.
+    req: tour?.req ?? null,
     lang: draft.lang,
     album: draft.city?.name,
     index: currentIndex,
-    depth,
     onAdvance: advance,
     active: stage === "tour",
   });
@@ -361,11 +357,7 @@ export default function TourFlow({
           city: draft.city?.label,
           tourTitle: tour?.plan.title,
           stopName: currentStop?.name,
-          stopContext: currentStop
-            ? depth === "full"
-              ? currentStop.scriptFull
-              : currentStop.scriptShort
-            : undefined,
+          stopContext: currentStop?.script,
           lat: fix?.lat ?? currentStop?.lat,
           lng: fix?.lng ?? currentStop?.lng,
         }),
@@ -374,7 +366,7 @@ export default function TourFlow({
       if (!res.ok || !body.answer) throw new Error(body.error ?? "Could not answer.");
       return body.answer;
     },
-    [currentStop, fix, draft, depth, tour],
+    [currentStop, fix, draft, tour],
   );
 
   /** Speech synthesis is free and offline — good enough to repeat a cue. */
@@ -634,6 +626,7 @@ export default function TourFlow({
                 total={tour.plan.stops.length}
                 playing={audio.playing}
                 preparing={audio.preparing}
+                waitingFor={audio.waitingFor}
                 position={audio.position}
                 duration={audio.duration}
                 onToggle={audio.toggle}
@@ -654,10 +647,10 @@ export default function TourFlow({
                   stopName={currentStop?.name ?? ""}
                   index={currentIndex}
                   total={tour.plan.stops.length}
-                  depth={depth}
-                  onDepth={setDepth}
                   playing={audio.playing}
                   preparing={audio.preparing}
+                  waitingFor={audio.waitingFor}
+                  buffered={audio.buffered}
                   failed={audio.failed}
                   usingDeviceVoice={audio.usingDeviceVoice}
                   voiceMode={audio.voiceMode}
@@ -670,7 +663,7 @@ export default function TourFlow({
                     setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))
                   }
                   onSeek={audio.seek}
-                  onRetry={() => setDepth((d) => d)}
+                  onRetry={() => setCurrentIndex((i) => i)}
                 />
                 <TourStep
                   plan={tour.plan}

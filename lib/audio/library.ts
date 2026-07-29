@@ -3,48 +3,67 @@
 /**
  * Fetches and holds the narration for a tour.
  *
- * Synthesis takes about eight seconds, which is an eternity standing on a
- * street corner. So the library fetches ahead: the current stop first, then
- * the next one, in the background, while the walker listens. By the time they
- * reach stop two it is already in memory.
+ * Two things arrive from the server, in this order: the words, then the voice.
+ * Both are slow, and both are hidden from the walker the same way — by getting
+ * a little of it now rather than all of it eventually.
  *
- * Blobs are held as object URLs rather than base64 in localStorage — a
- * six-stop tour at two depths is several megabytes, well past the storage
- * quota, and object URLs are what the <audio> element wants anyway.
+ *   - Scripts are written one stop at a time. The stop being listened to, and
+ *     the one after it, are fetched; nothing else is written until the walker
+ *     gets near it. A four-hour tour is twenty-odd stops and most walkers stop
+ *     at six.
+ *   - A script is synthesised in pieces. The first is ~25 seconds of speech and
+ *     lands in a few seconds; the rest are made while it plays.
+ *
+ * Blobs are held as object URLs rather than base64 in localStorage — a long
+ * tour is many megabytes, well past the storage quota, and object URLs are what
+ * the <audio> element wants anyway.
  */
 
-import type { Depth } from "./engine";
+import { chunkScript, estimateSeconds } from "./chunk";
+import type { Stop, TourRequest } from "@/lib/providers/types";
 
-export type Clip = { url: string; bytes: number };
-export type ClipState = "idle" | "loading" | "ready" | "failed";
-
-export type LibraryStop = {
-  id: string;
-  name: string;
-  scriptShort: string;
-  scriptFull: string;
+export type StopState = {
+  /** Have we got the words yet. */
+  script: "idle" | "writing" | "ready" | "failed";
+  /** Pieces synthesised out of pieces wanted. */
+  chunksReady: number;
+  chunksTotal: number;
+  /** The first piece is the only one anyone waits for. */
+  playable: boolean;
 };
 
-type Key = `${string}:${Depth}`;
+const IDLE: StopState = { script: "idle", chunksReady: 0, chunksTotal: 0, playable: false };
 
-const key = (stopId: string, depth: Depth): Key => `${stopId}:${depth}`;
+type Entry = {
+  stop: Stop;
+  script: string | null;
+  cue: string | null;
+  chunks: string[];
+  urls: (string | null)[];
+  state: StopState;
+};
 
 export class AudioLibrary {
-  private clips = new Map<Key, Clip>();
-  private states = new Map<Key, ClipState>();
-  private inflight = new Map<Key, Promise<Clip | null>>();
+  private entries = new Map<string, Entry>();
   private listeners = new Set<() => void>();
-  private snapshot: Record<string, ClipState> = {};
+  private snapshot: Record<string, StopState> = {};
+  private scriptJobs = new Map<string, Promise<void>>();
+  private audioJobs = new Map<string, Promise<void>>();
   /**
-   * Synthesis runs one at a time. Firing the current stop, the other depth and
-   * the next stop together is three concurrent calls, which trips the Gemini
-   * free-tier quota and returns 429 for two of them.
+   * Synthesis runs one at a time. Firing several pieces together trips the
+   * Gemini free-tier quota and returns 429 for all but the first — and the
+   * order matters more than the parallelism, because piece two is worthless
+   * until piece one exists.
    */
   private queue: Promise<unknown> = Promise.resolve();
+  private disposed = false;
 
   constructor(
-    private stops: LibraryStop[],
+    private stops: Stop[],
+    private req: TourRequest | null,
     private lang: string,
+    /** Called with each finished piece, in the order they were asked for. */
+    private onChunk: (stopId: string, index: number, url: string) => void,
   ) {}
 
   subscribe = (l: () => void) => {
@@ -58,37 +77,166 @@ export class AudioLibrary {
   getSnapshot = () => this.snapshot;
 
   private emit() {
-    this.snapshot = Object.fromEntries(this.states) as Record<string, ClipState>;
+    const next: Record<string, StopState> = {};
+    for (const [id, e] of this.entries) next[id] = e.state;
+    this.snapshot = next;
     this.listeners.forEach((l) => l());
   }
 
-  stateOf(stopId: string, depth: Depth): ClipState {
-    return this.states.get(key(stopId, depth)) ?? "idle";
-  }
-
-  urlOf(stopId: string, depth: Depth): string | null {
-    return this.clips.get(key(stopId, depth))?.url ?? null;
-  }
-
-  /** Fetch one recording, or return the one already held. */
-  async fetch(stopId: string, depth: Depth): Promise<Clip | null> {
-    const k = key(stopId, depth);
-    const held = this.clips.get(k);
+  private entry(stopId: string): Entry | null {
+    const held = this.entries.get(stopId);
     if (held) return held;
-
-    const running = this.inflight.get(k);
-    if (running) return running;
-
     const stop = this.stops.find((s) => s.id === stopId);
     if (!stop) return null;
-    const text = depth === "short" ? stop.scriptShort : stop.scriptFull;
-    if (!text?.trim()) return null;
+    const fresh: Entry = {
+      stop,
+      script: stop.script ?? null,
+      cue: stop.walkingCueToHere ?? null,
+      chunks: [],
+      urls: [],
+      state: { ...IDLE, script: stop.script ? "ready" : "idle" },
+    };
+    if (fresh.script) this.prepareChunks(fresh);
+    this.entries.set(stopId, fresh);
+    return fresh;
+  }
 
-    this.states.set(k, "loading");
+  stateOf(stopId: string): StopState {
+    return this.snapshot[stopId] ?? this.entries.get(stopId)?.state ?? IDLE;
+  }
+
+  scriptOf(stopId: string): string | null {
+    return this.entries.get(stopId)?.script ?? null;
+  }
+
+  cueOf(stopId: string): string | null {
+    return this.entries.get(stopId)?.cue ?? null;
+  }
+
+  /** Seconds each piece should run, for the scrubber before they exist. */
+  estimatesFor(stopId: string): number[] {
+    const e = this.entries.get(stopId);
+    return e ? e.chunks.map(estimateSeconds) : [];
+  }
+
+  /**
+   * Pieces already synthesised, for an engine that has just been pointed at
+   * this stop. Without this, everything made before the walker's first tap is
+   * made and then thrown away.
+   */
+  readyChunks(stopId: string): [number, string][] {
+    const e = this.entries.get(stopId);
+    if (!e) return [];
+    const out: [number, string][] = [];
+    e.urls.forEach((u, i) => {
+      if (u) out.push([i, u]);
+    });
+    return out;
+  }
+
+  private prepareChunks(e: Entry) {
+    e.chunks = chunkScript(e.script ?? "");
+    e.urls = new Array(e.chunks.length).fill(null);
+    e.state = { ...e.state, script: "ready", chunksTotal: e.chunks.length };
+  }
+
+  // --------------------------------------------------------------- words --
+
+  /** Write the narration for a stop, if it has not been written already. */
+  async ensureScript(stopId: string): Promise<boolean> {
+    const e = this.entry(stopId);
+    if (!e) return false;
+    if (e.script) return true;
+    if (!this.req) return false;
+
+    const running = this.scriptJobs.get(stopId);
+    if (running) {
+      await running;
+      return !!this.entries.get(stopId)?.script;
+    }
+
+    e.state = { ...e.state, script: "writing" };
     this.emit();
 
-    // Chained onto the queue, so requests are serialised. The tail is caught
-    // so one failure cannot poison every later fetch.
+    const position = this.stops.findIndex((s) => s.id === stopId);
+    const job = (async () => {
+      try {
+        const res = await fetch("/api/stops/script", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            req: this.req,
+            stop: e.stop,
+            previous: position > 0 ? this.stops[position - 1] : null,
+            position: position + 1,
+            total: this.stops.length,
+          }),
+        });
+        if (!res.ok) throw new Error(`Could not write this stop (${res.status})`);
+        const body = (await res.json()) as { script?: string; walkingCueToHere?: string };
+        if (this.disposed || !body.script) throw new Error("empty script");
+        e.script = body.script;
+        e.cue = body.walkingCueToHere ?? e.cue;
+        this.prepareChunks(e);
+      } catch {
+        e.state = { ...e.state, script: "failed" };
+      } finally {
+        this.scriptJobs.delete(stopId);
+        this.emit();
+      }
+    })();
+
+    this.scriptJobs.set(stopId, job);
+    await job;
+    return !!e.script;
+  }
+
+  // --------------------------------------------------------------- voice --
+
+  /**
+   * Synthesise a stop, piece by piece, in order.
+   *
+   * Returns as soon as the first piece is playable; the rest carry on in the
+   * background. Each finished piece is handed straight to the engine, which is
+   * either already playing it or waiting for it.
+   */
+  async ensureAudio(stopId: string): Promise<void> {
+    const existing = this.audioJobs.get(stopId);
+    if (existing) return existing;
+
+    const job = (async () => {
+      const ok = await this.ensureScript(stopId);
+      const e = this.entries.get(stopId);
+      if (!ok || !e || this.disposed) return;
+
+      for (let i = 0; i < e.chunks.length; i++) {
+        if (this.disposed) return;
+        if (e.urls[i]) continue;
+        const url = await this.synthesise(e.chunks[i]);
+        if (this.disposed) return;
+        if (!url) {
+          // One failed piece stops this stop rather than leaving a hole in the
+          // middle of a sentence; the caller falls back to the device voice.
+          e.state = { ...e.state, script: "failed" };
+          this.emit();
+          return;
+        }
+        e.urls[i] = url;
+        e.state = { ...e.state, chunksReady: i + 1, playable: true };
+        this.emit();
+        this.onChunk(stopId, i, url);
+      }
+    })().finally(() => {
+      this.audioJobs.delete(stopId);
+    });
+
+    this.audioJobs.set(stopId, job);
+    return job;
+  }
+
+  private synthesise(text: string): Promise<string | null> {
+    // Chained onto the queue so requests are serialised, and the tail is
+    // caught so one failure cannot poison every later piece.
     const job = this.queue.then(async () => {
       try {
         const res = await fetch("/api/audio", {
@@ -98,47 +246,37 @@ export class AudioLibrary {
         });
         if (!res.ok) throw new Error(`Synthesis failed (${res.status})`);
         const blob = await res.blob();
-        const clip: Clip = { url: URL.createObjectURL(blob), bytes: blob.size };
-        this.clips.set(k, clip);
-        this.states.set(k, "ready");
-        this.emit();
-        return clip;
+        return URL.createObjectURL(blob);
       } catch {
-        this.states.set(k, "failed");
-        this.emit();
         return null;
-      } finally {
-        this.inflight.delete(k);
       }
     });
-
     this.queue = job.catch(() => null);
-    this.inflight.set(k, job);
     return job;
   }
 
   /**
-   * Warm the stop after this one, so walking to it costs no wait. Deliberately
-   * one stop deep: fetching the whole tour up front is a dozen calls the
-   * walker may never listen to.
+   * Get the next stop's words ready while the walker is still on this one.
+   *
+   * Words only, not voice: synthesis is serialised, and putting the next
+   * stop's audio in the queue would make the current stop's later pieces wait
+   * behind it — the walker would hear a gap in what they are listening to now
+   * to save a wait they may never reach.
    */
-  prefetchAround(index: number, depth: Depth) {
-    // The other depth of the stop you are standing at comes FIRST. It is the
-    // control most likely to be pressed in the next minute, and the queue is
-    // serial — putting the next stop ahead of it means a depth toggle waits
-    // through someone else's synthesis before its own.
-    const here = this.stops[index];
-    if (here) void this.fetch(here.id, depth === "short" ? "full" : "short");
+  prefetchAround(index: number) {
     const next = this.stops[index + 1];
-    if (next) void this.fetch(next.id, depth);
+    if (next) void this.ensureScript(next.id);
   }
 
   /** Object URLs are not garbage collected on their own. */
   dispose() {
-    this.clips.forEach((c) => URL.revokeObjectURL(c.url));
-    this.clips.clear();
-    this.states.clear();
-    this.inflight.clear();
+    this.disposed = true;
+    for (const e of this.entries.values()) {
+      for (const u of e.urls) if (u) URL.revokeObjectURL(u);
+    }
+    this.entries.clear();
+    this.scriptJobs.clear();
+    this.audioJobs.clear();
     this.emit();
   }
 }

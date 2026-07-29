@@ -4,9 +4,9 @@
  * Rules this file exists to enforce, all of them learned the hard way on iOS:
  *
  *  1. ONE <audio> element for the whole session. Born on the first user
- *     gesture, never destroyed, never replaced. Changing stop means changing
- *     `src` on that same element. Construct a new Audio() later and iOS will
- *     refuse to play it, silently.
+ *     gesture, never destroyed, never replaced. Changing what is playing means
+ *     changing `src` on that same element. Construct a new Audio() later and
+ *     iOS will refuse to play it, silently.
  *  2. Nothing plays outside a user gesture. `unlock()` is the only place the
  *     element is created, and it must be called synchronously from a tap.
  *  3. Media Session is wired, so lock-screen and earbud controls work — which
@@ -14,43 +14,56 @@
  *  4. Position and stop are persisted on every meaningful change, so a reload
  *     or a killed tab costs the walker nothing.
  *
+ * A stop's narration is not one recording but several, spoken in order. Five
+ * minutes of speech takes about half a minute to synthesise and the walker
+ * spends all of it watching a spinner; in pieces, the first arrives in a few
+ * seconds and the rest are made while they listen. Everything outside this
+ * file — the scrubber, the skip buttons, the lock screen — still sees one
+ * continuous recording with one position and one duration, which is what the
+ * bookkeeping below is for.
+ *
  * No React in here: this has to survive re-renders, fast refresh and route
  * changes.
  */
 
-export type Depth = "short" | "full";
-
 export type Track = {
-  /** Stable across depth changes — this is the stop, not the recording. */
   stopId: string;
   index: number;
-  depth: Depth;
-  src: string;
   title: string;
   subtitle?: string;
   /** Shown on the lock screen. The city, when we know which one. */
   album?: string;
+  /**
+   * Seconds each piece is expected to run, from its word count. The scrubber
+   * needs a total before the last piece exists, and "unknown" is not something
+   * you can draw.
+   */
+  chunkEstimates: number[];
 };
 
 export type EngineState = {
   ready: boolean;
   track: Track | null;
   playing: boolean;
+  /** Fetching or synthesising — including waiting for the next piece. */
   loading: boolean;
+  /** Seconds into the whole stop, not into the piece currently sounding. */
   position: number;
+  /** Real where known, estimated for pieces that do not exist yet. */
   duration: number;
+  /** How much of the narration has actually arrived, 0–1. */
+  buffered: number;
   error: string | null;
 };
 
 export type Persisted = {
   stopId: string;
   index: number;
-  depth: Depth;
   position: number;
   updatedAt: number;
 };
 
-const STORAGE_KEY = "btour:playback:v1";
+const STORAGE_KEY = "btour:playback:v2";
 const PERSIST_EVERY_MS = 1000;
 
 type Listener = () => void;
@@ -63,6 +76,17 @@ class AudioEngine {
   private onNext: (() => void) | null = null;
   private onPrev: (() => void) | null = null;
 
+  // ------------------------------------------------------------- playlist
+  /** One object URL per piece; null until that piece has been synthesised. */
+  private chunks: (string | null)[] = [];
+  /** Real durations, filled in as each piece loads. */
+  private measured: number[] = [];
+  private playIndex = 0;
+  /** True when a piece ended and the next one has not arrived yet. */
+  private starving = false;
+  /** Set while the walker is playing, so a late piece starts by itself. */
+  private wantPlay = false;
+
   private state: EngineState = {
     ready: false,
     track: null,
@@ -70,6 +94,7 @@ class AudioEngine {
     loading: false,
     position: 0,
     duration: 0,
+    buffered: 0,
     error: null,
   };
 
@@ -97,6 +122,64 @@ class AudioEngine {
     this.listeners.forEach((l) => l());
   }
 
+  // ------------------------------------------------------------ bookkeeping
+
+  /**
+   * How wrong the estimates are turning out to be, as a ratio.
+   *
+   * The estimates come from a word count at an assumed speaking rate, and the
+   * voice does not read at exactly that rate. Without this the total shown on
+   * the scrubber falls as each piece plays and its real length replaces its
+   * guess — a five-minute stop visibly shrinking to three while you listen to
+   * it. Measuring the drift once and applying it to what is left keeps the
+   * total still.
+   */
+  private get calibration(): number {
+    const est = this.state.track?.chunkEstimates ?? [];
+    let measured = 0;
+    let expected = 0;
+    for (let i = 0; i < this.measured.length; i++) {
+      if (this.measured[i] > 0 && (est[i] ?? 0) > 0) {
+        measured += this.measured[i];
+        expected += est[i];
+      }
+    }
+    return expected > 0 ? measured / expected : 1;
+  }
+
+  /** Best known length of one piece: measured if it has played, else guessed. */
+  private lengthOf(i: number): number {
+    const m = this.measured[i];
+    if (Number.isFinite(m) && m > 0) return m;
+    return (this.state.track?.chunkEstimates[i] ?? 0) * this.calibration;
+  }
+
+  private get totalDuration(): number {
+    const n = this.state.track?.chunkEstimates.length ?? 0;
+    let sum = 0;
+    for (let i = 0; i < n; i++) sum += this.lengthOf(i);
+    return sum;
+  }
+
+  /** Seconds of narration before the piece at `i`. */
+  private elapsedBefore(i: number): number {
+    let sum = 0;
+    for (let k = 0; k < i; k++) sum += this.lengthOf(k);
+    return sum;
+  }
+
+  private syncDerived() {
+    const el = this.el;
+    const within = el && Number.isFinite(el.currentTime) ? el.currentTime : 0;
+    const ready = this.chunks.filter((c) => c !== null).length;
+    const total = this.chunks.length || 1;
+    this.set({
+      position: this.elapsedBefore(this.playIndex) + within,
+      duration: this.totalDuration,
+      buffered: ready / total,
+    });
+  }
+
   // ---------------------------------------------------------------- unlock
 
   /**
@@ -118,26 +201,29 @@ class AudioEngine {
       this.syncPlaybackState();
     });
     el.addEventListener("pause", () => {
-      this.set({ playing: false });
+      // A piece ending fires 'pause' on some browsers before 'ended'. While
+      // pieces are still being handed over, that is not the walker stopping.
+      if (!this.starving) this.set({ playing: false });
       this.syncPlaybackState();
       this.persist(true);
     });
     el.addEventListener("timeupdate", () => {
-      this.set({ position: el.currentTime });
+      this.syncDerived();
       this.persist(false);
       this.syncPosition();
     });
     el.addEventListener("loadedmetadata", () => {
-      this.set({ duration: el.duration || 0 });
+      // The real length of this piece replaces its estimate, which nudges the
+      // total towards the truth as the walk goes on.
+      if (Number.isFinite(el.duration) && el.duration > 0) {
+        this.measured[this.playIndex] = el.duration;
+      }
+      this.syncDerived();
       this.syncPosition();
     });
     el.addEventListener("canplay", () => this.set({ loading: false }));
     el.addEventListener("waiting", () => this.set({ loading: true }));
-    el.addEventListener("ended", () => {
-      this.set({ playing: false });
-      this.persist(true);
-      this.onEnded?.();
-    });
+    el.addEventListener("ended", () => this.onChunkEnded());
     el.addEventListener("error", () => {
       const code = el.error?.code;
       this.set({ loading: false, error: code ? `Audio error ${code}` : "Audio error" });
@@ -162,71 +248,154 @@ class AudioEngine {
 
   // --------------------------------------------------------------- control
 
-  /** Point the element at a stop. */
-  async load(track: Track, opts: { startAt?: number; autoplay?: boolean } = {}) {
+  /**
+   * Point the engine at a stop.
+   *
+   * The pieces arrive afterwards, through `setChunk`. Calling this with none
+   * of them ready is normal: playback starts the moment the first lands.
+   */
+  async loadStop(track: Track, opts: { startAt?: number; autoplay?: boolean } = {}) {
     const el = this.el ?? this.unlock();
-    const startAt = opts.startAt ?? 0;
+    el.pause();
+    el.removeAttribute("src");
 
-    this.set({ track, loading: true, error: null, position: startAt, duration: 0 });
-    el.src = track.src;
-    el.load();
-    if (startAt > 0) this.seekWhenReady(startAt);
+    this.chunks = new Array(track.chunkEstimates.length).fill(null);
+    this.measured = new Array(track.chunkEstimates.length).fill(0);
+    this.playIndex = 0;
+    this.starving = false;
+    this.wantPlay = opts.autoplay ?? false;
+
+    this.set({
+      track,
+      loading: true,
+      error: null,
+      position: opts.startAt ?? 0,
+      duration: track.chunkEstimates.reduce((a, b) => a + b, 0),
+      buffered: 0,
+      playing: false,
+    });
 
     this.setMetadata(track);
     this.persist(true);
+    if (opts.startAt && opts.startAt > 0) this.pendingSeek = opts.startAt;
+  }
+
+  /** Where to jump to as soon as enough pieces exist to get there. */
+  private pendingSeek: number | null = null;
+
+  /**
+   * Hand a finished piece to the engine.
+   *
+   * Ignored if it belongs to a stop the walker has already left — a slow
+   * synthesis landing after they walked on must not interrupt what is playing.
+   */
+  setChunk(stopId: string, i: number, url: string) {
+    if (this.state.track?.stopId !== stopId) return;
+    if (this.chunks[i]) return;
+    this.chunks[i] = url;
+    this.syncDerived();
+
+    // Nothing playing yet, and this is the piece we are waiting on.
+    const idle = !this.el?.src || this.starving;
+    if (idle && i === this.playIndex) {
+      void this.playChunk(this.playIndex, { autoplay: this.wantPlay || this.starving });
+    }
+    if (this.pendingSeek !== null) {
+      const target = this.pendingSeek;
+      const reachable = this.chunkAt(target);
+      if (reachable !== null && this.chunks[reachable.index]) {
+        this.pendingSeek = null;
+        this.seek(target);
+      }
+    }
+  }
+
+  /** Which piece a moment in the narration falls in, and how far into it. */
+  private chunkAt(seconds: number): { index: number; offset: number } | null {
+    const n = this.chunks.length;
+    if (n === 0) return null;
+    let acc = 0;
+    for (let i = 0; i < n; i++) {
+      const len = this.lengthOf(i);
+      if (seconds < acc + len || i === n - 1) return { index: i, offset: Math.max(0, seconds - acc) };
+      acc += len;
+    }
+    return { index: n - 1, offset: 0 };
+  }
+
+  private async playChunk(i: number, opts: { autoplay: boolean; offset?: number }) {
+    const el = this.el ?? this.unlock();
+    const url = this.chunks[i];
+    if (!url) {
+      // Not made yet. Sit still and let setChunk restart us.
+      this.starving = true;
+      this.set({ loading: true });
+      return;
+    }
+    this.starving = false;
+    this.playIndex = i;
+    this.set({ loading: true, error: null });
+    el.src = url;
+    el.load();
+
+    const offset = opts.offset ?? 0;
+    if (offset > 0) {
+      const apply = () => {
+        try {
+          el.currentTime = Math.min(offset, (el.duration || offset) - 0.1);
+        } catch {
+          /* metadata not in yet; the listener below retries */
+        }
+      };
+      if (el.readyState >= 1) apply();
+      else el.addEventListener("loadedmetadata", apply, { once: true });
+    }
+
+    this.syncDerived();
     if (opts.autoplay) await this.play();
   }
 
-  /**
-   * Swap short <-> full for the stop the walker is already standing at.
-   *
-   * The two recordings are different lengths, so position is carried across
-   * proportionally rather than absolutely — landing at the same *point in the
-   * story* rather than the same number of seconds, which would drop you into
-   * the middle of a sentence or past the end entirely.
-   */
-  async swapDepth(track: Track, ratio: number, resume?: boolean) {
-    const el = this.el ?? this.unlock();
-    // `resume` is the caller's intent, captured when the walker tapped. The
-    // element's own paused flag is not enough: synthesising the other depth
-    // can outlast the recording that was playing, so by now it has ended and
-    // looks paused — but the walker did ask to keep listening.
-    const wasPlaying = resume ?? !el.paused;
+  private onChunkEnded() {
+    const last = this.playIndex >= this.chunks.length - 1;
+    if (last) {
+      this.starving = false;
+      this.wantPlay = false;
+      this.set({ playing: false });
+      this.persist(true);
+      this.onEnded?.();
+      return;
+    }
 
-    this.set({ track, loading: true, error: null, duration: 0 });
-    el.src = track.src;
-    el.load();
-
-    const seek = () => {
-      const d = el.duration;
-      if (Number.isFinite(d) && d > 0) el.currentTime = Math.min(d - 0.25, d * ratio);
-    };
-    if (el.readyState >= 1) seek();
-    el.addEventListener("loadedmetadata", seek, { once: true });
-
-    this.setMetadata(track);
-    this.persist(true);
-    // Allowed without a fresh gesture: the element was unlocked long ago.
-    if (wasPlaying) await this.play();
-  }
-
-  private seekWhenReady(t: number) {
-    const el = this.el;
-    if (!el) return;
-    const apply = () => {
-      try {
-        el.currentTime = Math.max(0, t);
-      } catch {
-        /* seeking before metadata; the listener retries */
-      }
-    };
-    if (el.readyState >= 1) apply();
-    el.addEventListener("loadedmetadata", apply, { once: true });
+    const next = this.playIndex + 1;
+    if (this.chunks[next]) {
+      void this.playChunk(next, { autoplay: true });
+    } else {
+      // The narration has outrun the synthesis. Hold position and wait — the
+      // walker sees "still writing", not a stop that ended early.
+      this.playIndex = next;
+      this.starving = true;
+      this.wantPlay = true;
+      this.set({ loading: true });
+      this.syncDerived();
+    }
   }
 
   async play() {
     const el = this.el;
-    if (!el || !el.src) return;
+    if (!el) return;
+    this.wantPlay = true;
+    // Asked to play while waiting on a piece: remember the intent, and the
+    // moment it lands it starts by itself.
+    if (!el.src) {
+      const url = this.chunks[this.playIndex];
+      if (!url) {
+        this.starving = true;
+        this.set({ loading: true });
+        return;
+      }
+      await this.playChunk(this.playIndex, { autoplay: true });
+      return;
+    }
     try {
       await el.play();
       this.set({ error: null });
@@ -236,33 +405,49 @@ class AudioEngine {
   }
 
   pause() {
+    this.wantPlay = false;
+    this.starving = false;
     this.el?.pause();
+    this.set({ playing: false });
   }
 
   toggle() {
-    if (!this.el) return;
-    if (this.el.paused) void this.play();
-    else this.pause();
+    if (this.state.playing || this.starving) this.pause();
+    else void this.play();
   }
 
+  /** Seconds into the whole stop, across pieces. */
   seek(seconds: number) {
     const el = this.el;
     if (!el) return;
-    const d = el.duration || 0;
-    el.currentTime = Math.min(Math.max(0, seconds), d > 0 ? d : seconds);
-    this.set({ position: el.currentTime });
+    const total = this.totalDuration;
+    const target = Math.min(Math.max(0, seconds), total > 0 ? total : seconds);
+    const at = this.chunkAt(target);
+    if (!at) return;
+
+    if (at.index === this.playIndex && el.src) {
+      try {
+        el.currentTime = at.offset;
+      } catch {
+        /* not seekable yet */
+      }
+      this.syncDerived();
+      this.persist(true);
+      return;
+    }
+
+    if (!this.chunks[at.index]) {
+      // Scrubbing past what has been made. Remember it and go as far as we can.
+      this.pendingSeek = target;
+      this.set({ loading: true });
+      return;
+    }
+    void this.playChunk(at.index, { autoplay: this.state.playing || this.wantPlay, offset: at.offset });
     this.persist(true);
   }
 
   nudge(delta: number) {
-    if (this.el) this.seek(this.el.currentTime + delta);
-  }
-
-  /** 0–1 through the current recording, for carrying position across a swap. */
-  get ratio(): number {
-    const el = this.el;
-    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return 0;
-    return el.currentTime / el.duration;
+    this.seek(this.state.position + delta);
   }
 
   setHandlers(h: { onEnded?: () => void; onNext?: () => void; onPrev?: () => void }) {
@@ -320,13 +505,13 @@ class AudioEngine {
 
   private syncPosition() {
     if (typeof navigator === "undefined" || !("mediaSession" in navigator)) return;
-    const el = this.el;
-    if (!el || !Number.isFinite(el.duration) || el.duration <= 0) return;
+    const { position, duration } = this.state;
+    if (!(duration > 0)) return;
     try {
       navigator.mediaSession.setPositionState({
-        duration: el.duration,
-        playbackRate: el.playbackRate || 1,
-        position: Math.min(el.currentTime, el.duration),
+        duration,
+        playbackRate: this.el?.playbackRate || 1,
+        position: Math.min(position, duration),
       });
     } catch {
       /* Safari throws if position > duration mid-seek */
@@ -346,7 +531,6 @@ class AudioEngine {
       const payload: Persisted = {
         stopId: track.stopId,
         index: track.index,
-        depth: track.depth,
         position,
         updatedAt: now,
       };

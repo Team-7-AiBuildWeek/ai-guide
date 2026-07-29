@@ -32,6 +32,7 @@ export function DirectionsPanel({
   onSpeak: (text: string) => void;
 }) {
   if (!open || !stop) return null;
+  const cue = stop.walkingCueToHere?.trim() ?? "";
   return (
     <div className="pointer-events-auto absolute inset-x-0 top-0 z-30 mx-auto w-full max-w-lg p-4 pt-[max(1rem,env(safe-area-inset-top))]">
       <div className="panel-dark p-5">
@@ -65,15 +66,23 @@ export function DirectionsPanel({
         ) : null}
 
         {/* Large, because this is read while walking. */}
-        <p
-          className={`text-[length:var(--text-lead)] leading-relaxed ${turnInstruction ? "mt-3 text-[color:var(--on-dark-mute)]" : "mt-4"}`}
-        >
-          {stop.walkingCueToHere}
-        </p>
+        {/* The cue is written with the stop's narration, so early in a long
+            tour it may not exist yet. The turn arrow above always does. */}
+        {cue ? (
+          <p
+            className={`text-[length:var(--text-lead)] leading-relaxed ${turnInstruction ? "mt-3 text-[color:var(--on-dark-mute)]" : "mt-4"}`}
+          >
+            {cue}
+          </p>
+        ) : null}
 
         <button
           type="button"
-          onClick={() => onSpeak(turnInstruction ? `${turnInstruction}. ${stop.walkingCueToHere}` : stop.walkingCueToHere)}
+          onClick={() =>
+            onSpeak(
+              [turnInstruction, cue].filter(Boolean).join(". ") || `Continue to ${stop.name}.`,
+            )
+          }
           className="btn btn--primary mt-5 w-full"
         >
           Repeat directions

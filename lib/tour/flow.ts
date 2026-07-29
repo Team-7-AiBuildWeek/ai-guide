@@ -7,7 +7,16 @@
  * are the screens in order, so `stage` alone says what the user is looking at.
  */
 
-import type { City, Detail, Duration, Interest, Maneuver, Pace, TourPlan } from "@/lib/providers/types";
+import type {
+  City,
+  Detail,
+  Duration,
+  Interest,
+  Maneuver,
+  Pace,
+  TourPlan,
+  TourRequest,
+} from "@/lib/providers/types";
 
 export type Stage =
   | "start" // map, collapsed sheet: Build my tour
@@ -53,6 +62,9 @@ export const DURATIONS: { value: Duration; label: string }[] = [
   { value: 45, label: "45 minutes" },
   { value: 60, label: "1 hour" },
   { value: 90, label: "1½ hours" },
+  { value: 120, label: "2 hours" },
+  { value: 180, label: "3 hours" },
+  { value: 240, label: "A whole afternoon" },
 ];
 
 export const DETAILS: { value: Detail; label: string }[] = [
@@ -86,7 +98,7 @@ export const EXAMPLE_BRIEFS = [
 // ------------------------------------------------------------- persistence
 
 const DRAFT_KEY = "btour:draft:v1";
-const TOUR_KEY = "btour:tour:v1";
+const TOUR_KEY = "btour:tour:v2";
 
 export function loadDraft(): Draft | null {
   try {
@@ -107,6 +119,9 @@ export function saveDraft(d: Draft) {
 
 export type StoredTour = {
   plan: TourPlan;
+  /** The brief this was built from, so stops written later match the ones
+   *  written up front. */
+  req?: TourRequest;
   route: GeoJSON.Feature | null;
   meters: number;
   seconds: number;

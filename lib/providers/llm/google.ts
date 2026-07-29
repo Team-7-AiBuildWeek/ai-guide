@@ -11,15 +11,32 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type AskRequest, type TourPlan, type TourRequest } from "@/lib/providers/types";
-import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
-import { answerQuestionVia, generateTourPlanVia, type CompleteFn, type LLMProvider } from "./index";
+import {
+  ProviderError,
+  type AskRequest,
+  type StopScript,
+  type TourPlan,
+  type TourRequest,
+} from "@/lib/providers/types";
+import { ITINERARY_JSON_SCHEMA, STOP_SCRIPT_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
+import {
+  answerQuestionVia,
+  generateStopScriptVia,
+  generateTourPlanVia,
+  type CompleteFn,
+  type LLMProvider,
+  type ScriptRequest,
+} from "./index";
 
 export class GoogleLLMProvider implements LLMProvider {
   readonly name = "google";
 
-  /** One call shape, used for both tours and questions. */
-  private complete(json: boolean): CompleteFn {
+  /**
+   * One call shape for every prompt. The schema is passed in rather than
+   * fixed here: itineraries and stop scripts are different objects, and a
+   * question is not JSON at all.
+   */
+  private complete(schema: object | null): CompleteFn {
     const apiKey = requireKey(config.geminiApiKey, "GEMINI_API_KEY", "google");
     const ai = new GoogleGenAI({ apiKey });
 
@@ -38,12 +55,12 @@ export class GoogleLLMProvider implements LLMProvider {
           config: {
             systemInstruction: system,
             maxOutputTokens: maxTokens,
-            ...(json
+            ...(schema
               ? {
                   // Constrained decoding: the model can only emit our shape.
                   // Zod still checks it — a schema hint is not a guarantee.
                   responseMimeType: "application/json",
-                  responseSchema: TOUR_PLAN_JSON_SCHEMA as never,
+                  responseSchema: schema as never,
                 }
               : {}),
           },
@@ -84,10 +101,14 @@ export class GoogleLLMProvider implements LLMProvider {
   }
 
   async generateTourPlan(input: TourRequest): Promise<TourPlan> {
-    return generateTourPlanVia(this.name, this.complete(true), input);
+    return generateTourPlanVia(this.name, this.complete(ITINERARY_JSON_SCHEMA), input);
+  }
+
+  async generateStopScript(input: ScriptRequest): Promise<StopScript> {
+    return generateStopScriptVia(this.name, this.complete(STOP_SCRIPT_JSON_SCHEMA), input);
   }
 
   async answerQuestion(input: AskRequest): Promise<string> {
-    return answerQuestionVia(this.name, this.complete(false), input);
+    return answerQuestionVia(this.name, this.complete(null), input);
   }
 }

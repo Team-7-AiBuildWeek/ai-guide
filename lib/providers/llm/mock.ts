@@ -7,9 +7,10 @@
  */
 
 import type { LLMProvider } from "./index";
-import type { AskRequest, Stop, TourPlan, TourRequest } from "@/lib/providers/types";
+import type { AskRequest, Stop, StopScript, TourPlan, TourRequest } from "@/lib/providers/types";
+import type { ScriptRequest } from "./index";
 
-type Seed = Omit<Stop, "scriptShort" | "scriptFull"> & { short: string; full: string };
+type Seed = Omit<Stop, "script" | "angle"> & { short: string; full: string };
 
 const SEEDS: Seed[] = [
   {
@@ -114,10 +115,23 @@ export class MockLLMProvider implements LLMProvider {
         name: s.name,
         lat: s.lat,
         lng: s.lng,
-        walkingCueToHere: s.walkingCueToHere,
-        scriptShort: s.short,
-        scriptFull: s.full,
+        angle: s.short,
       })),
+    };
+  }
+
+  /**
+   * The fixture text, repeated until it is roughly the length a real script
+   * would be. Deliberately obvious: nobody should mistake the mock for content,
+   * but the player needs something of a realistic duration to chunk and stream.
+   */
+  async generateStopScript(input: ScriptRequest): Promise<StopScript> {
+    const seed = SEEDS.find((s) => s.id === input.stop.id);
+    const body = seed ? `${seed.full} ${seed.full}` : input.stop.angle;
+    return {
+      walkingCueToHere:
+        seed?.walkingCueToHere ?? `Walk on to ${input.stop.name}. This is the mock guide.`,
+      script: body,
     };
   }
 }

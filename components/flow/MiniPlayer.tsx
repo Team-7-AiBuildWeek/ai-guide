@@ -3,10 +3,10 @@
 /**
  * The retracted player.
  *
- * The tour screen is a map, and a sheet holding a scrubber, skip buttons, a
- * depth toggle and a voice switch covers most of it. Retracted, the sheet
- * keeps only what a walker needs mid-street: whether it is playing, where they
- * are, and a way to ask. Everything else is one tap away.
+ * The tour screen is a map, and a sheet holding a scrubber, skip buttons and a
+ * voice switch covers most of it. Retracted, the sheet keeps only what a
+ * walker needs mid-street: whether it is playing, where they are, and a way to
+ * ask. Everything else is one tap away.
  */
 
 function mmss(s: number) {
@@ -20,6 +20,7 @@ export default function MiniPlayer({
   total,
   playing,
   preparing,
+  waitingFor,
   position,
   duration,
   onToggle,
@@ -31,6 +32,8 @@ export default function MiniPlayer({
   total: number;
   playing: boolean;
   preparing: boolean;
+  /** What is being waited for, when something is. */
+  waitingFor: string | null;
   position: number;
   duration: number;
   onToggle: () => void;
@@ -44,11 +47,13 @@ export default function MiniPlayer({
       <button
         type="button"
         onClick={onToggle}
-        disabled={preparing && duration <= 0}
         aria-label={playing ? "Pause" : "Play"}
         className="btn btn--primary btn--icon shrink-0"
       >
-        {preparing && duration <= 0 ? (
+        {/* Never disabled. The tap is what unlocks audio on iOS, so a button
+            that waits for the recording can never get one. Pressed early it
+            starts the moment the first piece lands. */}
+        {preparing ? (
           <span className="text-[length:var(--text-caption)]">…</span>
         ) : playing ? (
           // Two bars.
@@ -75,8 +80,14 @@ export default function MiniPlayer({
           <span className="truncate font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
             {stopName}
           </span>
+          {/* Whatever is being waited for takes the clock's place — on a
+              retracted player this is the only line that can carry it. */}
           <span className="shrink-0 text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
-            {duration > 0 ? `${mmss(position)} / ${mmss(duration)}` : `${index + 1}/${total}`}
+            {preparing && waitingFor
+              ? waitingFor
+              : duration > 0
+                ? `${mmss(position)} / ${mmss(duration)}`
+                : `${index + 1}/${total}`}
           </span>
         </div>
         <div

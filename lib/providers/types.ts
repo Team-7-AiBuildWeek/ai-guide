@@ -24,6 +24,14 @@ export type Place = {
 
 // -------------------------------------------------------------- tour domain
 
+/**
+ * A stop on the walk.
+ *
+ * Written in two passes. The itinerary pass fills everything except `script`
+ * and `walkingCueToHere`; those arrive later, one stop at a time, because a
+ * four-hour tour is twenty-odd stops and nobody waits five minutes staring at
+ * a spinner for narration they will not hear until three o'clock.
+ */
 export const StopSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -35,12 +43,12 @@ export const StopSchema = z.object({
   localName: z.string().optional(),
   lat: z.number(),
   lng: z.number(),
-  /** "walk down the lane, the church is on your right" */
-  walkingCueToHere: z.string(),
-  /** ~40 seconds spoken. */
-  scriptShort: z.string(),
-  /** ~3 minutes spoken. */
-  scriptFull: z.string(),
+  /** One line on what this stop is for, carried into the script pass. */
+  angle: z.string(),
+  /** "walk down the lane, the church is on your right" — second pass. */
+  walkingCueToHere: z.string().optional(),
+  /** Four to five minutes spoken — second pass. */
+  script: z.string().optional(),
 });
 
 export const TourPlanSchema = z.object({
@@ -49,13 +57,20 @@ export const TourPlanSchema = z.object({
   stops: z.array(StopSchema).min(1),
 });
 
+/** What the second pass returns for one stop. */
+export const StopScriptSchema = z.object({
+  walkingCueToHere: z.string(),
+  script: z.string(),
+});
+
 export type Stop = z.infer<typeof StopSchema>;
 export type TourPlan = z.infer<typeof TourPlanSchema>;
+export type StopScript = z.infer<typeof StopScriptSchema>;
 
 // ------------------------------------------------------------- tour request
 
 /** How long the walker wants to be out, in minutes. */
-export type Duration = 30 | 45 | 60 | 90;
+export type Duration = 30 | 45 | 60 | 90 | 120 | 180 | 240;
 
 /** Slider values are stored as words, not numbers — see the design brief. */
 export type Detail = "highlights" | "story" | "everything";

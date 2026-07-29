@@ -1,9 +1,22 @@
 /** OpenAI chat completions, over plain fetch. See the note in anthropic.ts about SDKs. */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type AskRequest, type TourPlan, type TourRequest } from "@/lib/providers/types";
-import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
-import { answerQuestionVia, generateTourPlanVia, type CompleteFn, type LLMProvider } from "./index";
+import {
+  ProviderError,
+  type AskRequest,
+  type StopScript,
+  type TourPlan,
+  type TourRequest,
+} from "@/lib/providers/types";
+import { ITINERARY_JSON_SCHEMA, STOP_SCRIPT_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
+import {
+  answerQuestionVia,
+  generateStopScriptVia,
+  generateTourPlanVia,
+  type CompleteFn,
+  type LLMProvider,
+  type ScriptRequest,
+} from "./index";
 
 const ENDPOINT = "https://api.openai.com/v1/chat/completions";
 
@@ -14,7 +27,7 @@ type OpenAIResponse = {
 export class OpenAILLMProvider implements LLMProvider {
   readonly name = "openai";
 
-  private complete(json: boolean): CompleteFn {
+  private complete(schema: { name: string; schema: object } | null): CompleteFn {
     const apiKey = requireKey(config.openaiApiKey, "OPENAI_API_KEY", "openai");
 
     return async ({ system, user, maxTokens }) => {
@@ -28,11 +41,11 @@ export class OpenAILLMProvider implements LLMProvider {
             { role: "system", content: system },
             { role: "user", content: user },
           ],
-          ...(json
+          ...(schema
             ? {
                 response_format: {
                   type: "json_schema",
-                  json_schema: { name: "tour_plan", strict: true, schema: TOUR_PLAN_JSON_SCHEMA },
+                  json_schema: { name: schema.name, strict: true, schema: schema.schema },
                 },
               }
             : {}),
@@ -51,10 +64,22 @@ export class OpenAILLMProvider implements LLMProvider {
   }
 
   async generateTourPlan(input: TourRequest): Promise<TourPlan> {
-    return generateTourPlanVia(this.name, this.complete(true), input);
+    return generateTourPlanVia(
+      this.name,
+      this.complete({ name: "itinerary", schema: ITINERARY_JSON_SCHEMA }),
+      input,
+    );
+  }
+
+  async generateStopScript(input: ScriptRequest): Promise<StopScript> {
+    return generateStopScriptVia(
+      this.name,
+      this.complete({ name: "stop_script", schema: STOP_SCRIPT_JSON_SCHEMA }),
+      input,
+    );
   }
 
   async answerQuestion(input: AskRequest): Promise<string> {
-    return answerQuestionVia(this.name, this.complete(false), input);
+    return answerQuestionVia(this.name, this.complete(null), input);
   }
 }

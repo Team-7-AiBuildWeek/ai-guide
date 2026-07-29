@@ -8,9 +8,22 @@
  */
 
 import { config, requireKey } from "@/lib/config";
-import { ProviderError, type AskRequest, type TourPlan, type TourRequest } from "@/lib/providers/types";
-import { TOUR_PLAN_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
-import { answerQuestionVia, generateTourPlanVia, type CompleteFn, type LLMProvider } from "./index";
+import {
+  ProviderError,
+  type AskRequest,
+  type StopScript,
+  type TourPlan,
+  type TourRequest,
+} from "@/lib/providers/types";
+import { ITINERARY_JSON_SCHEMA, STOP_SCRIPT_JSON_SCHEMA } from "@/lib/prompts/tour-plan";
+import {
+  answerQuestionVia,
+  generateStopScriptVia,
+  generateTourPlanVia,
+  type CompleteFn,
+  type LLMProvider,
+  type ScriptRequest,
+} from "./index";
 
 const ENDPOINT = "https://api.anthropic.com/v1/messages";
 const API_VERSION = "2023-06-01";
@@ -24,7 +37,7 @@ type AnthropicResponse = {
 export class AnthropicLLMProvider implements LLMProvider {
   readonly name = "anthropic";
 
-  private complete(json: boolean): CompleteFn {
+  private complete(schema: object | null): CompleteFn {
     const apiKey = requireKey(config.anthropicApiKey, "ANTHROPIC_API_KEY", "anthropic");
 
     return async ({ system, user, maxTokens }) => {
@@ -40,10 +53,10 @@ export class AnthropicLLMProvider implements LLMProvider {
           max_tokens: maxTokens,
           system,
           messages: [{ role: "user", content: user }],
-          ...(json
+          ...(schema
             ? {
                 // Constrained decoding — the model can only emit our schema.
-                output_config: { format: { type: "json_schema", schema: TOUR_PLAN_JSON_SCHEMA } },
+                output_config: { format: { type: "json_schema", schema } },
               }
             : {}),
           // No temperature / top_p: current Opus models reject them outright.
@@ -72,10 +85,14 @@ export class AnthropicLLMProvider implements LLMProvider {
   }
 
   async generateTourPlan(input: TourRequest): Promise<TourPlan> {
-    return generateTourPlanVia(this.name, this.complete(true), input);
+    return generateTourPlanVia(this.name, this.complete(ITINERARY_JSON_SCHEMA), input);
+  }
+
+  async generateStopScript(input: ScriptRequest): Promise<StopScript> {
+    return generateStopScriptVia(this.name, this.complete(STOP_SCRIPT_JSON_SCHEMA), input);
   }
 
   async answerQuestion(input: AskRequest): Promise<string> {
-    return answerQuestionVia(this.name, this.complete(false), input);
+    return answerQuestionVia(this.name, this.complete(null), input);
   }
 }
