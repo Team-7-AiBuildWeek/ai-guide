@@ -7,8 +7,9 @@ AI audio walking tour, MVP. Mobile-first PWA, no accounts, no database.
 - **Step 0 — skeleton and provider layer. Done.**
 - **Steps 1–6 — the whole flow. Done.** One page, one map, six stages:
   `start → brief → points → generating → headphones → tour`.
-- Step 0.5 — audio engine. **Not started** — the tour screen has no player yet,
-  so the headphones prompt is currently a promise the app cannot keep.
+- **Step 0.5 — audio engine. Done.** One `<audio>` element per session, born on
+  the headphones tap, Media Session wired, position persisted, short/full depth
+  toggle, auto-advance between stops.
 - Step 7 — the €8 question. Not started.
 
 ## The flow
@@ -98,6 +99,26 @@ then reload `/dev/providers`, which exercises all four methods. Optional:
 `STADIA_BASE_URL=https://api-eu.stadiamaps.com` (closer for a Bratislava app)
 and `STADIA_STYLE` (`alidade_smooth` by default — a quiet light basemap that
 lets the mint route line carry the eye).
+
+### Narration and the daily quota
+
+`/api/audio` synthesizes one stop and caches by content hash, so replaying a
+stop costs nothing. The client fetches one stop ahead and both depths of the
+current stop — **serialised**, because three concurrent calls trip the quota.
+
+> **The Gemini free tier allows 10 speech requests per day.**
+> `quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue: 10`.
+> One six-stop tour needs six to twelve. Enable billing or you will hear the
+> real voice about once.
+>
+> The 429 says *"please retry in 55s"* even for the daily quota, which is a lie
+> you can wait on for a very long time — the provider checks the `quotaId` and
+> fails immediately with a useful message instead of retrying.
+
+When synthesis is unavailable, **the phone reads the stop itself** via
+`speechSynthesis` and the player says so. It is a fallback, not the product:
+no seeking, no lock-screen control. But the tour is never silent, and it works
+offline and free, which makes the app demoable on a dead quota.
 
 ### Keeping the key out of the page
 

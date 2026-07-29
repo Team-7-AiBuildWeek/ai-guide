@@ -18,6 +18,9 @@ import PointsStep from "./flow/PointsStep";
 import GeneratingStep from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
+import Player from "./flow/Player";
+import { useTourAudio } from "@/lib/audio/useTourAudio";
+import { audioEngine, clearPlayback, type Depth } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
 import { distanceMeters } from "@/lib/tour/route";
 import {
@@ -54,6 +57,7 @@ export default function TourFlow({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
+  const [depth, setDepth] = useState<Depth>("short");
   const abortRef = useRef<AbortController | null>(null);
 
   const { fix, status, simulating, toggleSimulation } = useLiveLocation(initialSimulate);
@@ -172,6 +176,32 @@ export default function TourFlow({
   const distanceToStop =
     fix && currentStop ? distanceMeters(fix, { lat: currentStop.lat, lng: currentStop.lng }) : null;
 
+  // ---------------------------------------------------------------- audio --
+  const audioStops = useMemo(
+    () =>
+      tour?.plan.stops.map((s) => ({
+        id: s.id,
+        name: s.name,
+        scriptShort: s.scriptShort,
+        scriptFull: s.scriptFull,
+      })) ?? [],
+    [tour],
+  );
+
+  const advance = useCallback(() => {
+    // End of a stop walks on by itself, so there is no silence between stops.
+    setCurrentIndex((i) => Math.min(audioStops.length - 1, i + 1));
+  }, [audioStops.length]);
+
+  const audio = useTourAudio({
+    stops: audioStops,
+    lang: draft.lang,
+    index: currentIndex,
+    depth,
+    onAdvance: advance,
+    active: stage === "tour",
+  });
+
   const ask = useCallback(
     async (question: string) => {
       const res = await fetch("/api/ask", {
@@ -206,6 +236,8 @@ export default function TourFlow({
   );
 
   const startOver = useCallback(() => {
+    audioEngine.pause();
+    clearPlayback();
     clearTour();
     setTour(null);
     setStage("start");
@@ -323,17 +355,39 @@ export default function TourFlow({
           }
           collapsedContent={
             stage === "tour" && tour ? (
-              <TourStep
-                plan={tour.plan}
-                currentIndex={currentIndex}
-                onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                onNext={() =>
-                  setCurrentIndex((i) => Math.min((tour.plan.stops.length ?? 1) - 1, i + 1))
-                }
-                onAsk={ask}
-                expanded={false}
-                onToggleExpand={() => setAskOpen(true)}
-              />
+              <div className="flex flex-col gap-4">
+                <Player
+                  stopName={currentStop?.name ?? ""}
+                  index={currentIndex}
+                  total={tour.plan.stops.length}
+                  depth={depth}
+                  onDepth={setDepth}
+                  playing={audio.playing}
+                  preparing={audio.preparing}
+                  failed={audio.failed}
+                  usingDeviceVoice={audio.usingDeviceVoice}
+                  position={audio.position}
+                  duration={audio.duration}
+                  onToggle={audio.toggle}
+                  onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                  onNext={() =>
+                    setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))
+                  }
+                  onSeek={audio.seek}
+                  onRetry={() => setDepth((d) => d)}
+                />
+                <TourStep
+                  plan={tour.plan}
+                  currentIndex={currentIndex}
+                  onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                  onNext={() =>
+                    setCurrentIndex((i) => Math.min((tour.plan.stops.length ?? 1) - 1, i + 1))
+                  }
+                  onAsk={ask}
+                  expanded={false}
+                  onToggleExpand={() => setAskOpen(true)}
+                />
+              </div>
             ) : (
               <>
                 <h1 className="text-[length:var(--text-h3)]">Walk Bratislava old town</h1>
@@ -379,8 +433,9 @@ export default function TourFlow({
               stopCount={tour.plan.stops.length}
               minutes={Math.max(1, Math.round(tour.seconds / 60)) || draft.durationMinutes}
               onStart={() => {
-                // The gesture that unlocks audio on iOS. Priming speech here
-                // means the first real cue can speak without another tap.
+                // The tap that unlocks audio on iOS. It must happen
+                // synchronously, here, or nothing will ever play.
+                audio.start();
                 if (typeof speechSynthesis !== "undefined") {
                   speechSynthesis.speak(new SpeechSynthesisUtterance(""));
                 }

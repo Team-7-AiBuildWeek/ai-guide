@@ -77,9 +77,28 @@ export class GoogleTTSProvider implements TTSProvider {
       `to one person beside you. Unhurried and warm, never announcer-like. ` +
       `Read only the text, and do not add any commentary:\n\n${spoken}`;
 
-    let res;
-    try {
-      res = await ai.models.generateContent({
+    /**
+     * The free tier allows 10 TTS requests a rolling minute. When it says no
+     * it also says exactly how long to wait — "Please retry in 14.5s" — so
+     * honour that rather than guessing, which is how a fixed backoff ends up
+     * retrying half a second too early and failing twice.
+     */
+    const isRateLimit = (e: unknown) => /\b429\b|RESOURCE_EXHAUSTED|quota/i.test(String(e));
+    /**
+     * A per-DAY quota also reports "please retry in 55s", which is a lie you
+     * can wait on for a very long time. Only a per-minute quota is worth
+     * retrying; a daily one has to be reported to the user.
+     */
+    const isDailyQuota = (e: unknown) => /PerDay|RequestsPerDay/i.test(String(e));
+    const retryAfterMs = (e: unknown) => {
+      const m = String(e).match(/retry in ([\d.]+)s/i);
+      const seconds = m ? Number(m[1]) : NaN;
+      // A second of headroom; capped so a bad number cannot hang a request.
+      return Math.min(45_000, (Number.isFinite(seconds) ? seconds : 15) * 1000 + 1000);
+    };
+
+    const call = () =>
+      ai.models.generateContent({
         model: config.geminiTtsModel,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
@@ -91,8 +110,36 @@ export class GoogleTTSProvider implements TTSProvider {
           },
         },
       });
-    } catch (err) {
-      throw new ProviderError(this.name, err instanceof Error ? err.message : String(err), err);
+
+    let res;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        res = await call();
+        break;
+      } catch (err) {
+        lastErr = err;
+        if (!isRateLimit(err)) {
+          throw new ProviderError(this.name, err instanceof Error ? err.message : String(err), err);
+        }
+        if (isDailyQuota(err)) {
+          throw new ProviderError(
+            this.name,
+            "Gemini free-tier daily speech quota is spent (10 requests a day). " +
+              "Enable billing on the project, or set TTS_PROVIDER=mock.",
+            err,
+          );
+        }
+        if (attempt === 2) break;
+        await new Promise((r) => setTimeout(r, retryAfterMs(err)));
+      }
+    }
+    if (!res) {
+      throw new ProviderError(
+        this.name,
+        "rate limited by Gemini — the free tier allows 10 speech requests a minute",
+        lastErr,
+      );
     }
 
     const base64 = res.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;

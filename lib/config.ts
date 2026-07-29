@@ -54,6 +54,8 @@ export const config = {
   openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
   geminiModel: process.env.GEMINI_MODEL ?? process.env.GOOGLE_MODEL ?? "gemini-3.6-flash",
   geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
+  /** Which prebuilt Gemini voice narrates the tour. Audition them at /dev/tts. */
+  geminiVoice: process.env.GEMINI_VOICE ?? "Charon",
 
   /** Stadia serves an EU endpoint too — api-eu.stadiamaps.com, closer to Bratislava. */
   stadiaBaseUrl: process.env.STADIA_BASE_URL ?? "https://api.stadiamaps.com",
