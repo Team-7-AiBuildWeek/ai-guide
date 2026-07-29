@@ -70,6 +70,7 @@ export default function TourMap({
   bottomInset = 0,
   follow = true,
   fitTo = null,
+  lookAt = null,
   showZoom = true,
   styles = [],
   styleId,
@@ -89,6 +90,10 @@ export default function TourMap({
   follow?: boolean;
   /** Bump this to refit the camera to the whole route. */
   fitTo?: string | null;
+  /** Somewhere the walker asked to see — a city chosen by hand. Moves the
+   *  camera once per change, and outranks following the GPS fix, which would
+   *  otherwise drag the map back home on the next tick. */
+  lookAt?: { lat: number; lng: number; key: string } | null;
   /** The tour puts its turn card top-right, where these buttons live. */
   showZoom?: boolean;
   /** Basemaps the walker can switch between. */
@@ -237,6 +242,24 @@ export default function TourMap({
       map.easeTo({ center: [fix.lng, fix.lat], duration: 600, padding: { bottom: bottomInset } });
     }
   }, [fix, follow, bottomInset]);
+
+  // --------------------------------------------------------------- lookAt --
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !lookAt) return;
+    // Also claims the first-centre flag, so a late-arriving GPS fix does not
+    // then snap the camera home from the city that was just asked for.
+    hasCentred.current = true;
+    map.easeTo({
+      center: [lookAt.lng, lookAt.lat],
+      // A city, not a street: close enough to see the shape of the centre.
+      zoom: 13.5,
+      duration: 900,
+      padding: { bottom: bottomInset },
+    });
+    // bottomInset deliberately absent: a sheet opening must not re-fly the map.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lookAt?.key]);
 
   // ---------------------------------------------------------------- route --
   useEffect(() => {

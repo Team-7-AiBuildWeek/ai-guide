@@ -17,12 +17,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Walk Bratislava old town",
-  description: "A free 45-minute audio walking tour of Bratislava's old town.",
+  title: "Walk — audio tours anywhere",
+  description:
+    "A free audio walking tour of wherever you are, built around what you want to see.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Walk Bratislava",
+    title: "Walk",
     statusBarStyle: "default",
   },
   icons: {

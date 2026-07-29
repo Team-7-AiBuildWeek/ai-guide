@@ -14,10 +14,32 @@ import type { GeoJSON, LatLng, MapStyle, Place, WalkingRoute } from "@/lib/provi
  *  excluded outright. */
 export type GeocodeBounds = { lat: number; lng: number; radiusKm: number };
 
+/**
+ * What is being looked for.
+ *
+ * - "city" ranges over the whole world and returns only settlements.
+ * - "precise" returns only things with a front door: a building, a monument,
+ *   a street. Never an administrative area — a search for "Stephansdom"
+ *   otherwise matches the *district* of that name, whose centre is 439m from
+ *   the cathedral, and a stop snapped there is worse than one left alone.
+ * - "place" is the ordinary search box: anything, ranked by nearness.
+ */
+export type GeocodeKind = "place" | "city" | "precise";
+
+export type GeocodeOptions = {
+  bounds?: GeocodeBounds;
+  /** Ranks nearby results first without excluding anything. */
+  focus?: LatLng;
+  kind?: GeocodeKind;
+  /** BCP-47 for the returned labels. Defaults to English, which is the only
+   *  safe answer for a search that can land in any country. */
+  lang?: string;
+};
+
 export interface MapProvider {
   readonly name: string;
-  geocode(query: string, bounds?: GeocodeBounds): Promise<Place[]>;
-  reverseGeocode(lat: number, lng: number): Promise<Place>;
+  geocode(query: string, opts?: GeocodeOptions): Promise<Place[]>;
+  reverseGeocode(lat: number, lng: number, opts?: GeocodeOptions): Promise<Place>;
   walkingRoute(points: LatLng[]): Promise<WalkingRoute>;
   /** MapLibre style URL for the default basemap. */
   tileStyleUrl(): string;

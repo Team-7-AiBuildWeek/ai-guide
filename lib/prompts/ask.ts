@@ -49,6 +49,7 @@ export function buildAskPrompt(req: AskRequest): string {
   }
   lines.push(DEPTH_WORDS[req.detail], ``);
 
+  if (req.city) lines.push(`They are in ${req.city}. Answer about this city, not another.`);
   if (req.tourTitle) lines.push(`They are on your tour, "${req.tourTitle}".`);
   if (req.stopName) lines.push(`They are standing at ${req.stopName}.`);
   if (typeof req.lat === "number" && typeof req.lng === "number") {

@@ -62,9 +62,23 @@ export type Detail = "highlights" | "story" | "everything";
 export type Pace = "relaxed" | "steady" | "cover-ground";
 export type Interest = "history" | "architecture" | "food" | "art" | "hidden";
 
+/** Where the walk is. Named, because "somewhere near 48.14, 17.10" is not
+ *  something a guide can write about. */
+export type City = {
+  /** As people say it: "Vienna", "Kraków". */
+  name: string;
+  /** Disambiguated for the model: "Vienna, Austria". */
+  label: string;
+  lat: number;
+  lng: number;
+};
+
 export type TourRequest = {
   /** Free-text view passes the walker's own words through untouched. */
   freeText?: string;
+  /** Resolved from GPS or typed in. Absent means the model must infer it from
+   *  the coordinates, which it does badly. */
+  city?: City;
   /** Simple-settings view sends structured values only. */
   durationMinutes: Duration;
   detail: Detail;
@@ -92,6 +106,8 @@ export type AskRequest = {
   stopName?: string;
   /** What the guide already said here, so the answer does not repeat it. */
   stopContext?: string;
+  /** Which city the question is being asked in. */
+  city?: string;
   lat?: number;
   lng?: number;
 };

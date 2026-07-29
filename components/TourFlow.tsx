@@ -38,11 +38,17 @@ import {
   type Stage,
   type StoredTour,
 } from "@/lib/tour/flow";
-import type { MapStyle, TourRequest } from "@/lib/providers/types";
+import type { City, MapStyle, TourRequest } from "@/lib/providers/types";
+import { cityAt } from "@/lib/tour/city";
 
 /** Roughly how much of the map each sheet state covers. */
 const INSET_MINI = 120;
 const INSET_PLAYER = 340;
+
+/** Past this from the city we hold, the walker is somewhere else and the name
+ *  is worth looking up again. Generous, because cities are big and a second
+ *  lookup costs a request. */
+const CITY_RADIUS_M = 30_000;
 
 export default function TourFlow({
   styleUrl,
@@ -69,7 +75,17 @@ export default function TourFlow({
   /** The tour sheet starts retracted so the route is visible. */
   const [playerOpen, setPlayerOpen] = useState(false);
   const [styleId, setStyleId] = useState(styles[0]?.id ?? "");
+  const [detectingCity, setDetectingCity] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
+  /** One city lookup in flight at a time. */
+  const cityLookupRef = useRef(false);
+  /**
+   * Set once the walker picks a city by hand. State rather than a ref because
+   * the map has to stop following the GPS fix when it happens — otherwise
+   * choosing Vienna from a sofa in Bratislava flies there and is dragged back
+   * on the next tick.
+   */
+  const [cityPinned, setCityPinned] = useState<City | null>(null);
 
   const { fix, status, simulating, toggleSimulation } = useLiveLocation(initialSimulate);
 
@@ -117,6 +133,7 @@ export default function TourFlow({
 
     const body: TourRequest = {
       freeText: draft.useSimpleSettings ? undefined : draft.freeText || undefined,
+      city: draft.city ?? undefined,
       durationMinutes: draft.durationMinutes,
       detail: draft.detail,
       pace: draft.pace,
@@ -200,6 +217,48 @@ export default function TourFlow({
     }
   }, [draft]);
 
+  // ------------------------------------------------------------------ city --
+  /**
+   * The fix says where; this says where that is. Runs once per city: a walker
+   * moving around town must not re-trigger it, so a fix is only looked up when
+   * there is no city yet or the fix has left the one we have.
+   */
+  useEffect(() => {
+    if (!fix || cityLookupRef.current) return;
+    const known = draft.city;
+    if (known && distanceMeters(fix, { lat: known.lat, lng: known.lng }) < CITY_RADIUS_M) return;
+    // A city chosen by hand outranks the fix — someone planning tomorrow's
+    // walk in Vienna does not want their sofa in Bratislava to win.
+    if (cityPinned) return;
+
+    cityLookupRef.current = true;
+    // Deferred a tick: setting state straight from an effect body cascades a
+    // render, and this one is about to wait on the network regardless.
+    queueMicrotask(() => setDetectingCity(true));
+    cityAt(fix.lat, fix.lng)
+      .then((c) => {
+        if (c) patchDraft({ city: c });
+      })
+      .finally(() => {
+        setDetectingCity(false);
+        cityLookupRef.current = false;
+      });
+  }, [fix, draft.city, cityPinned, patchDraft]);
+
+  /** Choosing a city moves the map and, if nothing is set yet, the start. */
+  const chooseCity = useCallback(
+    (c: City) => {
+      setCityPinned(c);
+      patchDraft({
+        city: c,
+        // A city centre is a defensible starting point and saves a second
+        // search; anything already set was chosen deliberately, so it stays.
+        start: draft.start ?? { lat: c.lat, lng: c.lng, label: c.name },
+      });
+    },
+    [patchDraft, draft.start],
+  );
+
   // ------------------------------------------------------------ tour data --
   const stops = useMemo(
     () =>
@@ -244,6 +303,7 @@ export default function TourFlow({
   const audio = useTourAudio({
     stops: audioStops,
     lang: draft.lang,
+    album: draft.city?.name,
     index: currentIndex,
     depth,
     onAdvance: advance,
@@ -298,6 +358,7 @@ export default function TourFlow({
           freeText: draft.freeText || undefined,
           interests: draft.interests,
           detail: draft.detail,
+          city: draft.city?.label,
           tourTitle: tour?.plan.title,
           stopName: currentStop?.name,
           stopContext: currentStop
@@ -405,8 +466,13 @@ export default function TourFlow({
           setPicking(null);
         }}
         bottomInset={sheetFull ? 0 : stage === "tour" && !playerOpen ? INSET_MINI : INSET_PLAYER}
-        follow={stage !== "tour"}
+        follow={stage !== "tour" && !cityPinned}
         fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
+        lookAt={
+          cityPinned && stage !== "tour"
+            ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label }
+            : null
+        }
         showZoom={stage !== "tour"}
         styles={styles}
         styleId={styleId}
@@ -645,7 +711,9 @@ export default function TourFlow({
               </>
             ) : (
               <>
-                <h1 className="text-[length:var(--text-h3)]">Walk Bratislava old town</h1>
+                <h1 className="text-[length:var(--text-h3)]">
+                  {draft.city ? `Walk ${draft.city.name}` : "Walk any city"}
+                </h1>
                 <p className="mt-2 text-[color:var(--ink-soft)]">
                   A guide in your ear, built around what you actually want to see.
                 </p>
@@ -670,6 +738,8 @@ export default function TourFlow({
               fix={fix}
               picking={picking}
               setPicking={setPicking}
+              detectingCity={detectingCity}
+              onCity={chooseCity}
             />
           ) : stage === "generating" ? (
             <GeneratingStep

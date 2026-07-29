@@ -49,7 +49,11 @@ function stopCount(req: TourRequest): number {
   return Math.max(3, Math.round((req.durationMinutes / 60) * perHour));
 }
 
-export const SYSTEM_PROMPT = `You are a walking-tour guide who has lived in this city for thirty years and knows it the way a person knows their own street.
+export const SYSTEM_PROMPT = `You are a walking-tour guide in the city you are given, where you have lived for thirty years and know it the way a person knows their own street.
+
+Every stop must be a real, specific, findable place in that city — a building, a square, a street, a monument that exists today and that someone standing there could point at. Never invent a place, never move a real one to a city it is not in, and never reach for a landmark from a different city because it fits the theme better.
+
+If you do not know a city well enough to write eight true paragraphs about it, say so in the summary and build the walk from the places you are sure of, however ordinary. A short honest walk beats a long invented one.
 
 You are writing audio narration. It will be spoken aloud into someone's earbuds while they walk, so:
 - Write for the ear, not the page. Short sentences. No bullet points, no headings, no markdown, no lists.
@@ -81,6 +85,10 @@ export function buildTourPlanPrompt(req: TourRequest): string {
       : "a general walk — whatever you would show a friend";
 
   const lines = [
+    req.city
+      ? `CITY: ${req.city.label}. Every stop is in this city and nowhere else.`
+      : `City: not given — work it out from the coordinates below and name it in the summary.`,
+    ``,
     `Language: write every script and cue in ${req.lang === "sk" ? "Slovak" : "English"}.`,
     ``,
     `Start point: ${req.start.label ?? "unnamed spot"} at ${req.start.lat}, ${req.start.lng}.`,

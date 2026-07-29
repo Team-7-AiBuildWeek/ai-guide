@@ -11,7 +11,7 @@
  *     polyline with SIX digits of precision, not the usual five
  */
 
-import { config, requireKey, DEFAULT_CENTER } from "@/lib/config";
+import { config, requireKey } from "@/lib/config";
 import {
   ProviderError,
   type LatLng,
@@ -21,7 +21,20 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import type { GeocodeBounds, MapProvider } from "./index";
+import type { GeocodeOptions, MapProvider } from "./index";
+
+/**
+ * Pelias layers that are a settlement someone could walk around.
+ *
+ * Deliberately no `borough`: a fix in central Kraków resolves to Śródmieště,
+ * which is a district, and a guide told it is writing about "Śródmieście" will
+ * write about the wrong thing. Better to fail and be asked than to be precise
+ * about the wrong place.
+ */
+const CITY_LAYERS = "locality,localadmin";
+
+/** Things a walker can stand in front of. Stadia rejects `intersection`. */
+const PRECISE_LAYERS = "venue,address,street";
 
 type GeocodeFeature = {
   geometry: { coordinates: [number, number] } | null;
@@ -157,10 +170,12 @@ export class StadiaMapProvider implements MapProvider {
     return (await res.json()) as T;
   }
 
-  async geocode(query: string, bounds?: GeocodeBounds): Promise<Place[]> {
+  async geocode(query: string, opts: GeocodeOptions = {}): Promise<Place[]> {
+    const { bounds, focus, kind = "place", lang = "en" } = opts;
     // With bounds this is a hard circle, not a preference — anything outside
-    // is not returned at all. Without them, a focus point still ranks the old
-    // town first for the free-text search box.
+    // is not returned at all. A focus point only reorders, so it is safe to
+    // leave off entirely: a city search has to be able to reach any country.
+    const near = bounds ?? focus;
     const body = await this.json<GeocodeResponse>(
       this.url("/geocoding/v2/search", {
         text: query,
@@ -171,29 +186,37 @@ export class StadiaMapProvider implements MapProvider {
               "boundary.circle.radius": bounds.radiusKm,
             }
           : {}),
-        "focus.point.lat": bounds?.lat ?? DEFAULT_CENTER.lat,
-        "focus.point.lon": bounds?.lng ?? DEFAULT_CENTER.lng,
+        ...(near ? { "focus.point.lat": near.lat, "focus.point.lon": near.lng } : {}),
+        ...(kind === "city"
+          ? { layers: CITY_LAYERS }
+          : kind === "precise"
+            ? { layers: PRECISE_LAYERS }
+            : {}),
         size: 6,
-        lang: "sk",
+        lang,
       }),
     );
     return (body.features ?? []).map(toPlace).filter((p): p is Place => p !== null);
   }
 
-  async reverseGeocode(lat: number, lng: number): Promise<Place> {
+  async reverseGeocode(lat: number, lng: number, opts: GeocodeOptions = {}): Promise<Place> {
+    const { kind = "place", lang = "en" } = opts;
     const body = await this.json<GeocodeResponse>(
       this.url("/geocoding/v2/reverse", {
         "point.lat": lat,
         "point.lon": lng,
+        ...(kind === "city" ? { layers: CITY_LAYERS } : {}),
         size: 1,
-        lang: "sk",
+        lang,
       }),
     );
     const place = (body.features ?? []).map(toPlace).find((p): p is Place => p !== null);
-    // Keep the pin exactly where it was dropped; only borrow the label.
-    return place
-      ? { ...place, lat, lng }
-      : { id: `pin-${lat.toFixed(5)},${lng.toFixed(5)}`, name: "Dropped pin", address: "", lat, lng };
+    if (!place) {
+      return { id: `pin-${lat.toFixed(5)},${lng.toFixed(5)}`, name: "Dropped pin", address: "", lat, lng };
+    }
+    // A dropped pin keeps exactly where it was dropped and only borrows the
+    // label. A city keeps its own centre — that is the whole point of asking.
+    return kind === "city" ? place : { ...place, lat, lng };
   }
 
   async walkingRoute(points: LatLng[]): Promise<WalkingRoute> {

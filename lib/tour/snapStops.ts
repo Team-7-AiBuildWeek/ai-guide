@@ -48,7 +48,10 @@ export async function snapStopsToRealPlaces(
       for (const query of queries) {
         let places;
         try {
-          places = await maps.geocode(query, bounds);
+          // "precise" matters more than it looks: without it "Stephansdom"
+          // matches the Vienna district of that name and moves the cathedral
+          // 439m up the road.
+          places = await maps.geocode(query, { bounds, kind: "precise" });
         } catch {
           continue; // a lookup failure is not a reason to lose the stop
         }

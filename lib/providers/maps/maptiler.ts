@@ -8,7 +8,7 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import { straightLineRoute, type MapProvider, type GeocodeBounds } from "./index";
+import { straightLineRoute, type MapProvider, type GeocodeOptions } from "./index";
 
 const GEOCODE = "https://api.maptiler.com/geocoding";
 
@@ -39,7 +39,7 @@ export class MapTilerMapProvider implements MapProvider {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async geocode(query: string, _bounds?: GeocodeBounds): Promise<Place[]> {
+  async geocode(query: string, _opts?: GeocodeOptions): Promise<Place[]> {
     const url = `${GEOCODE}/${encodeURIComponent(query)}.json?key=${this.key()}&limit=6&language=sk,en`;
     const res = await fetch(url);
     if (!res.ok) throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);

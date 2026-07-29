@@ -9,9 +9,10 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { Place } from "@/lib/providers/types";
+import type { City, Place } from "@/lib/providers/types";
 import type { Draft, Point } from "@/lib/tour/flow";
 import type { Fix } from "@/lib/tour/useLiveLocation";
+import CityPicker from "./CityPicker";
 
 type Target = "start" | "end";
 
@@ -82,6 +83,8 @@ export default function PointsStep({
   fix,
   picking,
   setPicking,
+  detectingCity,
+  onCity,
 }: {
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
@@ -89,6 +92,8 @@ export default function PointsStep({
   fix: Fix | null;
   picking: Target | null;
   setPicking: (t: Target | null) => void;
+  detectingCity: boolean;
+  onCity: (c: City) => void;
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Place[]>([]);
@@ -96,6 +101,7 @@ export default function PointsStep({
   const [target, setTarget] = useState<Target>("start");
   const [showEnd, setShowEnd] = useState(false);
   const debounce = useRef<number | null>(null);
+  const city = draft.city;
 
   // Debounced hard: Nominatim's policy is one request a second, and typing a
   // street name is eight keystrokes.
@@ -107,7 +113,14 @@ export default function PointsStep({
     debounce.current = window.setTimeout(async () => {
       setSearching(true);
       try {
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}`);
+        // Ranked around the chosen city but not walled into it: people search
+        // for a station on the edge of town, and a hard boundary would hide it.
+        const near = city
+          ? `&nearLat=${city.lat}&nearLng=${city.lng}`
+          : fix
+            ? `&nearLat=${fix.lat}&nearLng=${fix.lng}`
+            : "";
+        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}${near}`);
         const body = (await res.json()) as { places?: Place[] };
         setResults(body.places ?? []);
       } catch {
@@ -119,7 +132,10 @@ export default function PointsStep({
     return () => {
       if (debounce.current) window.clearTimeout(debounce.current);
     };
-  }, [query]);
+    // Re-running on every GPS tick would cancel the debounce mid-type; the
+    // coordinates are read when the request fires, which is enough.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [query, city?.lat, city?.lng]);
 
   const setPoint = useCallback(
     (t: Target, p: Point | null) => {
@@ -131,7 +147,7 @@ export default function PointsStep({
     [onChange, setPicking],
   );
 
-  const useMyLocation = (t: Target) => {
+  const fillFromLocation = (t: Target) => {
     if (!fix) return;
     setPoint(t, { lat: fix.lat, lng: fix.lng, label: "Where I am now" });
   };
@@ -141,11 +157,12 @@ export default function PointsStep({
 
   return (
     <div className="flex flex-col gap-5">
+      <CityPicker city={city} detecting={detectingCity} onChange={onCity} />
       <PointRow
         t="start"
         point={draft.start}
         hasFix={fix !== null}
-        onUseLocation={() => useMyLocation("start")}
+        onUseLocation={() => fillFromLocation("start")}
         onClear={() => setPoint("start", null)}
       />
       {showEnd || draft.end ? (
@@ -153,7 +170,7 @@ export default function PointsStep({
           t="end"
           point={draft.end}
           hasFix={fix !== null}
-          onUseLocation={() => useMyLocation("end")}
+          onUseLocation={() => fillFromLocation("end")}
           onClear={() => setPoint("end", null)}
         />
       ) : (
@@ -194,7 +211,7 @@ export default function PointsStep({
           id="place"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Michalská brána"
+          placeholder={city ? `A street or landmark in ${city.name}` : "A street or landmark"}
           autoComplete="off"
           className="mt-2 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
         />

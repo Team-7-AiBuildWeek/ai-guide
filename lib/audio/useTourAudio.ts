@@ -34,6 +34,7 @@ const SERVER_STATE: EngineState = {
 export function useTourAudio({
   stops,
   lang,
+  album,
   index,
   depth,
   onAdvance,
@@ -41,6 +42,8 @@ export function useTourAudio({
 }: {
   stops: LibraryStop[];
   lang: string;
+  /** Lock-screen album — the city. */
+  album?: string;
   index: number;
   depth: Depth;
   /** Called when a stop finishes, so the tour can walk on by itself. */
@@ -189,6 +192,7 @@ export function useTourAudio({
         src: clip.url,
         title: stop.name,
         subtitle: `Stop ${index + 1} of ${stops.length}`,
+        album,
       };
 
       if (sameStop && now?.depth !== depth) {
@@ -205,7 +209,9 @@ export function useTourAudio({
       cancelled = true;
       swapPendingRef.current = false;
     };
-  }, [active, stop, index, depth, library, stops.length, lang, unlocked, deviceChosen]);
+    // `album` is in here only to satisfy the linter — it is settled on the
+    // city screen, long before `active` is ever true, so it cannot re-run this.
+  }, [active, stop, index, depth, library, stops.length, lang, unlocked, deviceChosen, album]);
 
   useEffect(() => {
     if (!active) deviceVoice.stop();

@@ -28,6 +28,8 @@ export type Track = {
   src: string;
   title: string;
   subtitle?: string;
+  /** Shown on the lock screen. The city, when we know which one. */
+  album?: string;
 };
 
 export type EngineState = {
@@ -278,7 +280,7 @@ class AudioEngine {
       navigator.mediaSession.metadata = new MediaMetadata({
         title: track.title,
         artist: track.subtitle ?? "Walking tour",
-        album: "Bratislava old town",
+        album: track.album ?? "Walking tour",
         artwork: [
           { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
           { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },

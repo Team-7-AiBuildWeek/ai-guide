@@ -7,7 +7,7 @@
  * are the screens in order, so `stage` alone says what the user is looking at.
  */
 
-import type { Detail, Duration, Interest, Maneuver, Pace, TourPlan } from "@/lib/providers/types";
+import type { City, Detail, Duration, Interest, Maneuver, Pace, TourPlan } from "@/lib/providers/types";
 
 export type Stage =
   | "start" // map, collapsed sheet: Build my tour
@@ -21,6 +21,10 @@ export type Point = { lat: number; lng: number; label?: string };
 
 export type Draft = {
   freeText: string;
+  /** Where the walk is. Filled from GPS on arrival, or typed in — the two are
+   *  the same field, so choosing a city by hand overrides the fix rather than
+   *  fighting it. */
+  city: City | null;
   useSimpleSettings: boolean;
   durationMinutes: Duration;
   detail: Detail;
@@ -33,6 +37,7 @@ export type Draft = {
 
 export const EMPTY_DRAFT: Draft = {
   freeText: "",
+  city: null,
   useSimpleSettings: false,
   durationMinutes: 45,
   detail: "story",

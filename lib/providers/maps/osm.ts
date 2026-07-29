@@ -15,7 +15,7 @@ import {
   type Place,
   type WalkingRoute,
 } from "@/lib/providers/types";
-import { straightLineRoute, type MapProvider, type GeocodeBounds } from "./index";
+import { straightLineRoute, type MapProvider, type GeocodeOptions } from "./index";
 
 const NOMINATIM = "https://nominatim.openstreetmap.org";
 const ORS = "https://api.openrouteservice.org/v2/directions/foot-walking/geojson";
@@ -42,11 +42,23 @@ export class OSMMapProvider implements MapProvider {
     return { "user-agent": config.nominatimUserAgent, accept: "application/json" };
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async geocode(query: string, _bounds?: GeocodeBounds): Promise<Place[]> {
+  async geocode(query: string, opts: GeocodeOptions = {}): Promise<Place[]> {
+    const { bounds, kind = "place", lang = "en" } = opts;
+    // A viewbox is a rectangle and the bound we are given is a circle, so this
+    // is the circle's bounding box — slightly generous at the corners, which
+    // only ever admits a candidate the distance check would reject anyway.
+    const box = bounds
+      ? (() => {
+          const dLat = bounds.radiusKm / 111.32;
+          const dLng = bounds.radiusKm / (111.32 * Math.cos((bounds.lat * Math.PI) / 180));
+          return `&viewbox=${bounds.lng - dLng},${bounds.lat - dLat},${bounds.lng + dLng},${bounds.lat + dLat}&bounded=1`;
+        })()
+      : "";
     const url =
-      `${NOMINATIM}/search?format=jsonv2&limit=6&accept-language=sk,en` +
-      `&countrycodes=sk&q=${encodeURIComponent(query)}`;
+      `${NOMINATIM}/search?format=jsonv2&limit=6&accept-language=${encodeURIComponent(lang)}` +
+      (kind === "city" ? "&featureType=city" : "") +
+      box +
+      `&q=${encodeURIComponent(query)}`;
     const res = await fetch(url, { headers: this.headers() });
     if (!res.ok) throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);
     const body = (await res.json()) as NominatimPlace[];
@@ -59,8 +71,13 @@ export class OSMMapProvider implements MapProvider {
     }));
   }
 
-  async reverseGeocode(lat: number, lng: number): Promise<Place> {
-    const url = `${NOMINATIM}/reverse?format=jsonv2&accept-language=sk,en&lat=${lat}&lon=${lng}`;
+  async reverseGeocode(lat: number, lng: number, opts: GeocodeOptions = {}): Promise<Place> {
+    const { kind = "place", lang = "en" } = opts;
+    // zoom=10 is Nominatim's city level; the default resolves to a building.
+    const url =
+      `${NOMINATIM}/reverse?format=jsonv2&accept-language=${encodeURIComponent(lang)}` +
+      (kind === "city" ? "&zoom=10" : "") +
+      `&lat=${lat}&lon=${lng}`;
     const res = await fetch(url, { headers: this.headers() });
     if (!res.ok) throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);
     const p = (await res.json()) as NominatimPlace;
@@ -68,8 +85,9 @@ export class OSMMapProvider implements MapProvider {
       id: String(p.place_id ?? `pin-${lat},${lng}`),
       name: p.name || p.display_name?.split(",")[0] || "Dropped pin",
       address: p.display_name ?? "",
-      lat,
-      lng,
+      // A city answers with its own centre; a pin stays where it was dropped.
+      lat: kind === "city" ? Number(p.lat) : lat,
+      lng: kind === "city" ? Number(p.lon) : lng,
     };
   }
 
