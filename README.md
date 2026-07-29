@@ -51,6 +51,12 @@ the tiles are paid for once.
 | `headphones` | Use headphones. The tap on Start is the iOS audio-unlock gesture |
 | `tour` | Route drawn, stops numbered, directions behind the top-right icon, **Ask anything** |
 
+Back always goes exactly one step and never destroys anything:
+`ask → tour`, `directions → tour`, `tour → landing (tour kept, resumable)`.
+The map's top bar is hidden while the sheet is full — it sits at `z-30` above
+the sheet's `z-20`, so two back chevrons used to stack and the one you hit
+while asking a question was the tour's.
+
 `POST /api/tours` streams progress as server-sent events so the status lines
 are true — each one is emitted when that stage actually begins. `EventSource`
 cannot POST, so the client parses the stream by hand.

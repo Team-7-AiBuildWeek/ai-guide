@@ -287,6 +287,27 @@ export default function TourFlow({
     return () => window.clearTimeout(id);
   }, [justArrived]);
 
+  /**
+   * Back goes exactly one step, and never destroys anything.
+   *
+   * It used to run straight to the landing screen AND delete the tour — and
+   * because the map's top bar sits above the sheet, the button you hit while
+   * asking a question was that one, not the sheet's own chevron.
+   */
+  const goBack = useCallback(() => {
+    if (askOpen) {
+      setAskOpen(false);
+      return;
+    }
+    if (directionsOpen) {
+      setDirectionsOpen(false);
+      return;
+    }
+    // Leaving the tour keeps it: the landing screen offers to resume.
+    audioEngine.pause();
+    setStage("start");
+  }, [askOpen, directionsOpen]);
+
   const startOver = useCallback(() => {
     audioEngine.pause();
     clearPlayback();
@@ -331,11 +352,19 @@ export default function TourFlow({
       />
 
       {/* Directions live behind a small icon, top right, out of the way. */}
-      {stage === "tour" ? (
+      {/* Hidden while the sheet is full: the sheet has its own chevron, and two
+          back buttons stacked on top of each other is how you end up deleting
+          a tour when you meant to close a question. */}
+      {stage === "tour" && !askOpen ? (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-start justify-between gap-3">
-              <button type="button" onClick={startOver} className="btn btn--quiet px-4" aria-label="End the tour">
+              <button
+                type="button"
+                onClick={goBack}
+                className="btn btn--quiet px-4"
+                aria-label={directionsOpen ? "Close directions" : "Leave the tour"}
+              >
                 ←
               </button>
               <button
@@ -371,7 +400,7 @@ export default function TourFlow({
       {/* Arrival, and the switch that turns it off. GPS moving the tour under
           the walker is right most of the time and infuriating the rest, so it
           has to be visible and it has to be defeatable. */}
-      {stage === "tour" ? (
+      {stage === "tour" && !askOpen ? (
         <div className="pointer-events-none absolute inset-x-0 top-20 z-20 px-4">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
             {justArrived ? (
@@ -470,6 +499,31 @@ export default function TourFlow({
                   onToggleExpand={() => setAskOpen(true)}
                 />
               </div>
+            ) : tour ? (
+              // Backing out of a tour is not the same as ending it. The walk is
+              // still here, at the stop it was left on.
+              <>
+                <p className="u-eyebrow">Your tour, paused</p>
+                <h1 className="mt-1 text-[length:var(--text-h3)]">{tour.plan.title}</h1>
+                <p className="mt-2 text-[color:var(--ink-soft)]">
+                  Stop {currentIndex + 1} of {tour.plan.stops.length} ·{" "}
+                  {tour.plan.stops[currentIndex]?.name}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setStage("tour")}
+                  className="btn btn--primary btn--lg mt-4 w-full"
+                >
+                  Carry on walking
+                </button>
+                <button
+                  type="button"
+                  onClick={startOver}
+                  className="mt-3 min-h-[44px] w-full text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
+                >
+                  Build a different tour
+                </button>
+              </>
             ) : (
               <>
                 <h1 className="text-[length:var(--text-h3)]">Walk Bratislava old town</h1>
