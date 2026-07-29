@@ -44,6 +44,32 @@ Three things it will usually be:
    variable is saved.
 3. **They were scoped to Production only**, so deploy previews still run mocks.
 
+## Netlify cannot host tour generation — measured
+
+Against the deployed site, with Gemini enabled:
+
+```
+POST /api/tours
+  ended after 30.22s with HTTP 200
+  events received: 1
+  data: {"phase":"stops","message":"Choosing your stops"}
+```
+
+The function is cut at **30 seconds**, mid-stream, with a 200 already sent.
+Generation needs 30–120s. Everything short still works — geocoding, a single
+TTS call, tiles, routing — so the site looks alive while the one thing that
+matters hangs.
+
+Two ways out:
+
+1. **Deploy to Vercel** — long-running routes and streaming are native there,
+   `maxDuration` is honoured, and it is what the project spec assumes. Nothing
+   in the code changes.
+2. **Split generation into calls that each fit in 30s** — the skeleton (stops,
+   coordinates, cues) in one request, then each stop's scripts in its own. More
+   work, but it would run on any host and would let the map appear before the
+   narration is written.
+
 ## Function timeouts — the one that will bite next
 
 Tour generation takes 30–120 seconds and speech synthesis 5–30. Netlify's

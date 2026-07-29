@@ -100,6 +100,12 @@ export default function TourFlow({
     const controller = new AbortController();
     abortRef.current = controller;
 
+    // A stream that stops arriving is not the same as a stream that ends. Some
+    // hosts cut a long-running function mid-flight and the socket simply goes
+    // quiet, so without a ceiling the screen waits for ever.
+    const HARD_LIMIT_MS = 180_000;
+    const timeout = window.setTimeout(() => controller.abort(), HARD_LIMIT_MS);
+
     const body: TourRequest = {
       freeText: draft.useSimpleSettings ? undefined : draft.freeText || undefined,
       durationMinutes: draft.durationMinutes,
@@ -110,6 +116,10 @@ export default function TourFlow({
       end: draft.end ?? undefined,
       lang: draft.lang,
     };
+
+    let sawDone = false;
+    let lastPhase = "stops";
+    const started = Date.now();
 
     try {
       const res = await fetch("/api/tours", {
@@ -143,10 +153,12 @@ export default function TourFlow({
             data?: StoredTour;
           };
           setPhase(evt.phase);
+          lastPhase = evt.phase;
           if (evt.message) setPhaseMessage(evt.message);
 
           if (evt.phase === "error") throw new Error(evt.message ?? "Generation failed.");
           if (evt.phase === "done" && evt.data) {
+            sawDone = true;
             setTour(evt.data);
             saveTour(evt.data);
             setCurrentIndex(0);
@@ -154,9 +166,28 @@ export default function TourFlow({
           }
         }
       }
+      // The loop ended. If "done" never arrived the connection was cut, which
+      // on a serverless host almost always means the function hit its time
+      // limit — worth saying, because it is not something a retry will fix.
+      if (!sawDone) {
+        const seconds = Math.round((Date.now() - started) / 1000);
+        throw new Error(
+          `The connection closed after ${seconds}s, during "${lastPhase}", ` +
+            `before the tour was finished. If this host caps how long a request ` +
+            `may run, generation is being cut off rather than failing.`,
+        );
+      }
     } catch (err) {
-      if ((err as Error).name === "AbortError") return;
+      if ((err as Error).name === "AbortError") {
+        // Our own hard limit, not the user pressing cancel.
+        if (controller.signal.reason !== "cancelled") {
+          setGenError("Generation took too long and was stopped.");
+        }
+        return;
+      }
       setGenError(err instanceof Error ? err.message : "Could not build the tour.");
+    } finally {
+      window.clearTimeout(timeout);
     }
   }, [draft]);
 
@@ -583,7 +614,7 @@ export default function TourFlow({
               message={phaseMessage}
               error={genError}
               onCancel={() => {
-                abortRef.current?.abort();
+                abortRef.current?.abort("cancelled");
                 setStage("points");
               }}
               onRetry={generate}
