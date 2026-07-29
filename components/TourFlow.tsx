@@ -382,6 +382,9 @@ export default function TourFlow({
   // While dropping a pin the sheet must get out of the way of the map.
   const sheetHidden = picking !== null && stage === "points";
 
+  const showLayerSwitcher =
+    !directionsOpen && (sheetHidden || (stage === "tour" && !sheetFull));
+
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <TourMap
@@ -467,16 +470,18 @@ export default function TourFlow({
       ) : null}
 
       {/* Basemap switcher, under the back button and out of the turn card's way.
-          It only exists while the map is the thing being looked at: over a full
-          sheet or the directions panel it is a floating icon on top of someone
-          else's text, and changing the basemap is not what they came for. */}
-      {sheetFull || directionsOpen ? null : (
+          It only exists where the basemap is worth changing: walking the tour,
+          and choosing a point by tapping the map, where satellite is what tells
+          you which building is which. Everywhere else — the landing screen, a
+          full sheet, the directions panel — it is a floating icon over someone
+          else's words. */}
+      {showLayerSwitcher ? (
         <div className="pointer-events-none absolute left-0 top-20 z-30 p-4">
           <div className="pointer-events-auto">
             <LayerSwitcher styles={styles} value={styleId} onChange={setStyleId} />
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Arrival, and the switch that turns it off. GPS moving the tour under
           the walker is right most of the time and infuriating the rest, so it
