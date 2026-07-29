@@ -183,9 +183,13 @@ class AudioEngine {
    * story* rather than the same number of seconds, which would drop you into
    * the middle of a sentence or past the end entirely.
    */
-  async swapDepth(track: Track, ratio: number) {
+  async swapDepth(track: Track, ratio: number, resume?: boolean) {
     const el = this.el ?? this.unlock();
-    const wasPlaying = !el.paused;
+    // `resume` is the caller's intent, captured when the walker tapped. The
+    // element's own paused flag is not enough: synthesising the other depth
+    // can outlast the recording that was playing, so by now it has ended and
+    // looks paused — but the walker did ask to keep listening.
+    const wasPlaying = resume ?? !el.paused;
 
     this.set({ track, loading: true, error: null, duration: 0 });
     el.src = track.src;

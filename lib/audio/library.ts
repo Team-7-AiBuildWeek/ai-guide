@@ -123,11 +123,14 @@ export class AudioLibrary {
    * walker may never listen to.
    */
   prefetchAround(index: number, depth: Depth) {
-    const next = this.stops[index + 1];
-    if (next) void this.fetch(next.id, depth);
-    // The other depth of the current stop, so the toggle is instant.
+    // The other depth of the stop you are standing at comes FIRST. It is the
+    // control most likely to be pressed in the next minute, and the queue is
+    // serial — putting the next stop ahead of it means a depth toggle waits
+    // through someone else's synthesis before its own.
     const here = this.stops[index];
     if (here) void this.fetch(here.id, depth === "short" ? "full" : "short");
+    const next = this.stops[index + 1];
+    if (next) void this.fetch(next.id, depth);
   }
 
   /** Object URLs are not garbage collected on their own. */

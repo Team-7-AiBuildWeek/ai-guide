@@ -115,6 +115,21 @@ current stop — **serialised**, because three concurrent calls trip the quota.
 > you can wait on for a very long time — the provider checks the `quotaId` and
 > fails immediately with a useful message instead of retrying.
 
+Three things the depth toggle taught us, all fixed:
+
+- Synthesising the other depth can take longer than the recording currently
+  playing. When the short version ran out, end-of-stop auto-advance fired and
+  walked the tour on — so asking for *more* detail silently skipped you to the
+  next stop. Advancing is suppressed while a swap is in flight.
+- The position ratio has to be captured when the walker taps, not after the
+  synthesis await, or it measures wherever the old recording drifted to.
+- `wasPlaying` has to be the caller's intent for the same reason: by the time
+  the new clip arrives the old one has ended and the element looks paused.
+
+The other depth of the current stop is therefore prefetched **before** the next
+stop — the queue is serial, and the toggle is the control most likely to be
+pressed next.
+
 When synthesis is unavailable, **the phone reads the stop itself** via
 `speechSynthesis` and the player says so. It is a fallback, not the product:
 no seeking, no lock-screen control. But the tour is never silent, and it works

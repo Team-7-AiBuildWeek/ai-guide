@@ -7,7 +7,7 @@
  * ready, and the four things a walker can do — play, change depth, skip, seek.
  */
 
-import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { audioEngine, type Depth, type EngineState } from "./engine";
 import { AudioLibrary, type ClipState, type LibraryStop } from "./library";
 import { deviceVoice, type DeviceVoiceState } from "./deviceVoice";
@@ -70,6 +70,24 @@ export function useTourAudio({
   /** True once real synthesis failed and the phone is reading instead. */
   const usingDeviceVoice = clipState === "failed" && deviceVoice.supported;
 
+  /**
+   * Tracks whether the element exists yet, so the loading effect re-runs the
+   * moment it does. Without this a tour restored from localStorage lands on
+   * the tour screen having skipped the headphones tap, and stays silent for
+   * ever — the play button calls into an engine with no element.
+   */
+  const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
+
+  /**
+   * Set while a depth change is being synthesised.
+   *
+   * The short recording can run out during that wait, and end-of-stop
+   * auto-advance would then walk the tour on to the next stop — so asking for
+   * more detail would silently skip you forward. Advancing is suppressed until
+   * the swap lands.
+   */
+  const swapPendingRef = useRef(false);
+
   const onAdvanceRef = useRef(onAdvance);
   useEffect(() => {
     onAdvanceRef.current = onAdvance;
@@ -78,7 +96,10 @@ export function useTourAudio({
   // Lock-screen next/previous and end-of-stop auto-advance.
   useEffect(() => {
     audioEngine.setHandlers({
-      onEnded: () => onAdvanceRef.current(),
+      onEnded: () => {
+        if (swapPendingRef.current) return;
+        onAdvanceRef.current();
+      },
       onNext: () => onAdvanceRef.current(),
     });
   }, []);
@@ -88,8 +109,20 @@ export function useTourAudio({
    * position is the engine's business, not this effect's.
    */
   useEffect(() => {
-    if (!active || !stop || !audioEngine.unlocked) return;
+    if (!active || !stop || !unlocked) return;
     let cancelled = false;
+
+    // Captured NOW, before the await. Synthesising the other depth takes
+    // tens of seconds, and reading the ratio afterwards measures wherever the
+    // old recording had drifted to by then — usually its very end.
+    const ratioAtSwitch = audioEngine.ratio;
+    const wasListening = audioEngine.getState().playing;
+
+    // A depth change on the stop already loaded: hold the auto-advance until
+    // the new recording is in.
+    const current = audioEngine.getState().track;
+    const isDepthChange = current?.stopId === stop.id && current.depth !== depth;
+    if (isDepthChange) swapPendingRef.current = true;
 
     void (async () => {
       const clip = await library.fetch(stop.id, depth);
@@ -98,6 +131,7 @@ export function useTourAudio({
       if (!clip) {
         // Synthesis failed — usually the daily quota. Read it with the phone's
         // own voice rather than leaving the walker in silence.
+        swapPendingRef.current = false;
         if (deviceVoice.supported) {
           audioEngine.pause();
           const text = depth === "short" ? stop.scriptShort : stop.scriptFull;
@@ -107,8 +141,8 @@ export function useTourAudio({
       }
       deviceVoice.stop();
 
-      const current = audioEngine.getState().track;
-      const sameStop = current?.stopId === stop.id;
+      const now = audioEngine.getState().track;
+      const sameStop = now?.stopId === stop.id;
       const track = {
         stopId: stop.id,
         index,
@@ -118,19 +152,21 @@ export function useTourAudio({
         subtitle: `Stop ${index + 1} of ${stops.length}`,
       };
 
-      if (sameStop && current?.depth !== depth) {
+      if (sameStop && now?.depth !== depth) {
         // Depth toggle: keep the walker's place in the story.
-        await audioEngine.swapDepth(track, audioEngine.ratio);
-      } else if (!sameStop || !current) {
+        await audioEngine.swapDepth(track, ratioAtSwitch, wasListening);
+      } else if (!sameStop || !now) {
         await audioEngine.load(track, { autoplay: true });
       }
+      swapPendingRef.current = false;
       library.prefetchAround(index, depth);
     })();
 
     return () => {
       cancelled = true;
+      swapPendingRef.current = false;
     };
-  }, [active, stop, index, depth, library, stops.length, lang]);
+  }, [active, stop, index, depth, library, stops.length, lang, unlocked]);
 
   useEffect(() => {
     if (!active) deviceVoice.stop();
@@ -139,7 +175,22 @@ export function useTourAudio({
   const start = useCallback(() => {
     // Synchronous, inside the tap. This is the whole ballgame on iOS.
     audioEngine.unlock();
+    setUnlocked(true);
   }, []);
+
+  /** Any play gesture also counts as the unlocking tap. */
+  const toggle = useCallback(() => {
+    if (usingDeviceVoice) {
+      deviceVoice.toggle();
+      return;
+    }
+    if (!audioEngine.unlocked) {
+      audioEngine.unlock();
+      setUnlocked(true);
+      return; // the effect below loads and plays as soon as it sees this
+    }
+    audioEngine.toggle();
+  }, [usingDeviceVoice]);
 
   return {
     ...engine,
@@ -153,7 +204,7 @@ export function useTourAudio({
     start,
     play: () => audioEngine.play(),
     pause: () => audioEngine.pause(),
-    toggle: () => (usingDeviceVoice ? deviceVoice.toggle() : audioEngine.toggle()),
+    toggle,
     seek: (s: number) => audioEngine.seek(s),
     nudge: (d: number) => audioEngine.nudge(d),
   };
