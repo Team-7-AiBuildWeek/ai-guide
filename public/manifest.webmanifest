@@ -1,10 +1,14 @@
 {
-  "name": "Walk Bratislava old town",
-  "short_name": "Walk Bratislava",
-  "description": "A free 45-minute audio walking tour of Bratislava's old town.",
+  "name": "Walk — audio tours anywhere",
+  "short_name": "Walk",
+  "description": "A free audio walking tour of wherever you are, built around what you want to see.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
+  "display_override": [
+    "fullscreen",
+    "standalone"
+  ],
   "orientation": "portrait",
   "background_color": "#f9fafb",
   "theme_color": "#f9fafb",

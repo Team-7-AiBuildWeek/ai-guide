@@ -16,6 +16,7 @@ import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep from "./flow/BriefStep";
 import PointsStep from "./flow/PointsStep";
 import CityPicker from "./flow/CityPicker";
+import FullscreenButton from "./flow/FullscreenButton";
 import GeneratingStep from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
@@ -849,6 +850,9 @@ export default function TourFlow({
                     Choose any city
                   </button>
                 )}
+                {/* Offered here and nowhere else: the walk itself should not
+                    carry a control for the browser it happens to be in. */}
+                <FullscreenButton />
               </>
             )
           }

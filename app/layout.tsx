@@ -24,7 +24,14 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     title: "Walk",
-    statusBarStyle: "default",
+    /**
+     * Edge to edge on iOS: the page is drawn *under* the status bar rather
+     * than below it, which is the difference between an app and a web page
+     * with the browser hidden. It only works because every fixed edge in this
+     * app already pads with `env(safe-area-inset-*)` — without that the first
+     * line of the sheet would sit under the clock.
+     */
+    statusBarStyle: "black-translucent",
   },
   icons: {
     icon: "/icons/icon-192.png",

@@ -433,46 +433,12 @@ pre {
    says which part is taking the time.
    ------------------------------------------------------------------------ */
 
-@keyframes spine-breathe {
-  0%,
-  100% {
-    transform: scale(1);
-  }
-  50% {
-    transform: scale(1.22);
-  }
-}
-
-/* A halo leaving the node, like a sonar ping. The first version used a
-   box-shadow growing 11px on a 30px circle — under three pixels of movement,
-   which is technically an animation and perceptually nothing. */
-@keyframes spine-ping {
-  0% {
-    transform: scale(0.8);
-    opacity: 0.85;
-  }
-  70% {
-    opacity: 0.25;
-  }
-  100% {
-    transform: scale(2.4);
-    opacity: 0;
-  }
-}
-
+/* Still, and still obviously the live one. The movement on this screen is now
+   the line of words beside it lighting up one at a time — see WordWave in
+   GeneratingStep — and a circle breathing next to a line that is already
+   animating is two things asking to be watched at once. */
 .spine__node--working {
-  animation: spine-breathe 1.8s cubic-bezier(0.45, 0, 0.4, 1) infinite;
   box-shadow: 0 0 0 3px rgb(94 218 155 / 0.35);
-}
-
-.spine__node--working::after {
-  content: "";
-  position: absolute;
-  inset: -5px;
-  border-radius: 999px;
-  border: 3px solid var(--mint);
-  animation: spine-ping 1.8s cubic-bezier(0, 0.4, 0.6, 1) infinite;
-  pointer-events: none;
 }
 
 .spine__item--working:not(:last-child)::before {

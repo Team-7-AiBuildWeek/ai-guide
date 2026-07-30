@@ -9,7 +9,75 @@
  * counts, and the line beneath it trickles toward the next one.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
+
+/** How long each word waits before the next one lights. */
+const WORD_MS = 150;
+/** How long the whole lit line holds before it all goes dark together. */
+const HOLD_MS = 550;
+
+const onMotionChange = (cb: () => void) => {
+  const q = window.matchMedia("(prefers-reduced-motion: reduce)");
+  q.addEventListener("change", cb);
+  return () => q.removeEventListener("change", cb);
+};
+
+/**
+ * The line that is working, lit a word at a time.
+ *
+ * A spinner says "something is happening"; this says "these words are the
+ * thing that is happening", which is worth more on a screen somebody stares at
+ * for a minute. The words light left to right, hold whole for a beat, and then
+ * all go out at once — the darkness is what makes it read as a wave rather
+ * than a row of independently blinking lights.
+ *
+ * Driven from a timer rather than staggered CSS delays because the switch-off
+ * has to be simultaneous: with per-word delays each word would also switch off
+ * on its own schedule, and the line would ripple out instead of dropping.
+ */
+function WordWave({ text }: { text: string }) {
+  const words = text.split(" ");
+  const still = useSyncExternalStore(
+    onMotionChange,
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => true,
+  );
+  const [lit, setLit] = useState(0);
+
+  useEffect(() => {
+    if (still) return;
+    let index = 0;
+    const tick = () => {
+      index = index > words.length ? 0 : index + 1;
+      setLit(index);
+      // The pause belongs to the full line, so the eye has time to read it
+      // before the line goes dark.
+      return index > words.length ? HOLD_MS : WORD_MS;
+    };
+    let timer = window.setTimeout(function run() {
+      const next = tick();
+      timer = window.setTimeout(run, next);
+    }, WORD_MS);
+    return () => window.clearTimeout(timer);
+  }, [still, words.length]);
+
+  return (
+    <>
+      {words.map((word, i) => (
+        <span
+          key={i}
+          className={[
+            "transition-colors duration-200",
+            still || i < lit ? "text-[color:var(--ink)]" : "text-[color:var(--line-strong)]",
+          ].join(" ")}
+        >
+          {word}
+          {i < words.length - 1 ? " " : ""}
+        </span>
+      ))}
+    </>
+  );
+}
 
 export const PHASE_LABELS: { key: string; label: string }[] = [
   { key: "stops", label: "Choosing your stops" },
@@ -100,7 +168,9 @@ export default function GeneratingStep({
               >
                 {done ? "✓" : i + 1}
               </span>
-              <p className="spine__title">{p.label}</p>
+              <p className="spine__title">
+                {working ? <WordWave key={p.key} text={p.label} /> : p.label}
+              </p>
               {working ? (
                 <Elapsed key={p.key}>
                   {(seconds) => {
