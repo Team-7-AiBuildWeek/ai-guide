@@ -28,7 +28,7 @@ export type StopState = {
   /**
    * Have we got the voice. Tracked apart from the words because they fail for
    * different reasons and only one of them is about Gemini's speech quota —
-   * telling a walker "the Gemini voice was unavailable" when it was the script
+   * telling a walker "the guide's voice was unavailable" when it was the script
    * that failed sends them looking in the wrong place.
    */
   voice: "idle" | "recording" | "ready" | "failed";

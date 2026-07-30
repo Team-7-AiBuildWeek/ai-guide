@@ -36,8 +36,9 @@ every provider degrades quietly to a mock rather than erroring.
 
 Three things it will usually be:
 
-1. **The variables were never set.** Without `LLM_PROVIDER=google`,
-   `TTS_PROVIDER=google` and `GEMINI_API_KEY`, the app runs on mocks by
+1. **The variables were never set.** Without `LLM_PROVIDER=google` and
+   `GEMINI_API_KEY` for the words, and `TTS_PROVIDER=elevenlabs` with
+   `ELEVENLABS_API_KEY` for the voice, the app runs on mocks by
    design — a canned tour, a beep instead of narration, and "I can't answer
    that without a real language model". It looks broken; it is switched off.
 2. **They were set but not redeployed.** Netlify does not rebuild when a

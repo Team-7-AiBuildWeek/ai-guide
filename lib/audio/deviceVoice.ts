@@ -3,8 +3,9 @@
 /**
  * The device's own voice, as a fallback.
  *
- * Gemini's free tier allows ten speech requests a day, which is less than one
- * tour. Rather than let the walker stand in a square listening to nothing, the
+ * A synthesis quota is finite and a tour is dozens of calls against it, so
+ * running out mid-walk is a question of when, not whether. Rather than let the
+ * walker stand in a square listening to nothing, the
  * phone reads the stop itself: free, offline, instant, and available on every
  * browser we care about.
  *

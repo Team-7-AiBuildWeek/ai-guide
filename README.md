@@ -149,11 +149,25 @@ lib/providers/tts/lexicon.ts  pronunciation map, applied before every synthesis.
 lib/providers/maps/           index.ts holds haversine + the straight-line fallback.
 ```
 
-### Gemini (`LLM_PROVIDER=google`, `TTS_PROVIDER=google`)
+### ElevenLabs (`TTS_PROVIDER=elevenlabs`) — the voice
 
-Both go through `@google/genai` on one `GEMINI_API_KEY`, server-side only.
-Set it in `.env.local` and hear a voice at **`/dev/tts`** without walking the
-whole app.
+`ELEVENLABS_API_KEY`, server-side only. `ELEVENLABS_MODEL` defaults to
+`eleven_flash_v2_5`, which answers in about a second — a tour is dozens of
+calls made while a walker stands waiting. `eleven_multilingual_v2` reads better
+and takes longer. MP3 arrives ready to play, so unlike Gemini there is no
+container to build.
+
+Every clip is kept under `public/audio`, keyed by a hash of model, voice and
+the text *as sent* — after the lexicon, so editing the lexicon invalidates the
+clips it changes. A cache hit is never re-synthesised and never billed. Note
+that this does nothing on serverless: the filesystem is read-only apart from
+`/tmp`, and nothing written after the build is served.
+
+### Gemini (`LLM_PROVIDER=google`) — the words
+
+The tours are written by `@google/genai` on one `GEMINI_API_KEY`, server-side
+only. `TTS_PROVIDER=google` still works and speaks them too; it is no longer
+the default. Hear any voice at **`/dev/tts`** without walking the whole app.
 
 Two things that will cost you an afternoon if you don't know them:
 
@@ -189,7 +203,7 @@ lets the mint route line carry the eye).
 stop costs nothing. The client fetches one stop ahead and both depths of the
 current stop — **serialised**, because three concurrent calls trip the quota.
 
-> **The Gemini free tier allows 10 speech requests per day.**
+> **On Gemini TTS, the free tier allows 10 speech requests per day.**
 > `quotaId: GenerateRequestsPerDayPerProjectPerModel-FreeTier, quotaValue: 10`.
 > One six-stop tour needs six to twelve. Enable billing or you will hear the
 > real voice about once.
@@ -213,8 +227,8 @@ The other depth of the current stop is therefore prefetched **before** the next
 stop — the queue is serial, and the toggle is the control most likely to be
 pressed next.
 
-**Voice toggle, in the player: Free ↔ Gemini.** Gemini bills per synthesis and
-one tour is six to twelve calls, so testing runs on the phone's own voice —
+**Voice toggle, in the player: Phone ↔ Guide.** Synthesis bills per call and
+one tour is six to twelve of them, so testing runs on the phone's own voice —
 zero API calls, verified. The choice persists in localStorage. It is drawn with
 a dashed border because it is scaffolding: delete it once the narration is
 settled.

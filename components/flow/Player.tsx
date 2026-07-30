@@ -151,7 +151,7 @@ export default function Player({
       {usingDeviceVoice && voiceMode !== "device" ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           Read by your phone —{" "}
-          {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the Gemini voice was unavailable.")}
+          {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the guide's voice was unavailable.")}
         </p>
       ) : null}
       <div className="flex items-baseline justify-between gap-3">
@@ -307,9 +307,12 @@ export default function Player({
         </div>
       ) : null}
 
-      {/* Which voice reads the tour. Gemini bills per stop and a tour is a
-          dozen calls, so testing runs on the phone's free voice. Remove this
-          control once the narration is settled — it is scaffolding. */}
+      {/* Which voice reads the tour. Synthesis bills per stop and a tour is a
+          dozen calls, so testing runs on the phone's free voice. Named for what
+          they are rather than for whoever supplies them — the guide's voice has
+          been Gemini and is now ElevenLabs, and neither belongs on screen.
+          Remove this control once the narration is settled — it is
+          scaffolding. */}
       <div
         role="group"
         aria-label="Which voice reads the tour"
@@ -321,8 +324,8 @@ export default function Player({
         <div className="flex gap-1">
           {(
             [
-              ["device", "Free"],
-              ["gemini", "Gemini"],
+              ["device", "Phone"],
+              ["guide", "Guide"],
             ] as [VoiceMode, string][]
           ).map(([mode, label]) => (
             <button

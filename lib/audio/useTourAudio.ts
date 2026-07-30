@@ -19,8 +19,15 @@ const NO_STATES: Record<string, StopState> = {};
 
 const NO_SPEECH: DeviceVoiceState = { speaking: false, paused: false };
 
-/** Which voice reads the tour. Persisted so a reload keeps the choice. */
-export type VoiceMode = "gemini" | "device";
+/**
+ * Which voice reads the tour. Persisted so a reload keeps the choice.
+ *
+ * "guide" is whichever synthesis provider is configured — ElevenLabs today,
+ * Gemini before it, and the app should not have to be edited to change that
+ * again. It used to be called "gemini", which is why the stored value is still
+ * accepted below.
+ */
+export type VoiceMode = "guide" | "device";
 const VOICE_MODE_KEY = "btour:voice-mode:v1";
 
 const SERVER_STATE: EngineState = {
@@ -98,15 +105,18 @@ export function useTourAudio({
   const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
 
   /**
-   * Gemini charges per synthesis call and a long tour is dozens of them, so
-   * testing runs on the phone's own voice by way of the toggle.
+   * Synthesis is billed per call and a long tour is dozens of them, so testing
+   * runs on the phone's own voice by way of the toggle.
    * localStorage is unreadable during SSR, hence the deferred read.
    */
-  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("gemini");
+  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("guide");
   useEffect(() => {
     queueMicrotask(() => {
       const saved = localStorage.getItem(VOICE_MODE_KEY);
-      if (saved === "device" || saved === "gemini") setVoiceModeState(saved);
+      if (saved === "device") setVoiceModeState("device");
+      // "gemini" is what this was called when Gemini was the only voice that
+      // was not the phone's. Anyone carrying that in localStorage means guide.
+      else if (saved === "guide" || saved === "gemini") setVoiceModeState("guide");
     });
   }, []);
 
@@ -207,7 +217,7 @@ export function useTourAudio({
 
     void (async () => {
       // The words come first either way: the phone's own voice needs them just
-      // as much as Gemini does.
+      // as much as the synthesised one does.
       const written = await library.ensureScript(stop.id);
       if (cancelled || !written) return; // the failed state drives the fallback
 
@@ -364,7 +374,7 @@ export function useTourAudio({
     caption,
     /**
      * True until there is something to press play on. The device voice needs
-     * only the words; Gemini needs the words and the first piece of speech.
+     * only the words; the synthesised voice needs them and its first recording.
      */
     preparing: deviceChosen
       ? active && stopState.script !== "ready" && stopState.script !== "failed"
