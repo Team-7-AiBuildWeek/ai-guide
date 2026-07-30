@@ -140,6 +140,9 @@ export default function BriefStep({
                 onClick={() => toggleInterest(i.value)}
                 className="pill"
               >
+                <span aria-hidden="true" className="pill--icon">
+                  {i.icon}
+                </span>
                 {i.label}
               </button>
             );

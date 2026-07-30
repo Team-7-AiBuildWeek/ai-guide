@@ -82,12 +82,14 @@ export const PACES: { value: Pace; label: string }[] = [
   { value: "cover-ground", label: "Cover more ground" },
 ];
 
-export const INTERESTS: { value: Interest; label: string }[] = [
-  { value: "history", label: "History" },
-  { value: "architecture", label: "Architecture" },
-  { value: "food", label: "Food & everyday life" },
-  { value: "art", label: "Art" },
-  { value: "hidden", label: "Hidden corners" },
+/** The icon is what makes a row of chips scannable at a glance rather than
+ *  five identical lozenges of text — Airbnb's amenity pills, same idea. */
+export const INTERESTS: { value: Interest; label: string; icon: string }[] = [
+  { value: "history", label: "History", icon: "🏛" },
+  { value: "architecture", label: "Architecture", icon: "🏗" },
+  { value: "food", label: "Food & everyday life", icon: "🍽" },
+  { value: "art", label: "Art", icon: "🎨" },
+  { value: "hidden", label: "Hidden corners", icon: "🔎" },
 ];
 
 /** Examples that fill the box, so nobody faces a blank page. */

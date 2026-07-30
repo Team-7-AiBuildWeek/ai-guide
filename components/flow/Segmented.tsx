@@ -26,7 +26,7 @@ export default function Segmented<T extends string>({
       <div
         role="radiogroup"
         aria-label={label}
-        className="mt-2 flex gap-1 rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-1"
+        className="mt-2 flex gap-1 rounded-[var(--radius-pill)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-1"
       >
         {options.map((o) => {
           const on = o.value === value;
@@ -38,13 +38,14 @@ export default function Segmented<T extends string>({
               aria-checked={on}
               onClick={() => onChange(o.value)}
               className={[
-                "min-h-[40px] min-w-0 flex-1 rounded-[3px] px-2",
+                "min-h-[40px] min-w-0 flex-1 rounded-[var(--radius-pill)] px-2 transition-colors active:scale-[0.975]",
                 "font-[family-name:var(--font-display)] text-[length:var(--text-caption)]",
-                // The selected one is raised out of the track rather than
-                // merely coloured: it has to survive being read in sunlight.
+                // The same mint as the primary button, ink on top of it — one
+                // colour across the whole app meaning "this one". Never mint as
+                // text on white: 1.75:1, unreadable in daylight.
                 on
-                  ? "border border-[color:var(--ink)] bg-[color:var(--surface)] font-semibold text-[color:var(--ink)] shadow-[var(--shadow-card)]"
-                  : "border border-transparent font-medium text-[color:var(--ink-soft)]",
+                  ? "bg-[color:var(--mint)] font-semibold text-[color:var(--ink)]"
+                  : "font-medium text-[color:var(--ink-soft)]",
               ].join(" ")}
             >
               <span className="block truncate">{o.label}</span>
