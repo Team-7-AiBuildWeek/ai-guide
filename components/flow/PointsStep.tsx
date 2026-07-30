@@ -4,8 +4,15 @@
  * Step 3: where you start, and optionally where you finish.
  *
  * Three ways to set a point, because outdoors any one of them can fail: type
- * it, use GPS, or tap the map. The end point stays behind a link — most people
- * want a loop and should not have to say so.
+ * it, use GPS, or tap the map. All three live inside the box for the point
+ * they fill — there used to be one search field and one "drop a pin" button
+ * further down the sheet, applying to whichever of the two was selected by a
+ * pair of toggle buttons, and nothing on screen said which that was while you
+ * were typing.
+ *
+ * The end point stays behind a link — most people want a loop and should not
+ * have to say so — which also means only one search field exists until someone
+ * asks for a second.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -21,16 +28,33 @@ function PointRow({
   t,
   point,
   hasFix,
+  cityName,
+  query,
+  onQuery,
+  searching,
+  results,
+  onPick,
+  onDropPin,
   onUseLocation,
   onClear,
 }: {
   t: Target;
   point: Point | null;
   hasFix: boolean;
+  cityName?: string;
+  /** Empty unless this row is the one being typed into. */
+  query: string;
+  onQuery: (q: string) => void;
+  searching: boolean;
+  results: Place[];
+  onPick: (p: Place) => void;
+  onDropPin: () => void;
   onUseLocation: () => void;
   onClear: () => void;
 }) {
   const label = t === "start" ? "Starting point" : "End point";
+  const inputId = `place-${t}`;
+
   return (
     <div className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3">
       <div className="flex items-start justify-between gap-3">
@@ -72,6 +96,55 @@ function PointRow({
           {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
         </p>
       ) : null}
+
+      <input
+        id={inputId}
+        aria-label={`Search for ${t === "start" ? "a starting point" : "an end point"}`}
+        value={query}
+        onChange={(e) => onQuery(e.target.value)}
+        placeholder={
+          cityName
+            ? `Search ${cityName} for ${t === "start" ? "a start" : "an end"}`
+            : `Search for ${t === "start" ? "a start" : "an end"}`
+        }
+        autoComplete="off"
+        className="mt-3 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
+      />
+
+      {/* The list hangs off the field that produced it, inside the box it
+          fills. It is the whole point of the arrangement. */}
+      {searching ? (
+        <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          Searching…
+        </p>
+      ) : null}
+      {results.length > 0 ? (
+        <ul className="mt-2 flex flex-col gap-1">
+          {results.map((p) => (
+            <li key={p.id}>
+              <button
+                type="button"
+                onClick={() => onPick(p)}
+                className="w-full rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3 text-left hover:border-[color:var(--ink-mute)]"
+              >
+                <span className="block font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
+                  {p.name}
+                </span>
+                <span className="block truncate text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+                  {p.address}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+
+      {/* Pressing this hides the whole sheet so the map is reachable, which is
+          why there is no "tap the map" state to show here — the instruction
+          lives over the map, where it can be seen. */}
+      <button type="button" onClick={onDropPin} className="btn btn--small btn--quiet mt-2 w-full">
+        Or drop a pin on the map
+      </button>
     </div>
   );
 }
@@ -96,9 +169,10 @@ export default function PointsStep({
   onCity: (c: City) => void;
 }) {
   const [query, setQuery] = useState("");
+  /** Which box is being typed into — one search at a time, two places to put it. */
+  const [searchIn, setSearchIn] = useState<Target>("start");
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
-  const [target, setTarget] = useState<Target>("start");
   const [showEnd, setShowEnd] = useState(false);
   const debounce = useRef<number | null>(null);
   const city = draft.city;
@@ -149,6 +223,11 @@ export default function PointsStep({
     [onChange, setPicking],
   );
 
+  const typeInto = useCallback((t: Target, q: string) => {
+    setSearchIn(t);
+    setQuery(q);
+  }, []);
+
   const fillFromLocation = (t: Target) => {
     if (!fix) return;
     setPoint(t, { lat: fix.lat, lng: fix.lng, label: "Where I am now" });
@@ -156,6 +235,15 @@ export default function PointsStep({
 
   // Stale results stay in state but are never shown for a too-short query.
   const visibleResults = query.trim().length >= 2 ? results : [];
+  /** Everything about the search belongs to one box at a time. */
+  const searchProps = (t: Target) => ({
+    query: searchIn === t ? query : "",
+    onQuery: (q: string) => typeInto(t, q),
+    searching: searchIn === t && searching,
+    results: searchIn === t ? visibleResults : [],
+    onPick: (p: Place) => setPoint(t, { lat: p.lat, lng: p.lng, label: p.name }),
+    onDropPin: () => setPicking(picking === t ? null : t),
+  });
 
   return (
     <div className="flex flex-col gap-5">
@@ -164,99 +252,30 @@ export default function PointsStep({
         t="start"
         point={draft.start}
         hasFix={fix !== null}
+        cityName={city?.name}
         onUseLocation={() => fillFromLocation("start")}
         onClear={() => setPoint("start", null)}
+        {...searchProps("start")}
       />
       {showEnd || draft.end ? (
         <PointRow
           t="end"
           point={draft.end}
           hasFix={fix !== null}
+          cityName={city?.name}
           onUseLocation={() => fillFromLocation("end")}
           onClear={() => setPoint("end", null)}
+          {...searchProps("end")}
         />
       ) : (
         <button
           type="button"
-          onClick={() => {
-            setShowEnd(true);
-            setTarget("end");
-          }}
+          onClick={() => setShowEnd(true)}
           className="min-h-[44px] text-left font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
         >
           Choose where to finish (optional)
         </button>
       )}
-
-      {/* Which point the controls below apply to. */}
-      {showEnd || draft.end ? (
-        <div className="flex gap-2">
-          {(["start", "end"] as Target[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              aria-pressed={target === t}
-              onClick={() => setTarget(t)}
-              className={`btn flex-1 ${target === t ? "btn--dark" : "btn--quiet"}`}
-            >
-              Set {t === "start" ? "start" : "end"}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <div>
-        <label htmlFor="place" className="u-eyebrow">
-          Type a place
-        </label>
-        <input
-          id="place"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder={city ? `A street or landmark in ${city.name}` : "A street or landmark"}
-          autoComplete="off"
-          className="mt-2 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
-        />
-        {searching ? (
-          <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-            Searching…
-          </p>
-        ) : null}
-        {visibleResults.length > 0 ? (
-          <ul className="mt-2 flex flex-col gap-1">
-            {visibleResults.map((p) => (
-              <li key={p.id}>
-                <button
-                  type="button"
-                  onClick={() => setPoint(target, { lat: p.lat, lng: p.lng, label: p.name })}
-                  className="w-full rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--surface)] px-4 py-3 text-left hover:border-[color:var(--ink-mute)]"
-                >
-                  <span className="block font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
-                    {p.name}
-                  </span>
-                  <span className="block truncate text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-                    {p.address}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-      </div>
-
-      <button
-        type="button"
-        onClick={() => setPicking(picking ? null : target)}
-        className={`btn w-full ${picking ? "btn--dark" : "btn--quiet"}`}
-      >
-        {picking ? "Tap the map…" : "Drop a pin"}
-      </button>
-      {picking ? (
-        <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          The sheet is out of the way — tap anywhere on the map to place the{" "}
-          {picking === "start" ? "start" : "end"} point.
-        </p>
-      ) : null}
 
       <button
         type="button"

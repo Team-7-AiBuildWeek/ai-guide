@@ -543,6 +543,27 @@ export default function TourFlow({
         styleId={styleId}
       />
 
+      {/* Dropping a pin takes the sheet away so the map is reachable, which
+          also takes away everything that said what to do. This is the only
+          thing on screen at that moment, so it carries both the instruction
+          and the way out. */}
+      {sheetHidden ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-center justify-between gap-3 panel-dark px-4 py-3">
+            <p className="min-w-0 font-[family-name:var(--font-display)] font-semibold">
+              Tap the map to place the {picking === "end" ? "end" : "start"} point
+            </p>
+            <button
+              type="button"
+              onClick={() => setPicking(null)}
+              className="btn btn--quiet shrink-0 px-4"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Directions live behind a small icon, top right, out of the way. */}
       {/* Hidden while the sheet is full: the sheet has its own chevron, and two
           back buttons stacked on top of each other is how you end up deleting
