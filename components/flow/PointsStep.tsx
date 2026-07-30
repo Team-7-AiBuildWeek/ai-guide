@@ -320,19 +320,22 @@ export default function PointsStep({
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={onContinue}
-        disabled={!draft.start}
-        className="btn btn--primary btn--lg w-full"
-      >
-        Create my tour
-      </button>
-      {!draft.start ? (
-        <p className="-mt-2 text-center text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          A starting point is needed first.
+      {/* The same footer as the brief step: what is missing on the left, the
+          one filled button on the right, naming the walk it is about to make
+          rather than the step it is about to take. */}
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 flex items-center justify-between gap-3 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <p className="min-w-0 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          {draft.start ? (draft.end ? "Start and finish set" : "Finishes where it starts") : "Set a starting point"}
         </p>
-      ) : null}
+        <button
+          type="button"
+          onClick={onContinue}
+          disabled={!draft.start}
+          className="btn btn--primary shrink-0 px-6 font-semibold"
+        >
+          Create the tour
+        </button>
+      </div>
     </div>
   );
 }

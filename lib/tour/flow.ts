@@ -55,14 +55,19 @@ export const EMPTY_DRAFT: Draft = {
   lang: "en",
 };
 
-export const DURATIONS: { value: Duration; label: string }[] = [
-  { value: 30, label: "30 minutes" },
-  { value: 45, label: "45 minutes" },
-  { value: 60, label: "1 hour" },
-  { value: 90, label: "1½ hours" },
-  { value: 120, label: "2 hours" },
-  { value: 180, label: "3 hours" },
-  { value: 240, label: "A whole afternoon" },
+/**
+ * `label` is the value on its own, for a control that has already said what it
+ * is measuring. `walk` is the same length inside a sentence — the button says
+ * what it will make, and "Plan a 45 minutes walk" is not English.
+ */
+export const DURATIONS: { value: Duration; label: string; walk: string }[] = [
+  { value: 30, label: "30 minutes", walk: "a 30-minute walk" },
+  { value: 45, label: "45 minutes", walk: "a 45-minute walk" },
+  { value: 60, label: "1 hour", walk: "an hour's walk" },
+  { value: 90, label: "1½ hours", walk: "a 90-minute walk" },
+  { value: 120, label: "2 hours", walk: "a two-hour walk" },
+  { value: 180, label: "3 hours", walk: "a three-hour walk" },
+  { value: 240, label: "A whole afternoon", walk: "an afternoon's walk" },
 ];
 
 export const DETAILS: { value: Detail; label: string }[] = [

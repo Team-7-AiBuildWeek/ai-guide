@@ -4,10 +4,15 @@
  * Step 2: what do you want to see.
  *
  * One screen, in the order the questions actually get asked. The settings come
- * first because they are answerable without writing anything — a walker who
- * only drags three sliders gets a real tour. Scrolling past them reaches the
- * box where the tour is described in words, which produces the better walk and
- * outranks the sliders wherever the two disagree.
+ * first because they are answerable without writing anything — three taps and
+ * a walker has a real tour. Scrolling past them reaches the box where the tour
+ * is described in words, which produces the better walk and outranks the
+ * settings wherever the two disagree.
+ *
+ * The controls are Airbnb's, from their filter sheet: a stepper for the value
+ * with too many options to name, segmented rows for the ones with three, pills
+ * for the multi-select, and a footer holding the way out of everything on the
+ * left and the way on to the right.
  *
  * It used to be two views behind a toggle. That made them look like
  * alternatives, so whichever one you were not looking at may as well not have
@@ -16,45 +21,21 @@
  */
 
 import { useState } from "react";
-import { DETAILS, DURATIONS, EXAMPLE_BRIEFS, INTERESTS, PACES, type Draft } from "@/lib/tour/flow";
+import {
+  DETAILS,
+  DURATIONS,
+  EMPTY_DRAFT,
+  EXAMPLE_BRIEFS,
+  INTERESTS,
+  PACES,
+  type Draft,
+} from "@/lib/tour/flow";
 import { LANGUAGES } from "@/lib/i18n/languages";
 import type { Detail, Interest, Pace } from "@/lib/providers/types";
 import { parseDuration } from "@/lib/tour/duration";
+import Segmented from "./Segmented";
+import Stepper from "./Stepper";
 
-/** A slider whose value reads as words, not a number. */
-function WordSlider<T extends string | number>({
-  label,
-  options,
-  value,
-  onChange,
-}: {
-  label: string;
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  const index = Math.max(0, options.findIndex((o) => o.value === value));
-  return (
-    <div>
-      <div className="flex items-baseline justify-between gap-3">
-        <span className="u-eyebrow">{label}</span>
-        <span className="font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
-          {options[index]?.label}
-        </span>
-      </div>
-      <input
-        type="range"
-        min={0}
-        max={options.length - 1}
-        step={1}
-        value={index}
-        onChange={(e) => onChange(options[Number(e.target.value)].value)}
-        aria-label={label}
-        className="mt-2 h-10 w-full accent-[color:var(--mint-ink)]"
-      />
-    </div>
-  );
-}
 
 export default function BriefStep({
   draft,
@@ -95,7 +76,8 @@ export default function BriefStep({
   // The slider sits above the box that moved it, so the confirmation has to
   // name the value — by the time you have written "all afternoon" the words
   // for it are off the top of the screen.
-  const durationLabel = DURATIONS.find((d) => d.value === draft.durationMinutes)?.label;
+  const durationIndex = DURATIONS.findIndex((d) => d.value === draft.durationMinutes);
+  const durationLabel = DURATIONS[durationIndex]?.label;
 
   return (
     <div className="flex flex-col gap-4">
@@ -121,19 +103,23 @@ export default function BriefStep({
       </div>
 
       <div className="flex flex-col gap-4">
-        <WordSlider
+        <Stepper
           label="How long"
-          options={DURATIONS}
-          value={draft.durationMinutes}
-          onChange={(v) => onChange({ durationMinutes: v })}
+          value={durationLabel ?? `${draft.durationMinutes} minutes`}
+          atMin={durationIndex <= 0}
+          atMax={durationIndex >= DURATIONS.length - 1}
+          onStep={(d) => {
+            const next = DURATIONS[Math.min(DURATIONS.length - 1, Math.max(0, durationIndex + d))];
+            if (next) onChange({ durationMinutes: next.value });
+          }}
         />
-        <WordSlider
+        <Segmented
           label="How much detail"
           options={DETAILS}
           value={draft.detail}
           onChange={(v) => onChange({ detail: v as Detail })}
         />
-        <WordSlider
+        <Segmented
           label="Pace"
           options={PACES}
           value={draft.pace}
@@ -152,7 +138,7 @@ export default function BriefStep({
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggleInterest(i.value)}
-                className={`btn btn--small ${on ? "btn--primary" : "btn--quiet"}`}
+                className="pill"
               >
                 {i.label}
               </button>
@@ -200,7 +186,7 @@ export default function BriefStep({
               type="button"
               onClick={() => setBrief(ex)}
               title={ex}
-              className="btn btn--quiet btn--small max-w-full"
+              className="pill max-w-full"
             >
               <span className="truncate">{ex.split(",")[0]}</span>
             </button>
@@ -208,12 +194,33 @@ export default function BriefStep({
         </div>
       </div>
 
-      {/* Sticky, because the screen is now long enough that a walker who only
-          wanted the sliders would otherwise have to scroll past the whole
-          writing section to find the way on. */}
-      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <button type="button" onClick={onContinue} className="btn btn--primary btn--lg w-full">
-          Continue
+      {/* Airbnb's filter footer: the way out of every choice on the left as
+          plain text, the way on to the right as the only filled button on the
+          screen — and it names what you are about to get rather than saying
+          "continue", so the settings above have a visible consequence. Sticky,
+          because the screen is longer than a phone. */}
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 flex items-center justify-between gap-3 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <button
+          type="button"
+          onClick={() =>
+            onChange({
+              freeText: "",
+              durationMinutes: EMPTY_DRAFT.durationMinutes,
+              detail: EMPTY_DRAFT.detail,
+              pace: EMPTY_DRAFT.pace,
+              interests: EMPTY_DRAFT.interests,
+            })
+          }
+          className="min-h-[44px] shrink-0 font-[family-name:var(--font-display)] font-medium text-[color:var(--ink)] underline underline-offset-4"
+        >
+          Clear all
+        </button>
+        <button
+          type="button"
+          onClick={onContinue}
+          className="btn btn--primary min-w-0 px-6 font-semibold"
+        >
+          <span className="truncate">Plan {DURATIONS[durationIndex]?.walk ?? "the walk"}</span>
         </button>
       </div>
     </div>
