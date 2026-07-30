@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { useT } from "@/lib/i18n/ui";
 
 /** How long each word waits before the next one lights. */
 const WORD_MS = 150;
@@ -120,21 +121,22 @@ export default function GeneratingStep({
   onCancel: () => void;
   onRetry: () => void;
 }) {
+  const t = useT();
   const activeIndex = PHASE_LABELS.findIndex((p) => p.key === phase);
 
   if (error) {
     return (
       <div className="flex h-full flex-col justify-center gap-5">
         <div>
-          <h2 className="text-[length:var(--text-h2)]">That didn&apos;t work.</h2>
+          <h2 className="text-[length:var(--text-h2)]">{t("gen.failed")}</h2>
           <p className="u-measure mt-3">{error}</p>
         </div>
         <div className="flex flex-col gap-3">
           <button type="button" onClick={onRetry} className="btn btn--primary btn--lg w-full">
-            Try again
+            {t("gen.retry")}
           </button>
           <button type="button" onClick={onCancel} className="btn btn--quiet w-full">
-            Change the details
+            {t("gen.changeDetails")}
           </button>
         </div>
       </div>
@@ -144,8 +146,8 @@ export default function GeneratingStep({
   return (
     <div className="flex h-full flex-col justify-center gap-5">
       <div>
-        <h2 className="text-[length:var(--text-h2)]">Making your personal tour…</h2>
-        <p className="u-measure mt-3">This takes up to a minute. Keep the screen open.</p>
+        <h2 className="text-[length:var(--text-h2)]">{t("gen.title")}</h2>
+        <p className="u-measure mt-3">{t("gen.wait")}</p>
       </div>
 
       <ol className="spine">
@@ -203,7 +205,7 @@ export default function GeneratingStep({
         onClick={onCancel}
         className="min-h-[44px] text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
       >
-        Cancel
+        {t("gen.cancel")}
       </button>
     </div>
   );

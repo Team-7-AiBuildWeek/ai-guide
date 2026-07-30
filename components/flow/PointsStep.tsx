@@ -20,6 +20,7 @@ import type { City, Place } from "@/lib/providers/types";
 import type { Draft, Point } from "@/lib/tour/flow";
 import type { Fix } from "@/lib/tour/useLiveLocation";
 import { distanceMeters } from "@/lib/tour/route";
+import { useT } from "@/lib/i18n/ui";
 import CityPicker from "./CityPicker";
 
 type Target = "start" | "end";
@@ -56,7 +57,8 @@ function PointRow({
   onUseLocation: () => void;
   onClear: () => void;
 }) {
-  const label = t === "start" ? "Starting point" : "End point";
+  const tr = useT();
+  const label = t === "start" ? tr("points.start") : tr("points.end");
   const inputId = `place-${t}`;
 
   return (
@@ -65,7 +67,7 @@ function PointRow({
         <div className="min-w-0">
           <p className="u-eyebrow">{label}</p>
           <p className="mt-1 truncate font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
-            {point?.label ?? "Not set"}
+            {point?.label ?? tr("points.notSet")}
           </p>
         </div>
         {/* GPS sits with the point it fills in. At the bottom of the sheet it
@@ -80,7 +82,7 @@ function PointRow({
             className="btn btn--quiet px-4"
             style={{ minHeight: 44 }}
           >
-            {hasFix ? "Use my location" : "Locating…"}
+            {hasFix ? tr("points.useLocation") : tr("points.locating")}
           </button>
           {point ? (
             <button
@@ -88,7 +90,7 @@ function PointRow({
               onClick={onClear}
               className="text-[length:var(--text-caption)] font-semibold text-[color:var(--mint-ink)] underline underline-offset-4"
             >
-              Clear
+              {tr("points.clear")}
             </button>
           ) : null}
         </div>
@@ -142,7 +144,7 @@ function PointRow({
           fills. It is the whole point of the arrangement. */}
       {searching ? (
         <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Searching…
+          {tr("points.searching")}
         </p>
       ) : null}
       {results.length > 0 ? (
@@ -182,14 +184,15 @@ export function PointsFooter({
   draft: Draft;
   onContinue: () => void;
 }) {
+  const t = useT();
   return (
     <div className="flex items-center justify-between gap-3">
       <p className="min-w-0 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
         {draft.start
           ? draft.end
-            ? "Start and finish set"
-            : "Finishes where it starts"
-          : "Set a starting point"}
+            ? t("points.bothSet")
+            : t("points.loop")
+          : t("points.needStart")}
       </p>
       <button
         type="button"
@@ -197,7 +200,7 @@ export function PointsFooter({
         disabled={!draft.start}
         className="btn btn--primary shrink-0 px-6 font-semibold"
       >
-        Create the tour
+        {t("points.create")}
       </button>
     </div>
   );
@@ -220,6 +223,7 @@ export default function PointsStep({
   detectingCity: boolean;
   onCity: (c: City) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   /** Which box is being typed into — one search at a time, two places to put it. */
   const [searchIn, setSearchIn] = useState<Target>("start");
@@ -347,7 +351,7 @@ export default function PointsStep({
           onClick={() => setShowEnd(true)}
           className="min-h-[44px] text-left font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
         >
-          Choose where to finish (optional)
+          {t("points.addEnd")}
         </button>
       )}
 

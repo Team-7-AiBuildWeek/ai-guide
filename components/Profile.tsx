@@ -13,6 +13,7 @@
 import Link from "next/link";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
+import { announceUiLang, useT } from "@/lib/i18n/ui";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/tour/flow";
 import {
   formatDistance,
@@ -39,6 +40,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const minutes = Math.max(1, Math.round(walk.seconds / 60));
 
@@ -58,7 +60,7 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
             {[
               walk.city,
               formatWhen(walk.at, walk.lang),
-              `${walk.stopNames.length} stops`,
+              `${walk.stopNames.length} ${t("profile.stops").toLowerCase()}`,
               formatDistance(walk.meters),
             ]
               .filter(Boolean)
@@ -73,9 +75,9 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
       {open ? (
         <div className="mt-4">
           <div className="flex flex-wrap gap-6">
-            <Stat label="Asked for" value={`${walk.minutes} min`} />
-            <Stat label="Walking" value={`${minutes} min`} />
-            <Stat label="Language" value={languageName(walk.lang)} />
+            <Stat label={t("profile.askedFor")} value={`${walk.minutes} min`} />
+            <Stat label={t("profile.walking")} value={`${minutes} min`} />
+            <Stat label={t("brief.language")} value={languageName(walk.lang)} />
           </div>
 
           {walk.freeText ? (
@@ -84,7 +86,7 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
             </p>
           ) : null}
 
-          <p className="u-eyebrow mt-4">The stops</p>
+          <p className="u-eyebrow mt-4">{t("profile.theStops")}</p>
           <ol className="mt-2 flex flex-col gap-1">
             {walk.stopNames.map((name, i) => (
               <li key={i} className="text-[length:var(--text-caption)] text-[color:var(--ink-soft)]">
@@ -98,7 +100,7 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
             onClick={onForget}
             className="mt-4 min-h-[44px] font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold text-[color:var(--danger)] underline underline-offset-4"
           >
-            Delete this walk
+            {t("profile.deleteOne")}
           </button>
         </div>
       ) : null}
@@ -107,6 +109,7 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
 }
 
 export default function Profile() {
+  const t = useT();
   /**
    * Read once, on the client, and kept in state from there: this is a page
    * about what is already saved, not a live view of it.
@@ -150,6 +153,9 @@ export default function Profile() {
   const setDefaultLang = (next: string) => {
     setLang(next);
     saveDraft({ ...(loadDraft() ?? EMPTY_DRAFT), lang: next });
+    // One setting, two jobs: the tour is written in it and the app is read in
+    // it. Everything showing text hears about it at once.
+    announceUiLang(next);
   };
 
   const walked = walks.reduce((m, w) => m + w.meters, 0);
@@ -161,26 +167,25 @@ export default function Profile() {
         <Link href="/" className="btn btn--quiet shrink-0 px-4" aria-label="Back to the map">
           ←
         </Link>
-        <h1 className="text-[length:var(--text-h2)]">My profile</h1>
+        <h1 className="text-[length:var(--text-h2)]">{t("profile.title")}</h1>
       </header>
 
       {/* The three numbers worth having: what all of this adds up to. */}
       <section className="flex flex-wrap gap-6 rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
-        <Stat label="Walks built" value={String(walks.length)} />
-        <Stat label="Stops" value={String(stops)} />
-        <Stat label="Distance" value={formatDistance(walked)} />
+        <Stat label={t("profile.built")} value={String(walks.length)} />
+        <Stat label={t("profile.stops")} value={String(stops)} />
+        <Stat label={t("profile.distance")} value={formatDistance(walked)} />
       </section>
 
       <section>
-        <h2 className="text-[length:var(--text-h3)]">Settings</h2>
+        <h2 className="text-[length:var(--text-h3)]">{t("profile.settings")}</h2>
         <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          These carry over to every new walk. Each one can still be changed
-          while building a tour.
+          {t("profile.settingsHint")}
         </p>
 
         <div className="mt-3 flex items-center justify-between gap-3">
           <label htmlFor="profile-lang" className="u-eyebrow">
-            Language
+            {t("brief.language")}
           </label>
           <select
             id="profile-lang"
@@ -197,12 +202,12 @@ export default function Profile() {
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="u-eyebrow">Voice</p>
+          <p className="u-eyebrow">{t("profile.voice")}</p>
           <div className="flex gap-2">
             {(
               [
-                ["guide", "Guide"],
-                ["device", "Phone"],
+                ["guide", t("profile.voiceGuide")],
+                ["device", t("profile.voicePhone")],
               ] as [VoiceMode, string][]
             ).map(([mode, label]) => (
               <button
@@ -218,15 +223,13 @@ export default function Profile() {
           </div>
         </div>
         <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          The guide&apos;s voice is synthesised and sounds like a person. Your
-          phone&apos;s own voice is free, works offline, and sounds like a
-          phone.
+          {t("profile.voiceHint")}
         </p>
       </section>
 
       <section>
         <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[length:var(--text-h3)]">Past walks</h2>
+          <h2 className="text-[length:var(--text-h3)]">{t("profile.past")}</h2>
           {walks.length > 0 ? (
             <button
               type="button"
@@ -236,16 +239,14 @@ export default function Profile() {
               }}
               className="min-h-[44px] text-[length:var(--text-caption)] font-semibold text-[color:var(--ink-mute)] underline underline-offset-4"
             >
-              Clear all
+              {t("profile.clearAll")}
             </button>
           ) : null}
         </div>
 
         {walks.length === 0 ? (
           <p className="mt-3 text-[color:var(--ink-soft)]">
-            {loaded
-              ? "Nothing yet. The walks you build are kept here, on this device."
-              : "…"}
+            {loaded ? t("profile.empty") : "…"}
           </p>
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
@@ -256,8 +257,12 @@ export default function Profile() {
         )}
       </section>
 
+      {/* Every setting here is already saved — it is written the moment it is
+          touched, and there is no server to send it to. This says so and takes
+          you back, because a settings page with no save button reads as one
+          that has not saved. */}
       <Link href="/" className="btn btn--primary btn--lg w-full">
-        Build a walk
+        {t("profile.save")}
       </Link>
     </main>
   );

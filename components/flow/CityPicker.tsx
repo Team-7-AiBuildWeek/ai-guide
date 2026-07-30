@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { City } from "@/lib/providers/types";
 import { searchCities } from "@/lib/tour/city";
+import { useT } from "@/lib/i18n/ui";
 
 export default function CityPicker({
   city,
@@ -31,6 +32,7 @@ export default function CityPicker({
   onOpenChange: (open: boolean) => void;
   onChange: (c: City) => void;
 }) {
+  const t = useT();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<City[]>([]);
   const [searching, setSearching] = useState(false);
@@ -63,9 +65,9 @@ export default function CityPicker({
       <div className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="u-eyebrow">City</p>
+            <p className="u-eyebrow">{t("points.city")}</p>
             <p className="mt-1 truncate font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
-              {city ? city.label : detecting ? "Finding you…" : "Not set"}
+              {city ? city.label : detecting ? t("points.locating") : t("points.notSet")}
             </p>
           </div>
           <button
@@ -73,7 +75,7 @@ export default function CityPicker({
             onClick={() => onOpenChange(true)}
             className="btn btn--quiet btn--small shrink-0"
           >
-            {city ? "Change" : "Choose"}
+            {city ? t("points.change") : t("points.choose")}
           </button>
         </div>
         {!city && !detecting ? (
@@ -89,7 +91,7 @@ export default function CityPicker({
     <div className="rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--canvas)] p-3">
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="city" className="u-eyebrow">
-          Which city?
+          {t("points.whichCity")}
         </label>
         <button
           type="button"
@@ -99,7 +101,7 @@ export default function CityPicker({
           }}
           className="btn btn--quiet btn--small shrink-0"
         >
-          Cancel
+          {t("points.cancel")}
         </button>
       </div>
       <input
@@ -113,7 +115,7 @@ export default function CityPicker({
       />
       {searching ? (
         <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Searching…
+          {t("points.searching")}
         </p>
       ) : null}
       {visible.length > 0 ? (

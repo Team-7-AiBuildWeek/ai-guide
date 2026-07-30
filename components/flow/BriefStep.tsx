@@ -31,6 +31,7 @@ import {
   type Draft,
 } from "@/lib/tour/flow";
 import { LANGUAGES } from "@/lib/i18n/languages";
+import { useT } from "@/lib/i18n/ui";
 import type { Detail, Interest, Pace } from "@/lib/providers/types";
 import { parseDuration } from "@/lib/tour/duration";
 import Segmented from "./Segmented";
@@ -57,6 +58,7 @@ export function BriefFooter({
   onChange: (patch: Partial<Draft>) => void;
   onContinue: () => void;
 }) {
+  const t = useT();
   const walk = DURATIONS.find((d) => d.value === draft.durationMinutes)?.walk ?? "the walk";
   return (
     <div className="flex items-center justify-between gap-3">
@@ -73,14 +75,14 @@ export function BriefFooter({
         }
         className="min-h-[44px] shrink-0 font-[family-name:var(--font-display)] font-medium text-[color:var(--ink)] underline underline-offset-4"
       >
-        Clear all
+        {t("brief.clearAll")}
       </button>
       <button
         type="button"
         onClick={onContinue}
         className="btn btn--primary min-w-0 px-6 font-semibold"
       >
-        <span className="truncate">Plan {walk}</span>
+        <span className="truncate">{t("brief.plan", { walk })}</span>
       </button>
     </div>
   );
@@ -93,6 +95,7 @@ export default function BriefStep({
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
 }) {
+  const t = useT();
   const [readFromBrief, setReadFromBrief] = useState(false);
   /**
    * Open already if there are words in the draft — coming back to a brief you
@@ -138,7 +141,7 @@ export default function BriefStep({
           needs it before they read anything else. */}
       <div className="flex items-center justify-between gap-3">
         <label htmlFor="tour-lang" className="u-eyebrow">
-          Language
+          {t("brief.language")}
         </label>
         <select
           id="tour-lang"
@@ -156,7 +159,7 @@ export default function BriefStep({
 
       <div className="flex flex-col gap-4">
         <Stepper
-          label="How long"
+          label={t("brief.howLong")}
           value={durationLabel ?? `${draft.durationMinutes} minutes`}
           atMin={durationIndex <= 0}
           atMax={durationIndex >= DURATIONS.length - 1}
@@ -166,13 +169,13 @@ export default function BriefStep({
           }}
         />
         <Segmented
-          label="How much detail"
+          label={t("brief.detail")}
           options={DETAILS}
           value={draft.detail}
           onChange={(v) => onChange({ detail: v as Detail })}
         />
         <Segmented
-          label="Pace"
+          label={t("brief.pace")}
           options={PACES}
           value={draft.pace}
           onChange={(v) => onChange({ pace: v as Pace })}
@@ -180,7 +183,7 @@ export default function BriefStep({
       </div>
 
       <div>
-        <p className="u-eyebrow">What interests you</p>
+        <p className="u-eyebrow">{t("brief.interests")}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {INTERESTS.map((i) => {
             const on = draft.interests.includes(i.value);
@@ -216,16 +219,14 @@ export default function BriefStep({
           onClick={() => setPersonalise((v) => !v)}
           className="btn btn--primary btn--lg w-full justify-between text-left"
         >
-          <span>Personalise more</span>
+          <span>{t("brief.personalise")}</span>
           <span aria-hidden="true" className="text-[length:var(--text-caption)]">
             {personalise ? "▲" : "▼"}
           </span>
         </button>
         {!personalise ? (
           <p className="mt-2 text-center text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-            {draft.freeText.trim()
-              ? "Your own words are set — they outrank the settings above."
-              : "Describe the walk in your own words. It makes the better tour."}
+            {draft.freeText.trim() ? t("brief.personaliseSet") : t("brief.personaliseHint")}
           </p>
         ) : null}
       </div>
@@ -236,10 +237,10 @@ export default function BriefStep({
             htmlFor="brief"
             className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]"
           >
-            Tell me in your own words
+            {t("brief.ownWords")}
           </label>
           <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-            Anything here outranks the settings above. It makes the better tour.
+            {t("brief.ownWordsHint")}
           </p>
         <textarea
           id="brief"
@@ -259,7 +260,7 @@ export default function BriefStep({
         {/* Four full-width rows of prose spent about a fifth of the whole
             screen on examples nobody reads twice. As chips they are still
             one tap, and they wrap into a third of the space. */}
-        <p className="u-eyebrow mt-4">Or start from one of these</p>
+        <p className="u-eyebrow mt-4">{t("brief.examples")}</p>
         <div className="mt-2 flex flex-wrap gap-2">
           {EXAMPLE_BRIEFS.map((ex) => (
             <button

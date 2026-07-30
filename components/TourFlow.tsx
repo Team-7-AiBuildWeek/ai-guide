@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
@@ -32,6 +33,7 @@ import { useLiveLocation } from "@/lib/tour/useLiveLocation";
 import { requestHeadingPermission, useHeading } from "@/lib/tour/useHeading";
 import { distanceMeters } from "@/lib/tour/route";
 import { normaliseLang, speechLocale } from "@/lib/i18n/languages";
+import { announceUiLang, useT } from "@/lib/i18n/ui";
 import { isTrusted } from "@/lib/tour/fixQuality";
 import {
   EMPTY_DRAFT,
@@ -68,6 +70,7 @@ export default function TourFlow({
   center: { lat: number; lng: number };
   initialSimulate: boolean;
 }) {
+  const t = useT();
   const [stage, setStage] = useState<Stage>("start");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [tour, setTour] = useState<StoredTour | null>(null);
@@ -156,6 +159,9 @@ export default function TourFlow({
       saveDraft(next);
       return next;
     });
+    // The language is both the guide's and the app's, so changing it here has
+    // to reach every screen and not just the next tour.
+    if (patch.lang) announceUiLang(patch.lang);
   }, []);
 
   // ------------------------------------------------------------- generate --
@@ -599,6 +605,24 @@ export default function TourFlow({
         styleId={styleId}
       />
 
+      {/* The app's own mark, top left, and the way into the profile.
+          Only where the corner is free: on the walk that corner is the way
+          out of the tour, and two round buttons in one corner is how you
+          leave a tour when you meant to check your walks. */}
+      {stage === "start" && !sheetHidden ? (
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="mx-auto w-full max-w-lg">
+            <Link
+              href="/profile"
+              aria-label="My profile"
+              className="pointer-events-auto inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-card)]"
+            >
+              <Image src="/icons/icon-192.png" alt="" width={48} height={48} priority />
+            </Link>
+          </div>
+        </div>
+      ) : null}
+
       {/* Dropping a pin takes the sheet away so the map is reachable, which
           also takes away everything that said what to do. This is the only
           thing on screen at that moment, so it carries both the instruction
@@ -760,9 +784,9 @@ export default function TourFlow({
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
           title={
             stage === "brief"
-              ? "Build my tour"
+              ? t("brief.title")
               : stage === "points"
-                ? "Where do you start?"
+                ? t("points.title")
                 : stage === "tour" && askOpen
                   ? "Ask anything"
                   : undefined
@@ -808,41 +832,46 @@ export default function TourFlow({
               // Backing out of a tour is not the same as ending it. The walk is
               // still here, at the stop it was left on.
               <>
-                <p className="u-eyebrow">Your tour, paused</p>
+                <p className="u-eyebrow">{t("landing.paused")}</p>
                 <h1 className="mt-1 text-[length:var(--text-h3)]">{tour.plan.title}</h1>
                 <p className="mt-2 text-[color:var(--ink-soft)]">
-                  Stop {currentIndex + 1} of {tour.plan.stops.length} ·{" "}
-                  {tour.plan.stops[currentIndex]?.name}
+                  {t("landing.stopOf", {
+                    n: currentIndex + 1,
+                    total: tour.plan.stops.length,
+                  })}{" "}
+                  · {tour.plan.stops[currentIndex]?.name}
                 </p>
                 <button
                   type="button"
                   onClick={() => setStage("tour")}
                   className="btn btn--primary btn--lg mt-4 w-full"
                 >
-                  Carry on walking
+                  {t("landing.carryOn")}
                 </button>
                 <button
                   type="button"
                   onClick={startOver}
                   className="mt-3 min-h-[44px] w-full text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
                 >
-                  Build a different tour
+                  {t("landing.different")}
                 </button>
               </>
             ) : (
               <>
                 <h1 className="text-[length:var(--text-h3)]">
-                  {draft.city ? `Walk ${draft.city.name}` : "Walk any city"}
+                  {draft.city
+                    ? t("landing.walkCity", { city: draft.city.name })
+                    : t("landing.walkAnywhere")}
                 </h1>
                 <p className="mt-2 text-[color:var(--ink-soft)]">
-                  A guide in your ear, built around what you actually want to see.
+                  {t("landing.pitch")}
                 </p>
                 <button
                   type="button"
                   onClick={() => setStage("brief")}
                   className="btn btn--primary btn--lg mt-4 w-full"
                 >
-                  Build my tour
+                  {t("landing.build")}
                 </button>
                 {/* The heading names whichever city the GPS landed in, which
                     reads as the only answer available. Somebody planning
@@ -865,20 +894,9 @@ export default function TourFlow({
                     onClick={() => setCityOpen(true)}
                     className="btn btn--quiet btn--lg mt-3 w-full"
                   >
-                    Choose any city
+                    {t("landing.chooseCity")}
                   </button>
                 )}
-                {/* Past walks and the settings that outlive them. A link
-                    rather than a third button: it leads away from the one
-                    thing this screen is for. */}
-                <div className="mt-3 flex items-center justify-center gap-4">
-                  <Link
-                    href="/profile"
-                    className="min-h-[44px] font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
-                  >
-                    My profile
-                  </Link>
-                </div>
                 {/* Offered here and nowhere else: the walk itself should not
                     carry a control for the browser it happens to be in. */}
                 <FullscreenButton />
