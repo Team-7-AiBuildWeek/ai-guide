@@ -39,6 +39,13 @@ export function scriptWords(detail: Detail): number {
   return Math.round(SCRIPT_MINUTES[detail] * WORDS_PER_MINUTE);
 }
 
+/** How long one stop is spoken for. The same figure the walk is planned to,
+ *  so what the walker is told and what they were given agree — see
+ *  lib/tour/timing.ts. */
+export function spokenMinutes(detail: Detail): number {
+  return SCRIPT_MINUTES[detail];
+}
+
 /** Below this a script has not been written, it has been sketched. */
 export function scriptFloor(detail: Detail): number {
   return Math.round(scriptWords(detail) * 0.8);

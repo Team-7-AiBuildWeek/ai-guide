@@ -35,11 +35,13 @@ import { distanceMeters } from "@/lib/tour/route";
 import { normaliseLang, speechLocale } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
 import { isTrusted } from "@/lib/tour/fixQuality";
+import { tourMinutes } from "@/lib/tour/timing";
 import {
   EMPTY_DRAFT,
   clearTour,
   loadDraft,
   loadTour,
+  resetDraft,
   saveDraft,
   saveTour,
   type Draft,
@@ -625,6 +627,12 @@ export default function TourFlow({
     clearTour();
     arrivedRef.current.clear();
     setTour(null);
+    // A different tour means a different brief. Everything the last walk was
+    // built from goes with it — the typed request most of all, since it is the
+    // one setting that is somebody's own words. See resetDraft.
+    setDraft((d) => resetDraft(d.lang));
+    setPreview(null);
+    setPicking(null);
     setStage("start");
     setAskOpen(false);
     setDirectionsOpen(false);
@@ -1013,7 +1021,9 @@ export default function TourFlow({
             <HeadphonesStep
               title={tour.plan.title}
               stopCount={tour.plan.stops.length}
-              minutes={Math.max(1, Math.round(tour.seconds / 60)) || draft.durationMinutes}
+              // Walking plus standing still at every stop, at a tourist's
+              // speed rather than a commuter's — see lib/tour/timing.ts.
+              minutes={tourMinutes(tour) || draft.durationMinutes}
               onStart={() => {
                 // The tap that unlocks audio on iOS. It must happen
                 // synchronously, here, or nothing will ever play.

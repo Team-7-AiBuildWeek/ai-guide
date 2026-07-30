@@ -14,6 +14,7 @@
  */
 
 import type { StoredTour } from "./flow";
+import { tourTiming } from "./timing";
 
 export type WalkRecord = {
   /** When it was built, and the identity — two walks a second apart is not a
@@ -63,7 +64,11 @@ export function rememberWalk(tour: StoredTour): void {
     minutes: tour.req?.durationMinutes ?? 0,
     stopNames: tour.plan.stops.map((s) => s.name),
     meters: tour.meters,
-    seconds: tour.seconds,
+    // The whole walk, not the router's moving time: this sits next to "asked
+    // for 45 min" in the profile, and two numbers measuring different things
+    // under one heading is how a walk looks like it came in early when it ran
+    // an hour over.
+    seconds: tourTiming(tour).total,
     freeText: tour.req?.freeText,
   };
   save([record, ...loadWalks()]);

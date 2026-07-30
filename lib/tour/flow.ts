@@ -143,6 +143,34 @@ export function saveDraft(d: Draft) {
   }
 }
 
+/**
+ * Back to defaults, for the next person holding the phone.
+ *
+ * The draft is deliberately sticky — somebody who always wants ninety minutes
+ * of architecture should not have to say so twice. But one phone is not one
+ * person. A walker typed what they wanted to see, finished, handed the phone
+ * on, and the next walk was built to a stranger's brief: their own words in
+ * the box, their interests already chosen, their starting pin still dropped.
+ * Nothing on screen said where any of it had come from.
+ *
+ * So the stickiness lasts until somebody says "a different tour", which is the
+ * one moment in the app that means "not that one, a new one".
+ *
+ * The language survives on purpose. It is not a preference about this walk —
+ * it is what the interface is being read in, right now, by whoever is holding
+ * the phone. Resetting it would swap every word on screen mid-tap, and it is
+ * the first thing on the next screen anyway.
+ */
+export function resetDraft(lang: string): Draft {
+  const fresh: Draft = { ...EMPTY_DRAFT, lang };
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify(fresh));
+  } catch {
+    /* private mode */
+  }
+  return fresh;
+}
+
 export type StoredTour = {
   plan: TourPlan;
   /** The brief this was built from, so stops written later match the ones
