@@ -65,10 +65,31 @@ function accuracyPolygon(lat: number, lng: number, meters: number, steps = 64) {
   };
 }
 
-function stopMarkerEl(label: string, current: boolean): HTMLElement {
-  const el = document.createElement("div");
+/**
+ * A numbered stop, and a real button.
+ *
+ * It looked pressable — the cursor said so — and did nothing, which is the
+ * worst of both. As a `button` it also reaches the keyboard and says which
+ * stop it is out loud, neither of which a div with a number in it does.
+ */
+function stopMarkerEl(
+  label: string,
+  name: string,
+  current: boolean,
+  onSelect: () => void,
+): HTMLElement {
+  const el = document.createElement("button");
+  el.type = "button";
   el.className = `stop-pin${current ? " stop-pin--current" : ""}`;
   el.textContent = label;
+  el.setAttribute("aria-label", `Stop ${label}: ${name}`);
+  if (current) el.setAttribute("aria-current", "true");
+  el.addEventListener("click", (e) => {
+    // The map is listening for clicks too, and while dropping a pin that would
+    // put one under this marker.
+    e.stopPropagation();
+    onSelect();
+  });
   return el;
 }
 
@@ -91,6 +112,7 @@ export default function TourMap({
   pins = [],
   picking = false,
   onPick,
+  onSelectStop,
   bottomInset = 0,
   follow = true,
   fitTo = null,
@@ -114,6 +136,8 @@ export default function TourMap({
   /** Tapping the map drops a pin instead of doing nothing. */
   picking?: boolean;
   onPick?: (p: { lat: number; lng: number }) => void;
+  /** Tapping a numbered stop takes the walk to it. */
+  onSelectStop?: (index: number) => void;
   /** Space the sheet occupies, so the map centres above it. */
   bottomInset?: number;
   follow?: boolean;
@@ -142,13 +166,16 @@ export default function TourMap({
   const currentStyleRef = useRef<string | undefined>(styleId);
   const onPickRef = useRef(onPick);
   const pickingRef = useRef(picking);
+  /** Held in a ref so a new handler does not rebuild every marker. */
+  const onSelectStopRef = useRef(onSelectStop);
 
   // Kept in refs so the map's click handler always sees the latest values
   // without the map being torn down and rebuilt on every prop change.
   useEffect(() => {
     onPickRef.current = onPick;
     pickingRef.current = picking;
-  }, [onPick, picking]);
+    onSelectStopRef.current = onSelectStop;
+  }, [onPick, picking, onSelectStop]);
 
   // ------------------------------------------------------------------ map --
   useEffect(() => {
@@ -358,7 +385,11 @@ export default function TourMap({
     if (!map) return;
     stopMarkers.current.forEach((m) => m.remove());
     stopMarkers.current = stops.map((s, i) =>
-      new Marker({ element: stopMarkerEl(String(i + 1), i === currentStopIndex) })
+      new Marker({
+        element: stopMarkerEl(String(i + 1), s.name, i === currentStopIndex, () =>
+          onSelectStopRef.current?.(i),
+        ),
+      })
         .setLngLat([s.lng, s.lat])
         .addTo(map),
     );
@@ -424,7 +455,10 @@ export default function TourMap({
         .stop-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px;
           background: #fff; color: #111827; border: 2px solid #1e7a52;
           font-family: var(--font-space-grotesk), sans-serif; font-size: 15px; font-weight: 600;
-          font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(17,24,39,.3); cursor: pointer; }
+          font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(17,24,39,.3); cursor: pointer;
+          padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+          transition: transform 120ms ease; }
+        .stop-pin:active { transform: scale(0.92); }
         .stop-pin--current { background: #111827; color: #5eda9b; border-color: #5eda9b;
           width: 36px; height: 36px; font-size: 17px; }
 

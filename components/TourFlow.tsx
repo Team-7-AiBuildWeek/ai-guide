@@ -432,6 +432,24 @@ export default function TourFlow({
   }, [fix, stage, autoAdvance, tour, currentIndex]);
 
   /**
+   * Tapping a numbered stop on the map goes to it.
+   *
+   * Everything before it counts as seen, the same as walking there would make
+   * it: without that, choosing stop seven while standing beside stop two hands
+   * the walk straight back to the arrival check, which sees an unvisited stop
+   * within thirty-five metres and drags the tour back to it.
+   */
+  const chooseStop = useCallback(
+    (index: number) => {
+      if (!tour) return;
+      tour.plan.stops.slice(0, index).forEach((s) => arrivedRef.current.add(s.id));
+      setCurrentIndex(index);
+      setJustArrived(null);
+    },
+    [tour],
+  );
+
+  /**
    * The screen stays awake for as long as the walk is running.
    *
    * Not a comfort: a browser stops delivering positions to a page it considers
@@ -580,6 +598,7 @@ export default function TourFlow({
         route={stage === "tour" ? tour?.route ?? null : null}
         stops={stage === "tour" ? stops : []}
         currentStopIndex={stage === "tour" ? currentIndex : -1}
+        onSelectStop={chooseStop}
         pins={pins}
         picking={picking !== null}
         onPick={(p) => {
