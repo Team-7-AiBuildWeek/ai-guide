@@ -93,10 +93,34 @@ function stopMarkerEl(
   return el;
 }
 
+/**
+ * A pin. Not a teardrop, not a lozenge — a needle stuck into the map with a
+ * round red head on top, the thing you would actually push into a paper map.
+ *
+ * The tip is the whole point of it: it sits on one pixel, so "where did I put
+ * that" has an exact answer. The old marker was a rounded square anchored at
+ * its centre, which meant the place it named was somewhere underneath it. The
+ * marker is anchored at the bottom of this SVG and the needle ends there.
+ *
+ * Both heads are red, because red is what a pin head is. A and B tell them
+ * apart — two colours would make the walker learn which green meant finish.
+ */
 function pinMarkerEl(kind: "start" | "end"): HTMLElement {
   const el = document.createElement("div");
-  el.className = `drop-pin drop-pin--${kind}`;
-  el.textContent = kind === "start" ? "A" : "B";
+  el.className = "drop-pin";
+  el.innerHTML = `
+    <svg width="30" height="44" viewBox="0 0 30 44" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M15 44 L13.35 18 h3.3 Z" fill="#9aa1ab"/>
+      <path d="M15 44 L15 18 h1.65 Z" fill="#7b828c"/>
+      <circle cx="15" cy="13" r="9.5" fill="#d92d20"/>
+      <circle cx="15" cy="13" r="9.5" fill="none" stroke="rgba(17,24,39,.22)" stroke-width="1"/>
+      <ellipse cx="11.4" cy="9.2" rx="3.1" ry="2.1" fill="rgba(255,255,255,.34)"
+        transform="rotate(-28 11.4 9.2)"/>
+      <text x="15" y="13" fill="#fff" font-size="11" font-weight="700"
+        font-family="var(--font-space-grotesk), sans-serif"
+        text-anchor="middle" dominant-baseline="central">${kind === "start" ? "A" : "B"}</text>
+    </svg>`;
+  el.setAttribute("aria-label", kind === "start" ? "Starting point" : "End point");
   return el;
 }
 
@@ -401,7 +425,9 @@ export default function TourMap({
     if (!map) return;
     pinMarkers.current.forEach((m) => m.remove());
     pinMarkers.current = pins.map((p) =>
-      new Marker({ element: pinMarkerEl(p.kind), draggable: false })
+      // Anchored at the needle's tip, not the marker's middle: a pin that
+      // floats centred over the spot names an area, not a place.
+      new Marker({ element: pinMarkerEl(p.kind), anchor: "bottom", draggable: false })
         .setLngLat([p.lng, p.lat])
         .addTo(map),
     );
@@ -462,12 +488,24 @@ export default function TourMap({
         .stop-pin--current { background: #111827; color: #5eda9b; border-color: #5eda9b;
           width: 36px; height: 36px; font-size: 17px; }
 
-        .drop-pin { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 999px 999px 999px 4px;
-          transform: rotate(-45deg); font-family: var(--font-space-grotesk), sans-serif; font-weight: 700;
-          box-shadow: 0 2px 8px rgba(17,24,39,.35); }
-        .drop-pin::first-line { }
-        .drop-pin--start { background: #5eda9b; color: #111827; }
-        .drop-pin--end { background: #111827; color: #5eda9b; }
+        /* drop-shadow rather than box-shadow: the pin is a needle and a head,
+           and a rectangular shadow around them would give away that it is a
+           box. Dropped in with a short fall so the eye catches where it
+           landed. */
+        .drop-pin { line-height: 0; filter: drop-shadow(0 2px 3px rgba(17,24,39,.45)); }
+        /* The fall is on the svg, never on .drop-pin itself: MapLibre places a
+           marker by writing a transform on the element it was handed, and an
+           animation's transform outranks an inline one. Animating the marker
+           pinned every pin to the top-left corner of the window.
+           No backticks in here either — this whole block is a template
+           literal, and one closes it. */
+        .drop-pin svg { display: block; transform-origin: 50% 100%;
+          animation: pin-drop 260ms cubic-bezier(.34,1.3,.64,1) both; }
+        @keyframes pin-drop {
+          from { transform: translateY(-9px) scale(.92); opacity: 0 }
+          to { transform: none; opacity: 1 }
+        }
+        @media (prefers-reduced-motion: reduce) { .drop-pin svg { animation: none } }
 
         @media (prefers-reduced-motion: reduce) { .gps-dot::after { animation: none; opacity: .5 } }
       `}</style>

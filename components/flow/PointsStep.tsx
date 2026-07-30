@@ -172,9 +172,13 @@ function PointRow({
 }
 
 /**
- * The same footer as the brief step: what is missing on the left, the one
- * filled button on the right. Rendered by the sheet, below the scroll box —
- * see BriefFooter for why it is not sticky.
+ * The same footer as the brief step: the button across the whole width with
+ * the state of the choice written above it. Rendered by the sheet, below the
+ * scroll box — see BriefFooter for why it is not sticky.
+ *
+ * The line above is the reason the button is sometimes dead: "Set a starting
+ * point" sits directly over it rather than off to one side, where a disabled
+ * button looked broken instead of waiting.
  */
 export function PointsFooter({
   draft,
@@ -185,8 +189,8 @@ export function PointsFooter({
 }) {
   const t = useT();
   return (
-    <div className="flex items-center justify-between gap-3">
-      <p className="min-w-0 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+    <div className="flex flex-col items-stretch gap-1">
+      <p className="min-h-[24px] text-center text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
         {draft.start
           ? draft.end
             ? t("points.bothSet")
@@ -197,7 +201,7 @@ export function PointsFooter({
         type="button"
         onClick={onContinue}
         disabled={!draft.start}
-        className="btn btn--primary shrink-0 px-6 font-semibold"
+        className="btn btn--primary btn--lg w-full font-semibold"
       >
         {t("points.create")}
       </button>

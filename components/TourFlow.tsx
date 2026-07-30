@@ -59,6 +59,10 @@ const INSET_PLAYER = 340;
  *  lookup costs a request. */
 const CITY_RADIUS_M = 30_000;
 
+/** How long the map stays uncovered after a pin lands, so the walker can see
+ *  where it went before the sheet slides back over it. */
+const PIN_PAUSE_MS = 1000;
+
 export default function TourFlow({
   styleUrl,
   styles,
@@ -75,6 +79,16 @@ export default function TourFlow({
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [tour, setTour] = useState<StoredTour | null>(null);
   const [picking, setPicking] = useState<"start" | "end" | null>(null);
+  /**
+   * The pin has landed and the sheet has not come back up yet.
+   *
+   * Without the pause the sheet slid over the map the instant the map was
+   * tapped, so the one thing worth seeing — where the pin actually went —
+   * was covered before it could be looked at. A second is long enough to
+   * see it and short enough not to feel stuck.
+   */
+  const [pinLanded, setPinLanded] = useState(false);
+  const pinPause = useRef<number | null>(null);
   /** The city search, opened from the landing screen. */
   const [cityOpen, setCityOpen] = useState(false);
   const [phase, setPhase] = useState("stops");
@@ -135,6 +149,10 @@ export default function TourFlow({
   const heading = useHeading(!simulating);
 
   // Restore whatever the last session left behind.
+  // The pause after a pin lands outlives nothing: if this screen goes away
+  // first, the timer must not come back to set state on it.
+  useEffect(() => () => { if (pinPause.current) clearTimeout(pinPause.current); }, []);
+
   useEffect(() => {
     // localStorage is unreadable during SSR, so this cannot be a lazy initial
     // state without a hydration mismatch. Deferred a tick so it never writes
@@ -338,10 +356,20 @@ export default function TourFlow({
     [tour],
   );
 
+  /**
+   * Only while the walk's ends are being chosen.
+   *
+   * They used to draw on every screen before the tour, which put a pin from a
+   * walk somebody set up yesterday on the opening map — a marker on a screen
+   * with nothing to explain it, pointing at a decision they had not made yet.
+   * The pin answers "where will this start", so it belongs on the screen that
+   * asks.
+   */
   const pins = useMemo<MapPin[]>(() => {
     const out: MapPin[] = [];
-    if (stage !== "tour" && draft.start) out.push({ kind: "start", ...draft.start });
-    if (stage !== "tour" && draft.end) out.push({ kind: "end", ...draft.end });
+    if (stage !== "points") return out;
+    if (draft.start) out.push({ kind: "start", ...draft.start });
+    if (draft.end) out.push({ kind: "end", ...draft.end });
     return out;
   }, [stage, draft.start, draft.end]);
 
@@ -613,11 +641,18 @@ export default function TourFlow({
         currentStopIndex={stage === "tour" ? currentIndex : -1}
         onSelectStop={chooseStop}
         pins={pins}
-        picking={picking !== null}
+        // Off the moment the pin lands, so the second spent looking at it
+        // cannot be spent accidentally moving it.
+        picking={picking !== null && !pinLanded}
         onPick={(p) => {
           const label = `Pin at ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
           patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
-          setPicking(null);
+          setPinLanded(true);
+          if (pinPause.current) clearTimeout(pinPause.current);
+          pinPause.current = window.setTimeout(() => {
+            setPicking(null);
+            setPinLanded(false);
+          }, PIN_PAUSE_MS);
         }}
         // How much of the map the sheet is sitting on, so the camera centres in
         // what is left of it. Read from where the sheet actually is, not from
@@ -662,8 +697,12 @@ export default function TourFlow({
       {sheetHidden ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-center justify-between gap-3 panel-dark px-4 py-3">
+            {/* Once the pin is down the instruction is finished, and leaving
+                it up reads as though the tap did not register. */}
             <p className="min-w-0 font-[family-name:var(--font-display)] font-semibold">
-              Tap the map to place the {picking === "end" ? "end" : "start"} point
+              {pinLanded
+                ? `${picking === "end" ? "End" : "Starting"} point set`
+                : `Tap the map to place the ${picking === "end" ? "end" : "start"} point`}
             </p>
             <button
               type="button"
