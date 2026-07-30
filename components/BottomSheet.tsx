@@ -255,16 +255,32 @@ export default function BottomSheet({
     const panel = panelRef.current;
     if (!panel || !draggable) return;
 
-    let candidate: { y: number; taken: boolean } | null = null;
+    let candidate: { x: number; y: number; taken: boolean } | null = null;
 
     const onStart = (e: TouchEvent) => {
       if (e.touches.length !== 1) return;
-      candidate = { y: e.touches[0].clientY, taken: false };
+      /**
+       * A control that handles its own dragging keeps every gesture that
+       * starts on it. The scrubber is the one that matters: it is dragged
+       * with a thumb that never travels in a perfectly straight line, so the
+       * sheet was taking the gesture six pixels in and cancelling the seek.
+       */
+      const target = e.target as HTMLElement | null;
+      if (target?.closest("input, textarea, select, [data-owns-touch]")) return;
+      candidate = { x: e.touches[0].clientX, y: e.touches[0].clientY, taken: false };
     };
 
     const onMove = (e: TouchEvent) => {
       if (!candidate || e.touches.length !== 1) return;
       const y = e.touches[0].clientY;
+
+      if (!candidate.taken) {
+        // Sideways belongs to whatever is being swiped sideways.
+        if (Math.abs(e.touches[0].clientX - candidate.x) > Math.abs(y - candidate.y)) {
+          candidate = null;
+          return;
+        }
+      }
 
       if (!candidate.taken) {
         const travelled = y - candidate.y;

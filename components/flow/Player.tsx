@@ -127,6 +127,14 @@ export default function Player({
   const within =
     chunkDuration > 0 ? Math.max(0, Math.min(1, (position - chunkStart) / chunkDuration)) : 0;
 
+  /** Where the finger is, while it is on the scrubber. Null the rest of the time. */
+  const [scrub, setScrub] = useState<number | null>(null);
+  const commitScrub = () => {
+    if (scrub === null) return;
+    onSeek(scrub);
+    setScrub(null);
+  };
+
   /**
    * The line being spoken is kept in view as the narration moves.
    *
@@ -179,21 +187,38 @@ export default function Player({
               style={{ width: `${Math.round(Math.min(1, Math.max(0, buffered)) * 100)}%` }}
             />
           </div>
+          {/**
+           * While a thumb is on it, the scrubber shows where the thumb is
+           * rather than where the audio is.
+           *
+           * Bound straight to `position` it fought the finger: the engine only
+           * reports a new position once the seek has actually landed, and a
+           * seek into a piece that has not been synthesised yet does not land
+           * at all until it arrives — so the thumb sprang back and the control
+           * looked broken. The seek is sent on release; the scrub is the
+           * walker's until then.
+           */}
           <input
-          type="range"
-          min={0}
-          max={Math.max(1, duration)}
-          step={0.5}
-          value={Math.min(position, duration || 0)}
-          onChange={(e) => onSeek(Number(e.target.value))}
-          disabled={duration <= 0}
-          aria-label="Position in this stop"
-          className="relative h-6 w-full accent-[color:var(--mint-ink)]"
-          style={{ background: "transparent" }}
-        />
+            data-owns-touch
+            type="range"
+            min={0}
+            max={Math.max(1, duration)}
+            step={0.5}
+            value={scrub ?? Math.min(position, duration || 0)}
+            onChange={(e) => setScrub(Number(e.target.value))}
+            onPointerUp={commitScrub}
+            onPointerCancel={commitScrub}
+            onTouchEnd={commitScrub}
+            onKeyUp={commitScrub}
+            onBlur={commitScrub}
+            disabled={duration <= 0}
+            aria-label="Position in this stop"
+            className="relative h-6 w-full accent-[color:var(--mint-ink)]"
+            style={{ background: "transparent" }}
+          />
         </div>
         <div className="-mt-1 flex justify-between text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
-          <span>{mmss(position)}</span>
+          <span>{mmss(scrub ?? position)}</span>
           {/* The right-hand figure is the total, or — while there is not one
               yet — what is being waited for. It reads better here than on the
               button, which wrapped "Writing this stop" onto three lines. */}
