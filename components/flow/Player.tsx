@@ -13,7 +13,7 @@
  * the track — pretending otherwise would make a seek past it look broken.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
 function mmss(s: number) {
@@ -91,9 +91,13 @@ export default function Player({
    * twenty seconds.
    */
   const spoken = useRef<HTMLParagraphElement>(null);
+  /** Off by default: this is a walking tour, and the words are the fallback. */
+  const [showText, setShowText] = useState(false);
   useEffect(() => {
-    if (playing) spoken.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-  }, [chunkIndex, playing]);
+    if (playing && showText) {
+      spoken.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+    }
+  }, [chunkIndex, playing, showText]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -199,27 +203,42 @@ export default function Player({
         </div>
       )}
 
-      {/* The short way round. A walker with an hour and thirteen stops does
-          not have four minutes for each of them, and would rather have the
-          first thing the guide says about all thirteen than all of the first
-          three. */}
-      <button
-        type="button"
-        aria-pressed={speedrun}
-        onClick={() => onSpeedrun(!speedrun)}
-        className={`btn w-full ${speedrun ? "btn--dark" : "btn--quiet"}`}
-      >
-        {speedrun ? "TLDR — on, one minute a stop" : "TLDR — just the gist of each stop"}
-      </button>
+      {/* Two ways to spend less on a stop: read it instead of hearing it, or
+          hear only the start of it. Both are choices about time, so they share
+          a row — and both stay shut until asked for, because a walking tour
+          that fills the screen with text is asking to be looked at rather than
+          walked. */}
+      <div className="flex gap-2">
+        <button
+          type="button"
+          aria-pressed={showText}
+          aria-expanded={showText}
+          aria-controls="narration-text"
+          onClick={() => setShowText((v) => !v)}
+          disabled={chunks.length === 0}
+          className={`btn min-w-0 flex-1 ${showText ? "btn--dark" : "btn--quiet"}`}
+        >
+          {showText ? "Hide the text" : "Read along"}
+        </button>
+        <button
+          type="button"
+          aria-pressed={speedrun}
+          onClick={() => onSpeedrun(!speedrun)}
+          className={`btn min-w-0 flex-1 ${speedrun ? "btn--dark" : "btn--quiet"}`}
+        >
+          {speedrun ? "TLDR on" : "TLDR"}
+        </button>
+      </div>
 
       {/* What is being said, as it is said. There are no word timings, so the
           unit is the piece the voice is speaking — which is split at sentence
           ends, and is the smallest honest granularity available. */}
-      {chunks.length > 0 ? (
-        <div className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-4">
-          <p className="u-eyebrow">
-            {speedrun ? "The gist" : "What you are hearing"}
-          </p>
+      {showText && chunks.length > 0 ? (
+        <div
+          id="narration-text"
+          className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-4"
+        >
+          <p className="u-eyebrow">{speedrun ? "The gist" : "What you are hearing"}</p>
           <div className="mt-2 flex flex-col gap-3">
             {(speedrun ? chunks.slice(0, 1) : chunks).map((text, i) => {
               const now = i === chunkIndex;

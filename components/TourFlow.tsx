@@ -548,7 +548,9 @@ export default function TourFlow({
   // sheet reaches up past the button, and it is the sheet that has the text.
   // A 430x900 window has the clearance a real phone does not.
   const showLayerSwitcher =
-    !directionsOpen && !playerOpen && (sheetHidden || (stage === "tour" && !sheetFull));
+    !directionsOpen &&
+    !playerOpen &&
+    (sheetHidden || (stage === "tour" && sheetHeight === "collapsed"));
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
@@ -567,7 +569,12 @@ export default function TourFlow({
           patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
           setPicking(null);
         }}
-        bottomInset={sheetFull ? 0 : stage === "tour" && !playerOpen ? INSET_MINI : INSET_PLAYER}
+        // How much of the map the sheet is sitting on, so the camera centres in
+        // what is left of it. Read from where the sheet actually is, not from
+        // where this screen would put it — the walker can drag it now.
+        bottomInset={
+          sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI : INSET_PLAYER
+        }
         follow={stage !== "tour" && !cityPinned}
         fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
         lookAt={
@@ -602,10 +609,12 @@ export default function TourFlow({
       ) : null}
 
       {/* Directions live behind a small icon, top right, out of the way. */}
-      {/* Hidden while the sheet is full: the sheet has its own chevron, and two
-          back buttons stacked on top of each other is how you end up deleting
-          a tour when you meant to close a question. */}
-      {stage === "tour" && !askOpen ? (
+      {/* Hidden whenever the sheet reaches the top of the screen: the sheet has
+          its own chevron there, and two back buttons stacked on top of each
+          other is how you end up deleting a tour when you meant to close a
+          question. That used to mean "while asking"; now the walker can drag
+          the sheet up to full themselves, so it means what it says. */}
+      {stage === "tour" && !askOpen && sheetHeight !== "full" ? (
         <>
           <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
             <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-start justify-between gap-3">
@@ -679,7 +688,7 @@ export default function TourFlow({
       {/* Arrival, and the switch that turns it off. GPS moving the tour under
           the walker is right most of the time and infuriating the rest, so it
           has to be visible and it has to be defeatable. */}
-      {stage === "tour" && !askOpen ? (
+      {stage === "tour" && !askOpen && sheetHeight !== "full" ? (
         <div className="pointer-events-none absolute inset-x-0 top-36 z-20 px-4">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
             {justArrived ? (
