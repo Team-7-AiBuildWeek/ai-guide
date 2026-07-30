@@ -29,7 +29,7 @@ export class OpenAITTSProvider implements TTSProvider {
       method: "POST",
       headers: { "content-type": "application/json", authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: process.env.OPENAI_TTS_MODEL ?? "tts-1",
+        model: config.openaiTtsModel,
         voice: opts.voice ?? "onyx",
         input: applyLexicon(text),
         response_format: "mp3",

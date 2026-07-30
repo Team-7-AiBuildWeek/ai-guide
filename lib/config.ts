@@ -52,6 +52,7 @@ export const config = {
   // Model ids, overridable so a new release doesn't need a code change.
   anthropicModel: process.env.ANTHROPIC_MODEL ?? "claude-opus-5",
   openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
+  openaiTtsModel: process.env.OPENAI_TTS_MODEL ?? "tts-1",
   geminiModel: process.env.GEMINI_MODEL ?? process.env.GOOGLE_MODEL ?? "gemini-3.6-flash",
   geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
   /** Which prebuilt Gemini voice narrates the tour. Audition them at /dev/tts. */
@@ -68,6 +69,27 @@ export const config = {
   elevenlabsModel: process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5",
   /** Audition voices at /dev/tts; this is the one a tour uses by default. */
   elevenlabsVoice: process.env.ELEVENLABS_VOICE ?? "21m00Tcm4TlvDq8ikWAM",
+
+  /**
+   * Which model the *selected* speech provider is using.
+   *
+   * Only for cache keys and diagnostics: anything that caches synthesised
+   * audio has to invalidate when the model changes, and hard-coding one
+   * provider's model into that key means the others silently share entries
+   * with it.
+   */
+  get ttsModel(): string {
+    switch (this.ttsProvider) {
+      case "elevenlabs":
+        return this.elevenlabsModel;
+      case "google":
+        return this.geminiTtsModel;
+      case "openai":
+        return this.openaiTtsModel;
+      default:
+        return this.ttsProvider;
+    }
+  },
 
   /** Stadia serves an EU endpoint too — api-eu.stadiamaps.com, closer to Bratislava. */
   stadiaBaseUrl: process.env.STADIA_BASE_URL ?? "https://api.stadiamaps.com",
