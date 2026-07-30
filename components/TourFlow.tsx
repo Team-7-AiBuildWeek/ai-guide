@@ -13,8 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
-import BriefStep from "./flow/BriefStep";
-import PointsStep from "./flow/PointsStep";
+import BriefStep, { BriefFooter } from "./flow/BriefStep";
+import PointsStep, { PointsFooter } from "./flow/PointsStep";
 import CityPicker from "./flow/CityPicker";
 import FullscreenButton from "./flow/FullscreenButton";
 import GeneratingStep from "./flow/GeneratingStep";
@@ -771,6 +771,17 @@ export default function TourFlow({
                     ? () => setSheetDrag("collapsed")
                     : undefined
           }
+          footer={
+            stage === "brief" ? (
+              <BriefFooter
+                draft={draft}
+                onChange={patchDraft}
+                onContinue={() => setStage("points")}
+              />
+            ) : stage === "points" ? (
+              <PointsFooter draft={draft} onContinue={generate} />
+            ) : undefined
+          }
           collapsedContent={
             stage === "tour" && tour ? (
               <MiniPlayer
@@ -858,12 +869,11 @@ export default function TourFlow({
           }
         >
           {stage === "brief" ? (
-            <BriefStep draft={draft} onChange={patchDraft} onContinue={() => setStage("points")} />
+            <BriefStep draft={draft} onChange={patchDraft} />
           ) : stage === "points" ? (
             <PointsStep
               draft={draft}
               onChange={patchDraft}
-              onContinue={generate}
               fix={fix}
               picking={picking}
               setPicking={setPicking}

@@ -37,7 +37,18 @@ import Segmented from "./Segmented";
 import Stepper from "./Stepper";
 
 
-export default function BriefStep({
+/**
+ * Airbnb's filter footer: the way out of every choice on the left as plain
+ * text, the way on to the right as the only filled button on the screen — and
+ * it names what it will make rather than saying "continue", so the settings
+ * above have a visible consequence.
+ *
+ * Rendered by the sheet, below the scrolling content, rather than stuck to the
+ * bottom of it. As a `sticky` element inside the scroll box the container's
+ * own bottom padding stayed underneath it, and the content could be seen
+ * sliding through that gap.
+ */
+export function BriefFooter({
   draft,
   onChange,
   onContinue,
@@ -46,7 +57,48 @@ export default function BriefStep({
   onChange: (patch: Partial<Draft>) => void;
   onContinue: () => void;
 }) {
+  const walk = DURATIONS.find((d) => d.value === draft.durationMinutes)?.walk ?? "the walk";
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <button
+        type="button"
+        onClick={() =>
+          onChange({
+            freeText: "",
+            durationMinutes: EMPTY_DRAFT.durationMinutes,
+            detail: EMPTY_DRAFT.detail,
+            pace: EMPTY_DRAFT.pace,
+            interests: EMPTY_DRAFT.interests,
+          })
+        }
+        className="min-h-[44px] shrink-0 font-[family-name:var(--font-display)] font-medium text-[color:var(--ink)] underline underline-offset-4"
+      >
+        Clear all
+      </button>
+      <button
+        type="button"
+        onClick={onContinue}
+        className="btn btn--primary min-w-0 px-6 font-semibold"
+      >
+        <span className="truncate">Plan {walk}</span>
+      </button>
+    </div>
+  );
+}
+
+export default function BriefStep({
+  draft,
+  onChange,
+}: {
+  draft: Draft;
+  onChange: (patch: Partial<Draft>) => void;
+}) {
   const [readFromBrief, setReadFromBrief] = useState(false);
+  /**
+   * Open already if there are words in the draft — coming back to a brief you
+   * wrote and finding the box gone reads as having lost it.
+   */
+  const [personalise, setPersonalise] = useState(() => draft.freeText.trim().length > 0);
 
   /**
    * Typing the brief also sets the length, when the brief says one.
@@ -152,17 +204,43 @@ export default function BriefStep({
 
       {/* The seam. Everything above answers the questions; everything below
           replaces them with a sentence, for anyone who would rather say what
-          they mean than approximate it with three sliders. */}
+          they mean than approximate it with three settings.
+          Behind a button, because it is the longest thing on the screen and
+          most walkers never open it — and it opens in place rather than on a
+          screen of its own, so the settings it overrules stay right above it. */}
       <div className="border-t border-[color:var(--line)] pt-4">
-        <label
-          htmlFor="brief"
-          className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]"
+        <button
+          type="button"
+          aria-expanded={personalise}
+          aria-controls="personalise"
+          onClick={() => setPersonalise((v) => !v)}
+          className="btn btn--primary btn--lg w-full justify-between text-left"
         >
-          Or tell me in your own words
-        </label>
-        <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Anything here outranks the settings above. It makes the better tour.
-        </p>
+          <span>Personalise more</span>
+          <span aria-hidden="true" className="text-[length:var(--text-caption)]">
+            {personalise ? "▲" : "▼"}
+          </span>
+        </button>
+        {!personalise ? (
+          <p className="mt-2 text-center text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+            {draft.freeText.trim()
+              ? "Your own words are set — they outrank the settings above."
+              : "Describe the walk in your own words. It makes the better tour."}
+          </p>
+        ) : null}
+      </div>
+
+      {personalise ? (
+        <div id="personalise">
+          <label
+            htmlFor="brief"
+            className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]"
+          >
+            Tell me in your own words
+          </label>
+          <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+            Anything here outranks the settings above. It makes the better tour.
+          </p>
         <textarea
           id="brief"
           rows={3}
@@ -195,37 +273,8 @@ export default function BriefStep({
             </button>
           ))}
         </div>
-      </div>
-
-      {/* Airbnb's filter footer: the way out of every choice on the left as
-          plain text, the way on to the right as the only filled button on the
-          screen — and it names what you are about to get rather than saying
-          "continue", so the settings above have a visible consequence. Sticky,
-          because the screen is longer than a phone. */}
-      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 flex items-center justify-between gap-3 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <button
-          type="button"
-          onClick={() =>
-            onChange({
-              freeText: "",
-              durationMinutes: EMPTY_DRAFT.durationMinutes,
-              detail: EMPTY_DRAFT.detail,
-              pace: EMPTY_DRAFT.pace,
-              interests: EMPTY_DRAFT.interests,
-            })
-          }
-          className="min-h-[44px] shrink-0 font-[family-name:var(--font-display)] font-medium text-[color:var(--ink)] underline underline-offset-4"
-        >
-          Clear all
-        </button>
-        <button
-          type="button"
-          onClick={onContinue}
-          className="btn btn--primary min-w-0 px-6 font-semibold"
-        >
-          <span className="truncate">Plan {DURATIONS[durationIndex]?.walk ?? "the walk"}</span>
-        </button>
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 }

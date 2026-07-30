@@ -170,10 +170,42 @@ function PointRow({
   );
 }
 
+/**
+ * The same footer as the brief step: what is missing on the left, the one
+ * filled button on the right. Rendered by the sheet, below the scroll box —
+ * see BriefFooter for why it is not sticky.
+ */
+export function PointsFooter({
+  draft,
+  onContinue,
+}: {
+  draft: Draft;
+  onContinue: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <p className="min-w-0 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+        {draft.start
+          ? draft.end
+            ? "Start and finish set"
+            : "Finishes where it starts"
+          : "Set a starting point"}
+      </p>
+      <button
+        type="button"
+        onClick={onContinue}
+        disabled={!draft.start}
+        className="btn btn--primary shrink-0 px-6 font-semibold"
+      >
+        Create the tour
+      </button>
+    </div>
+  );
+}
+
 export default function PointsStep({
   draft,
   onChange,
-  onContinue,
   fix,
   picking,
   setPicking,
@@ -182,7 +214,6 @@ export default function PointsStep({
 }: {
   draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
-  onContinue: () => void;
   fix: Fix | null;
   picking: Target | null;
   setPicking: (t: Target | null) => void;
@@ -320,22 +351,6 @@ export default function PointsStep({
         </button>
       )}
 
-      {/* The same footer as the brief step: what is missing on the left, the
-          one filled button on the right, naming the walk it is about to make
-          rather than the step it is about to take. */}
-      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 flex items-center justify-between gap-3 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-        <p className="min-w-0 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          {draft.start ? (draft.end ? "Start and finish set" : "Finishes where it starts") : "Set a starting point"}
-        </p>
-        <button
-          type="button"
-          onClick={onContinue}
-          disabled={!draft.start}
-          className="btn btn--primary shrink-0 px-6 font-semibold"
-        >
-          Create the tour
-        </button>
-      </div>
     </div>
   );
 }

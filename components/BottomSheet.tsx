@@ -67,6 +67,7 @@ export default function BottomSheet({
   onCollapse,
   title,
   children,
+  footer,
   collapsedContent,
 }: {
   height: SheetHeight;
@@ -76,6 +77,17 @@ export default function BottomSheet({
   onCollapse?: () => void;
   title?: string;
   children: React.ReactNode;
+  /**
+   * Buttons pinned below the scrolling content.
+   *
+   * A real element under the scroll box rather than a `sticky` one inside it.
+   * Sticky positions against the scroll container's content box, so the
+   * container's own bottom padding stays *below* the pinned row — a band the
+   * content scrolls through and is visible in. The sheet supplies the rule,
+   * the background and the home-indicator inset; the step supplies the
+   * buttons.
+   */
+  footer?: React.ReactNode;
   /** The single row shown when collapsed. */
   collapsedContent?: React.ReactNode;
 }) {
@@ -400,6 +412,11 @@ export default function BottomSheet({
           >
             {children}
           </div>
+          {footer ? (
+            <div className="shrink-0 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+              {footer}
+            </div>
+          ) : null}
         </div>
       ) : (
         // The whole collapsed row drags, buttons and all — the capture-after-
