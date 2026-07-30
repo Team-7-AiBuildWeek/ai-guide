@@ -11,6 +11,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
@@ -45,6 +46,7 @@ import {
 } from "@/lib/tour/flow";
 import type { City, MapStyle, TourRequest } from "@/lib/providers/types";
 import { cityAt } from "@/lib/tour/city";
+import { rememberWalk } from "@/lib/tour/history";
 
 /** Roughly how much of the map each sheet state covers. */
 const INSET_MINI = 120;
@@ -237,6 +239,11 @@ export default function TourFlow({
             const built: StoredTour = { ...evt.data, req: body };
             setTour(built);
             saveTour(built);
+            // Remembered when it is built rather than when it is finished: a
+            // walk abandoned at stop three still happened, and a walker
+            // looking for "that tour I made in Vienna" means the one they
+            // made, not the one they completed.
+            rememberWalk(built);
             setCurrentIndex(0);
             setStage("headphones");
           }
@@ -861,6 +868,17 @@ export default function TourFlow({
                     Choose any city
                   </button>
                 )}
+                {/* Past walks and the settings that outlive them. A link
+                    rather than a third button: it leads away from the one
+                    thing this screen is for. */}
+                <div className="mt-3 flex items-center justify-center gap-4">
+                  <Link
+                    href="/profile"
+                    className="min-h-[44px] font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
+                  >
+                    My profile
+                  </Link>
+                </div>
                 {/* Offered here and nowhere else: the walk itself should not
                     carry a control for the browser it happens to be in. */}
                 <FullscreenButton />
