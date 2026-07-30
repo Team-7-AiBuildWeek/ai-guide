@@ -296,7 +296,8 @@ export default function BottomSheet({
             className={[
               dragClass,
               "flex shrink-0 flex-col border-b border-[color:var(--line)]",
-              height === "full" ? "pt-[env(safe-area-inset-top)]" : "",
+              // A notch where there is one, and a little air where there is not.
+              height === "full" ? "pt-[max(0.25rem,env(safe-area-inset-top))]" : "",
             ].join(" ")}
           >
             {bar}
@@ -318,7 +319,10 @@ export default function BottomSheet({
           </header>
           <div
             ref={panelRef}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
+            // The top pad is bigger than the bottom on purpose: it is the one
+            // that has a hard divider above it, and 16px under a line reads as
+            // nothing at all.
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-6"
           >
             {children}
           </div>
@@ -328,7 +332,9 @@ export default function BottomSheet({
         // movement rule above is what keeps their taps working.
         <div {...dragProps} className={`${dragClass} pb-[max(1rem,env(safe-area-inset-bottom))]`}>
           {bar}
-          <div className="px-4">{collapsedContent}</div>
+          {/* The bar is a grab area, not a margin. Without this the first line
+              of the row sits directly under it and the sheet reads as clipped. */}
+          <div className="px-4 pt-1">{collapsedContent}</div>
         </div>
       )}
     </section>

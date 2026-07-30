@@ -84,6 +84,7 @@ export default function TourMap({
   center,
   fix,
   dot = null,
+  heading = null,
   route = null,
   stops = [],
   currentStopIndex = -1,
@@ -104,6 +105,8 @@ export default function TourMap({
   /** Where to draw the dot, when that is not the raw fix — see `snapToRoute`.
    *  The circle stays on the fix either way, so nothing is hidden. */
   dot?: { lat: number; lng: number } | null;
+  /** Degrees clockwise from north, when the device has a compass. */
+  heading?: number | null;
   route?: GeoJSON.Feature | null;
   stops?: MapStop[];
   currentStopIndex?: number;
@@ -212,7 +215,25 @@ export default function TourMap({
     };
     map.on("click", click);
 
+    /**
+     * Re-measure whenever the container changes size.
+     *
+     * The map measures itself once, when it is constructed, which is before
+     * the layout it lives in has settled — it came up believing it was 792px
+     * wide inside an 814px box. A map whose idea of its own size is stale
+     * paints its background and then stops: no tiles are ever requested for
+     * the area it does not think it covers, so the app opened on a blank grey
+     * screen and only drew the city once something happened to nudge it.
+     *
+     * An observer rather than a one-off call on `load`, because the same thing
+     * happens on rotation, on a phone keyboard opening, and on every change of
+     * the sheet's height underneath it.
+     */
+    const resizer = new ResizeObserver(() => map.resize());
+    resizer.observe(containerRef.current);
+
     return () => {
+      resizer.disconnect();
       map.remove();
       mapRef.current = null;
       gpsMarker.current = null;
@@ -256,6 +277,9 @@ export default function TourMap({
       const el = document.createElement("div");
       el.className = "gps-dot";
       el.setAttribute("aria-hidden", "true");
+      // The facing cone lives inside the dot so it turns around the dot's
+      // centre rather than around a corner of it.
+      el.appendChild(Object.assign(document.createElement("div"), { className: "gps-dot__cone" }));
       gpsMarker.current = new Marker({ element: el }).setLngLat([at.lng, at.lat]).addTo(map);
     } else {
       gpsMarker.current.setLngLat([at.lng, at.lat]);
@@ -277,6 +301,26 @@ export default function TourMap({
       map.easeTo({ center: [at.lng, at.lat], duration: 600, padding: { bottom: bottomInset } });
     }
   }, [fix, dot, follow, bottomInset]);
+
+  /**
+   * Turn the cone.
+   *
+   * Its own effect, and a direct style write rather than a re-render: the
+   * compass reports several times a second, and the dot's position has nothing
+   * to do with which way it points. The map's bearing is fixed at north, so
+   * the heading needs no correction — if that ever changes, subtract
+   * `map.getBearing()` here.
+   */
+  useEffect(() => {
+    const el = gpsMarker.current?.getElement().querySelector<HTMLElement>(".gps-dot__cone");
+    if (!el) return;
+    if (heading === null) {
+      el.style.opacity = "0";
+      return;
+    }
+    el.style.opacity = "1";
+    el.style.transform = `translate(-50%, -100%) rotate(${heading}deg)`;
+  }, [heading, fix]);
 
   // --------------------------------------------------------------- lookAt --
   useEffect(() => {
@@ -362,6 +406,19 @@ export default function TourMap({
           box-shadow: 0 0 0 1px rgba(17,24,39,.35), 0 2px 6px rgba(17,24,39,.4); }
         .gps-dot::after { content: ""; position: absolute; inset: -9px; border-radius: 999px;
           border: 2px solid #5eda9b; animation: gps-pulse 2.4s ease-out infinite; }
+        /* Which way you are facing. Anchored at the dot's centre and rotated
+           about it, so 0deg points north up the screen. A soft edge, because
+           a compass is a rough instrument and a hard-edged beam claims a
+           precision it does not have. */
+        .gps-dot__cone { position: absolute; left: 50%; top: 50%; width: 54px; height: 40px;
+          transform-origin: 50% 100%; transform: translate(-50%, -100%);
+          opacity: 0; transition: transform 180ms linear, opacity 200ms ease;
+          background: conic-gradient(from -22deg at 50% 100%,
+            rgba(94,218,155,0) 0deg, rgba(94,218,155,.55) 12deg,
+            rgba(94,218,155,.55) 32deg, rgba(94,218,155,0) 44deg);
+          -webkit-mask-image: radial-gradient(60% 100% at 50% 100%, #000 40%, transparent 100%);
+          mask-image: radial-gradient(60% 100% at 50% 100%, #000 40%, transparent 100%);
+          pointer-events: none; }
         @keyframes gps-pulse { 0% { transform: scale(.6); opacity: .9 } 100% { transform: scale(1.6); opacity: 0 } }
 
         .stop-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px;

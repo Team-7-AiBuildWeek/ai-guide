@@ -50,7 +50,7 @@ function WordSlider<T extends string | number>({
         value={index}
         onChange={(e) => onChange(options[Number(e.target.value)].value)}
         aria-label={label}
-        className="mt-3 h-11 w-full accent-[color:var(--mint-ink)]"
+        className="mt-2 h-10 w-full accent-[color:var(--mint-ink)]"
       />
     </div>
   );
@@ -98,7 +98,7 @@ export default function BriefStep({
   const durationLabel = DURATIONS.find((d) => d.value === draft.durationMinutes)?.label;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       {/* First, and above everything: the language decides what the whole walk
           is written and spoken in, and somebody who does not read English
           needs it before they read anything else. */}
@@ -120,7 +120,7 @@ export default function BriefStep({
         </select>
       </div>
 
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-4">
         <WordSlider
           label="How long"
           options={DURATIONS}
@@ -143,7 +143,7 @@ export default function BriefStep({
 
       <div>
         <p className="u-eyebrow">What interests you</p>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {INTERESTS.map((i) => {
             const on = draft.interests.includes(i.value);
             return (
@@ -152,7 +152,7 @@ export default function BriefStep({
                 type="button"
                 aria-pressed={on}
                 onClick={() => toggleInterest(i.value)}
-                className={`btn ${on ? "btn--primary" : "btn--quiet"}`}
+                className={`btn btn--small ${on ? "btn--primary" : "btn--quiet"}`}
               >
                 {i.label}
               </button>
@@ -164,7 +164,7 @@ export default function BriefStep({
       {/* The seam. Everything above answers the questions; everything below
           replaces them with a sentence, for anyone who would rather say what
           they mean than approximate it with three sliders. */}
-      <div className="border-t border-[color:var(--line)] pt-5">
+      <div className="border-t border-[color:var(--line)] pt-4">
         <label
           htmlFor="brief"
           className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]"
@@ -176,7 +176,7 @@ export default function BriefStep({
         </p>
         <textarea
           id="brief"
-          rows={5}
+          rows={3}
           value={draft.freeText}
           onChange={(e) => setBrief(e.target.value)}
           placeholder="Old town history, not too much walking, something about the coronations"
@@ -189,16 +189,20 @@ export default function BriefStep({
           </p>
         ) : null}
 
-        <p className="u-eyebrow mt-5">Or start from one of these</p>
-        <div className="mt-3 flex flex-col gap-2">
+        {/* Four full-width rows of prose spent about a fifth of the whole
+            screen on examples nobody reads twice. As chips they are still
+            one tap, and they wrap into a third of the space. */}
+        <p className="u-eyebrow mt-4">Or start from one of these</p>
+        <div className="mt-2 flex flex-wrap gap-2">
           {EXAMPLE_BRIEFS.map((ex) => (
             <button
               key={ex}
               type="button"
               onClick={() => setBrief(ex)}
-              className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] px-4 py-3 text-left text-[color:var(--ink-soft)] hover:border-[color:var(--ink-mute)]"
+              title={ex}
+              className="btn btn--quiet btn--small max-w-full"
             >
-              {ex}
+              <span className="truncate">{ex.split(",")[0]}</span>
             </button>
           ))}
         </div>

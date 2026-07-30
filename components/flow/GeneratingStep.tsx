@@ -53,7 +53,7 @@ export default function GeneratingStep({
 
   if (error) {
     return (
-      <div className="flex h-full flex-col justify-center gap-6">
+      <div className="flex h-full flex-col justify-center gap-5">
         <div>
           <h2 className="text-[length:var(--text-h2)]">That didn&apos;t work.</h2>
           <p className="u-measure mt-3">{error}</p>
@@ -71,7 +71,7 @@ export default function GeneratingStep({
   }
 
   return (
-    <div className="flex h-full flex-col justify-center gap-6">
+    <div className="flex h-full flex-col justify-center gap-5">
       <div>
         <h2 className="text-[length:var(--text-h2)]">Making your personal tour…</h2>
         <p className="u-measure mt-3">This takes up to a minute. Keep the screen open.</p>

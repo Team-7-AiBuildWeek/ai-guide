@@ -27,6 +27,7 @@ import LayerSwitcher from "./flow/LayerSwitcher";
 import { useTourAudio } from "@/lib/audio/useTourAudio";
 import { audioEngine, clearPlayback } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
+import { requestHeadingPermission, useHeading } from "@/lib/tour/useHeading";
 import { distanceMeters } from "@/lib/tour/route";
 import { normaliseLang, speechLocale } from "@/lib/i18n/languages";
 import { isTrusted } from "@/lib/tour/fixQuality";
@@ -124,6 +125,8 @@ export default function TourFlow({
   const [cityPinned, setCityPinned] = useState<City | null>(null);
 
   const { fix, status, simulating, toggleSimulation } = useLiveLocation(initialSimulate);
+  /** Which way the walker is facing, for the cone on the dot. */
+  const heading = useHeading(!simulating);
 
   // Restore whatever the last session left behind.
   useEffect(() => {
@@ -559,6 +562,7 @@ export default function TourFlow({
         center={center}
         fix={fix}
         dot={snapped}
+        heading={heading}
         route={stage === "tour" ? tour?.route ?? null : null}
         stops={stage === "tour" ? stops : []}
         currentStopIndex={stage === "tour" ? currentIndex : -1}
@@ -885,6 +889,9 @@ export default function TourFlow({
                 if (typeof speechSynthesis !== "undefined") {
                   speechSynthesis.speak(new SpeechSynthesisUtterance(""));
                 }
+                // iOS only grants the compass from inside a tap, and this is
+                // the last tap before the walk begins.
+                void requestHeadingPermission();
                 setStage("tour");
               }}
             />

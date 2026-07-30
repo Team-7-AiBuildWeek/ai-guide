@@ -104,7 +104,7 @@ function PointRow({
       {/* The pin sits on the field, because it answers the same question by
           other means: "somewhere I cannot name". A full-width button below the
           field read as a third, separate thing to understand. */}
-      <div className="mt-3 flex items-center gap-2">
+      <div className="mt-2 flex items-center gap-2">
         <input
           id={inputId}
           aria-label={`Search for ${t === "start" ? "a starting point" : "an end point"}`}
@@ -282,7 +282,7 @@ export default function PointsStep({
   });
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <CityPicker
         city={city}
         detecting={detectingCity}
