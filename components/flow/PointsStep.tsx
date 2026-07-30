@@ -116,7 +116,7 @@ function PointRow({
               : `Search for ${t === "start" ? "a start" : "an end"}`
           }
           autoComplete="off"
-          className="min-h-[48px] min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
+          className="min-h-[44px] min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
         />
         <button
           type="button"
@@ -124,7 +124,7 @@ function PointRow({
           aria-label={`Drop a pin on the map for the ${label.toLowerCase()}`}
           title="Drop a pin on the map"
           className="btn btn--quiet btn--icon shrink-0"
-          style={{ minHeight: 48 }}
+          style={{ minHeight: 44 }}
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
@@ -282,7 +282,7 @@ export default function PointsStep({
   });
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-4">
       <CityPicker
         city={city}
         detecting={detectingCity}

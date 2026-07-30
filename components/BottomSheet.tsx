@@ -301,7 +301,7 @@ export default function BottomSheet({
           >
             {bar}
             {title ? (
-              <div className="flex items-center gap-3 px-5 pb-4">
+              <div className="flex items-center gap-3 px-4 pb-3">
                 {onCollapse ? (
                   <button
                     type="button"
@@ -318,7 +318,7 @@ export default function BottomSheet({
           </header>
           <div
             ref={panelRef}
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-6"
+            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-4"
           >
             {children}
           </div>
@@ -328,7 +328,7 @@ export default function BottomSheet({
         // movement rule above is what keeps their taps working.
         <div {...dragProps} className={`${dragClass} pb-[max(1rem,env(safe-area-inset-bottom))]`}>
           {bar}
-          <div className="px-5">{collapsedContent}</div>
+          <div className="px-4">{collapsedContent}</div>
         </div>
       )}
     </section>

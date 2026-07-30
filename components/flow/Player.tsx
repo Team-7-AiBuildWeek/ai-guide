@@ -33,9 +33,13 @@ function SpokenLine({ text, progress }: { text: string; progress: number }) {
       {words.map((word, i) => (
         <span
           key={i}
+          // Colour only. Padding, weight or size on the marked word would
+          // change its width, which pushes every word after it along and
+          // rewraps the paragraph — text that walks across the screen as it is
+          // read is harder to follow than no mark at all.
           className={
             i === at
-              ? "rounded-[3px] bg-[color:var(--mint-wash)] px-[2px] text-[color:var(--mint-ink)]"
+              ? "rounded-[2px] bg-[color:var(--mint-wash)] text-[color:var(--mint-ink)]"
               : i < at
                 ? "text-[color:var(--ink)]"
                 : "text-[color:var(--ink-soft)]"
@@ -140,7 +144,7 @@ export default function Player({
   }, [chunkIndex, playing, showText]);
 
   return (
-    <div className="flex flex-col gap-3">
+    <div className="flex flex-col gap-2.5">
       {/* The reason matters: a spent daily quota is fixed by enabling billing,
           a busy model by waiting a minute, and a failed script is not about
           the voice at all. "Unavailable" sent people to the wrong place. */}
@@ -276,7 +280,7 @@ export default function Player({
       {showText && chunks.length > 0 ? (
         <div
           id="narration-text"
-          className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-4"
+          className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3"
         >
           <p className="u-eyebrow">{speedrun ? "Quick summary" : "What you are hearing"}</p>
           <div className="mt-2 flex flex-col gap-3">

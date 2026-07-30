@@ -21,7 +21,7 @@ export default function HeadphonesStep({
   onStart: () => void;
 }) {
   return (
-    <div className="flex h-full flex-col justify-center gap-8 text-center">
+    <div className="flex h-full flex-col justify-center gap-6 text-center">
       <div className="mx-auto grid h-24 w-24 place-items-center rounded-full bg-[color:var(--mint-wash)]">
         {/* Headphones, drawn rather than an icon font — one less thing to load. */}
         <svg viewBox="0 0 48 48" className="h-12 w-12" aria-hidden="true" fill="none">

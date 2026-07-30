@@ -39,7 +39,7 @@ export function DirectionsPanel({
   const cue = stop.walkingCueToHere?.trim() ?? "";
   return (
     <div className="pointer-events-auto absolute inset-x-0 top-0 z-30 mx-auto w-full max-w-lg p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div className="panel-dark p-5">
+      <div className="panel-dark p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
@@ -218,7 +218,7 @@ export default function TourStep({
             </div>
           </div>
         ) : (
-          <ul className="flex flex-col gap-5">
+          <ul className="flex flex-col gap-4">
             {thread.map((qa, i) => (
               <li key={i}>
                 <p className="font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">

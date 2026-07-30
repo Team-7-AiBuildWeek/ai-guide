@@ -98,7 +98,7 @@ export default function BriefStep({
   const durationLabel = DURATIONS.find((d) => d.value === draft.durationMinutes)?.label;
 
   return (
-    <div className="flex flex-col gap-7">
+    <div className="flex flex-col gap-5">
       {/* First, and above everything: the language decides what the whole walk
           is written and spoken in, and somebody who does not read English
           needs it before they read anything else. */}
@@ -120,7 +120,7 @@ export default function BriefStep({
         </select>
       </div>
 
-      <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-6">
         <WordSlider
           label="How long"
           options={DURATIONS}
@@ -164,7 +164,7 @@ export default function BriefStep({
       {/* The seam. Everything above answers the questions; everything below
           replaces them with a sentence, for anyone who would rather say what
           they mean than approximate it with three sliders. */}
-      <div className="border-t border-[color:var(--line)] pt-7">
+      <div className="border-t border-[color:var(--line)] pt-5">
         <label
           htmlFor="brief"
           className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]"
@@ -180,7 +180,7 @@ export default function BriefStep({
           value={draft.freeText}
           onChange={(e) => setBrief(e.target.value)}
           placeholder="Old town history, not too much walking, something about the coronations"
-          className="mt-3 w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] p-4 text-[length:var(--text-body)] leading-relaxed text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
+          className="mt-3 w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] p-3 text-[length:var(--text-body)] leading-relaxed text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
         />
         {readFromBrief && durationLabel ? (
           <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
@@ -189,7 +189,7 @@ export default function BriefStep({
           </p>
         ) : null}
 
-        <p className="u-eyebrow mt-6">Or start from one of these</p>
+        <p className="u-eyebrow mt-5">Or start from one of these</p>
         <div className="mt-3 flex flex-col gap-2">
           {EXAMPLE_BRIEFS.map((ex) => (
             <button
@@ -207,7 +207,7 @@ export default function BriefStep({
       {/* Sticky, because the screen is now long enough that a walker who only
           wanted the sliders would otherwise have to scroll past the whole
           writing section to find the way on. */}
-      <div className="sticky bottom-0 -mx-5 -mb-6 mt-1 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-5 pt-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+      <div className="sticky bottom-0 -mx-4 -mb-4 mt-1 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
         <button type="button" onClick={onContinue} className="btn btn--primary btn--lg w-full">
           Continue
         </button>
