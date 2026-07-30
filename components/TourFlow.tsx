@@ -12,7 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import TourMap, { type MapPin } from "./TourMap";
-import BottomSheet from "./BottomSheet";
+import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep from "./flow/BriefStep";
 import PointsStep from "./flow/PointsStep";
 import CityPicker from "./flow/CityPicker";
@@ -76,9 +76,41 @@ export default function TourFlow({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
-  /** The tour sheet starts retracted so the route is visible. */
-  const [playerOpen, setPlayerOpen] = useState(false);
+  /**
+   * Where the walker has dragged the sheet, when they have.
+   *
+   * Null means "wherever this screen naturally sits" — the forms want the
+   * whole screen, the tour wants the map visible — and a drag overrides that
+   * until the screen changes under it.
+   */
+  const [sheetDrag, setSheetDrag] = useState<SheetHeight | null>(null);
   const [styleId, setStyleId] = useState(styles[0]?.id ?? "");
+
+  // The screens that are forms need the whole screen; the tour needs the map.
+  const sheetFull =
+    stage === "brief" ||
+    stage === "points" ||
+    stage === "generating" ||
+    stage === "headphones" ||
+    (stage === "tour" && askOpen);
+  /**
+   * A new screen starts at its own height rather than inheriting a drag.
+   *
+   * Adjusted during render rather than in an effect: the drag belongs to the
+   * screen it happened on, so a screen change makes it stale immediately, and
+   * an effect would paint one frame of the old height first.
+   */
+  const screen = `${stage}:${askOpen}`;
+  const [shownScreen, setShownScreen] = useState(screen);
+  if (screen !== shownScreen) {
+    setShownScreen(screen);
+    setSheetDrag(null);
+  }
+
+  const sheetHeight: SheetHeight =
+    (screen === shownScreen ? sheetDrag : null) ?? (sheetFull ? "full" : "collapsed");
+  /** On the tour, the player is simply the sheet being open at all. */
+  const playerOpen = stage === "tour" && !askOpen && sheetHeight !== "collapsed";
   const [detectingCity, setDetectingCity] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   /** One city lookup in flight at a time. */
@@ -489,7 +521,7 @@ export default function TourFlow({
       return;
     }
     if (playerOpen) {
-      setPlayerOpen(false);
+      setSheetDrag("collapsed");
       return;
     }
     // Leaving the tour keeps it: the landing screen offers to resume.
@@ -509,13 +541,6 @@ export default function TourFlow({
   }, []);
 
   // ----------------------------------------------------------------- view --
-  const sheetFull =
-    stage === "brief" ||
-    stage === "points" ||
-    stage === "generating" ||
-    stage === "headphones" ||
-    (stage === "tour" && askOpen);
-
   // While dropping a pin the sheet must get out of the way of the map.
   const sheetHidden = picking !== null && stage === "points";
 
@@ -706,13 +731,14 @@ export default function TourFlow({
 
       {sheetHidden ? null : (
         <BottomSheet
-          height={sheetFull ? "full" : "collapsed"}
+          height={sheetHeight}
+          onHeightChange={setSheetDrag}
           title={
             stage === "brief"
               ? "Build my tour"
               : stage === "points"
                 ? "Where do you start?"
-                : stage === "tour"
+                : stage === "tour" && askOpen
                   ? "Ask anything"
                   : undefined
           }
@@ -723,10 +749,12 @@ export default function TourFlow({
                 ? () => setStage("brief")
                 : stage === "tour" && askOpen
                   ? () => setAskOpen(false)
-                  : undefined
+                  : stage === "tour"
+                    ? () => setSheetDrag("collapsed")
+                    : undefined
           }
           collapsedContent={
-            stage === "tour" && tour && !playerOpen ? (
+            stage === "tour" && tour ? (
               <MiniPlayer
                 stopName={currentStop?.name ?? ""}
                 index={currentIndex}
@@ -737,55 +765,9 @@ export default function TourFlow({
                 position={audio.position}
                 duration={audio.duration}
                 onToggle={audio.toggle}
-                onExpand={() => setPlayerOpen(true)}
+                onExpand={() => setSheetDrag("half")}
                 onAsk={() => setAskOpen(true)}
               />
-            ) : stage === "tour" && tour ? (
-              <div className="flex flex-col gap-4">
-                <button
-                  type="button"
-                  onClick={() => setPlayerOpen(false)}
-                  className="mx-auto -mt-2 flex min-h-[44px] items-center gap-2 text-[length:var(--text-caption)] font-semibold text-[color:var(--ink-mute)]"
-                  aria-label="Retract the player"
-                >
-                  ▾ Hide controls
-                </button>
-                <Player
-                  stopName={currentStop?.name ?? ""}
-                  index={currentIndex}
-                  total={tour.plan.stops.length}
-                  playing={audio.playing}
-                  preparing={audio.preparing}
-                  waitingFor={audio.waitingFor}
-                  buffered={audio.buffered}
-                  failed={audio.failed}
-                  failReason={audio.failReason}
-                  failedPart={audio.failedPart}
-                  usingDeviceVoice={audio.usingDeviceVoice}
-                  voiceMode={audio.voiceMode}
-                  onVoiceMode={audio.setVoiceMode}
-                  position={audio.position}
-                  duration={audio.duration}
-                  onToggle={audio.toggle}
-                  onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                  onNext={() =>
-                    setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))
-                  }
-                  onSeek={audio.seek}
-                  onRetry={() => setCurrentIndex((i) => i)}
-                />
-                <TourStep
-                  plan={tour.plan}
-                  currentIndex={currentIndex}
-                  onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                  onNext={() =>
-                    setCurrentIndex((i) => Math.min((tour.plan.stops.length ?? 1) - 1, i + 1))
-                  }
-                  onAsk={ask}
-                  expanded={false}
-                  onToggleExpand={() => setAskOpen(true)}
-                />
-              </div>
             ) : tour ? (
               // Backing out of a tour is not the same as ending it. The walk is
               // still here, at the stop it was left on.
@@ -893,7 +875,7 @@ export default function TourFlow({
                 setStage("tour");
               }}
             />
-          ) : stage === "tour" && tour ? (
+          ) : stage === "tour" && tour && askOpen ? (
             <TourStep
               plan={tour.plan}
               currentIndex={currentIndex}
@@ -903,6 +885,46 @@ export default function TourFlow({
               expanded
               onToggleExpand={() => setAskOpen(false)}
             />
+          ) : stage === "tour" && tour ? (
+            /* Dragged open: the controls, what is being said, and the whole
+               narration to read. How much of it you see is the drag. */
+            <div className="flex flex-col gap-4">
+              <Player
+                stopName={currentStop?.name ?? ""}
+                index={currentIndex}
+                total={tour.plan.stops.length}
+                playing={audio.playing}
+                preparing={audio.preparing}
+                waitingFor={audio.waitingFor}
+                buffered={audio.buffered}
+                failed={audio.failed}
+                failReason={audio.failReason}
+                failedPart={audio.failedPart}
+                usingDeviceVoice={audio.usingDeviceVoice}
+                voiceMode={audio.voiceMode}
+                onVoiceMode={audio.setVoiceMode}
+                speedrun={audio.speedrun}
+                onSpeedrun={audio.setSpeedrun}
+                chunks={audio.chunks}
+                chunkIndex={audio.chunkIndex}
+                position={audio.position}
+                duration={audio.duration}
+                onToggle={audio.toggle}
+                onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                onNext={() => setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))}
+                onSeek={audio.seek}
+                onRetry={() => setCurrentIndex((i) => i)}
+              />
+              <TourStep
+                plan={tour.plan}
+                currentIndex={currentIndex}
+                onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
+                onNext={() => setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))}
+                onAsk={ask}
+                expanded={false}
+                onToggleExpand={() => setAskOpen(true)}
+              />
+            </div>
           ) : null}
         </BottomSheet>
       )}

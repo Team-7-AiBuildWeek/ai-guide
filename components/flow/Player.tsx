@@ -13,6 +13,7 @@
  * the track — pretending otherwise would make a seek past it look broken.
  */
 
+import { useEffect, useRef } from "react";
 import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
 function mmss(s: number) {
@@ -35,6 +36,10 @@ export default function Player({
   usingDeviceVoice,
   voiceMode,
   onVoiceMode,
+  speedrun,
+  onSpeedrun,
+  chunks,
+  chunkIndex,
   position,
   duration,
   onToggle,
@@ -61,6 +66,13 @@ export default function Player({
   usingDeviceVoice: boolean;
   voiceMode: VoiceMode;
   onVoiceMode: (m: VoiceMode) => void;
+  /** Only the opening of each stop, then walk on. */
+  speedrun: boolean;
+  onSpeedrun: (on: boolean) => void;
+  /** The narration, in the pieces it is spoken in. */
+  chunks: string[];
+  /** Which of them is sounding now. */
+  chunkIndex: number;
   position: number;
   duration: number;
   onToggle: () => void;
@@ -70,6 +82,18 @@ export default function Player({
   onRetry: () => void;
 }) {
   const pct = duration > 0 ? (position / duration) * 100 : 0;
+
+  /**
+   * The line being spoken is kept in view as the narration moves.
+   *
+   * `nearest` rather than `center`: it only scrolls when the line has actually
+   * left the window, so a walker reading ahead is not dragged back every
+   * twenty seconds.
+   */
+  const spoken = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    if (playing) spoken.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [chunkIndex, playing]);
 
   return (
     <div className="flex flex-col gap-3">
@@ -174,6 +198,51 @@ export default function Player({
           </button>
         </div>
       )}
+
+      {/* The short way round. A walker with an hour and thirteen stops does
+          not have four minutes for each of them, and would rather have the
+          first thing the guide says about all thirteen than all of the first
+          three. */}
+      <button
+        type="button"
+        aria-pressed={speedrun}
+        onClick={() => onSpeedrun(!speedrun)}
+        className={`btn w-full ${speedrun ? "btn--dark" : "btn--quiet"}`}
+      >
+        {speedrun ? "TLDR — on, one minute a stop" : "TLDR — just the gist of each stop"}
+      </button>
+
+      {/* What is being said, as it is said. There are no word timings, so the
+          unit is the piece the voice is speaking — which is split at sentence
+          ends, and is the smallest honest granularity available. */}
+      {chunks.length > 0 ? (
+        <div className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-4">
+          <p className="u-eyebrow">
+            {speedrun ? "The gist" : "What you are hearing"}
+          </p>
+          <div className="mt-2 flex flex-col gap-3">
+            {(speedrun ? chunks.slice(0, 1) : chunks).map((text, i) => {
+              const now = i === chunkIndex;
+              return (
+                <p
+                  key={i}
+                  ref={now ? spoken : undefined}
+                  className={[
+                    "text-[length:var(--text-body)] leading-relaxed transition-colors",
+                    now
+                      ? "font-medium text-[color:var(--ink)]"
+                      : i < chunkIndex
+                        ? "text-[color:var(--ink-mute)]"
+                        : "text-[color:var(--ink-soft)]",
+                  ].join(" ")}
+                >
+                  {text}
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       {/* Which voice reads the tour. Gemini bills per stop and a tour is a
           dozen calls, so testing runs on the phone's free voice. Remove this
