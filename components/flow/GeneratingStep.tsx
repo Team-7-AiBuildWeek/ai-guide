@@ -68,7 +68,10 @@ function WordWave({ text }: { text: string }) {
           key={i}
           className={[
             "transition-colors duration-200",
-            still || i < lit ? "text-[color:var(--ink)]" : "text-[color:var(--line-strong)]",
+            // `--mint-ink`, not `--mint`: the signature green as *text* on
+            // white is 1.75:1 and vanishes in daylight. This is the darker one
+            // the palette keeps for exactly this, at 5.3:1.
+            still || i < lit ? "text-[color:var(--mint-ink)]" : "text-[color:var(--line-strong)]",
           ].join(" ")}
         >
           {word}
