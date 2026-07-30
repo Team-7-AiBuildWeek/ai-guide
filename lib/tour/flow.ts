@@ -70,16 +70,23 @@ export const DURATIONS: { value: Duration; label: string; walk: string }[] = [
   { value: 240, label: "A whole afternoon", walk: "an afternoon's walk" },
 ];
 
+/**
+ * One word each, because these sit three-across in a segmented row on a phone
+ * — about a hundred pixels apiece. "Relaxed, lots of stops" and "Just the
+ * highlights" arrived truncated, which is a label that has stopped being one.
+ * What each choice means is the prompt's business; see PACE_WORDS and
+ * DETAIL_WORDS in lib/prompts/tour-plan.ts, which are unaffected by this.
+ */
 export const DETAILS: { value: Detail; label: string }[] = [
-  { value: "highlights", label: "Just the highlights" },
-  { value: "story", label: "A good story" },
-  { value: "everything", label: "Tell me everything" },
+  { value: "highlights", label: "Highlights" },
+  { value: "story", label: "A story" },
+  { value: "everything", label: "Everything" },
 ];
 
 export const PACES: { value: Pace; label: string }[] = [
-  { value: "relaxed", label: "Relaxed, lots of stops" },
+  { value: "relaxed", label: "Relaxed" },
   { value: "steady", label: "Steady" },
-  { value: "cover-ground", label: "Cover more ground" },
+  { value: "cover-ground", label: "Fast" },
 ];
 
 /** The icon is what makes a row of chips scannable at a glance rather than
