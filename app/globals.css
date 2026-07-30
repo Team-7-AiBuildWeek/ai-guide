@@ -49,6 +49,12 @@
   --mint-soft: #a9dcc4;
   --mint-soft-line: #7fc9a6; /* its own edge, or the button loses its shape */
 
+  /* The secondary button. Warm enough to be a shape on a white sheet and on a
+     map, quiet enough that it never competes with the mint. */
+  --cream: #faf3dd;
+  --cream-press: #f2e8c8;
+  --cream-line: #e3dbbf;
+
   --danger: #b91c1c;
   /* Amber, and only for the dark overlays: --danger is a red that disappears
      against them, and a weak GPS signal is a caveat, not an error. */
@@ -97,6 +103,7 @@
   --color-mint-wash: var(--mint-wash);
   --color-mint-ink: var(--mint-ink);
   --color-mint-soft: var(--mint-soft);
+  --color-cream: var(--cream);
   --font-display: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
 }
@@ -243,12 +250,23 @@ pre {
   background: var(--ink-soft);
 }
 
+/* Cream rather than white. Every secondary button used to be the same white as
+   the sheet it sat on, held together by a grey hairline — which meant on a
+   white panel it read as an outline of a button rather than a button, and on
+   the map it was one more white rectangle among the labels. A warm fill gives
+   it a body of its own without spending any accent colour on it: green still
+   means chosen, mint still means go, and this means "the other thing you can
+   press". Ink on it is 16:1.
+
+   The edge is a deeper shade of the same cream, not the grey hairline — grey
+   on cream reads as a border that did not get the memo. */
 .btn--quiet {
-  background: var(--surface);
+  background: var(--cream);
   color: var(--ink);
-  border-color: var(--line-strong);
+  border-color: var(--cream-line);
 }
 .btn--quiet:hover {
+  background: var(--cream-press);
   border-color: var(--ink-mute);
 }
 
