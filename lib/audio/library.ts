@@ -129,6 +129,17 @@ export class AudioLibrary {
     return this.entries.get(stopId)?.cue ?? null;
   }
 
+  /**
+   * The narration, in the pieces it is spoken in.
+   *
+   * Split at sentence ends for synthesis, which makes them the right size to
+   * show as captions too — a caption that changed mid-sentence would be worse
+   * than none.
+   */
+  chunksOf(stopId: string): string[] {
+    return this.entries.get(stopId)?.chunks ?? [];
+  }
+
   /** Seconds each piece should run, for the scrubber before they exist. */
   estimatesFor(stopId: string): number[] {
     const e = this.entries.get(stopId);

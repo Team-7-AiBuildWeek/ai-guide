@@ -53,6 +53,14 @@ export type EngineState = {
   duration: number;
   /** How much of the narration has actually arrived, 0–1. */
   buffered: number;
+  /**
+   * Which piece is sounding.
+   *
+   * The pieces are split at sentence ends, so this is the closest thing to a
+   * cursor into the written narration that exists without word timings — which
+   * is what the captions are built on.
+   */
+  chunkIndex: number;
   error: string | null;
 };
 
@@ -95,6 +103,7 @@ class AudioEngine {
     position: 0,
     duration: 0,
     buffered: 0,
+    chunkIndex: 0,
     error: null,
   };
 
@@ -177,6 +186,7 @@ class AudioEngine {
       position: this.elapsedBefore(this.playIndex) + within,
       duration: this.totalDuration,
       buffered: ready / total,
+      chunkIndex: this.playIndex,
     });
   }
 
@@ -272,6 +282,7 @@ class AudioEngine {
       position: opts.startAt ?? 0,
       duration: track.chunkEstimates.reduce((a, b) => a + b, 0),
       buffered: 0,
+      chunkIndex: 0,
       playing: false,
     });
 

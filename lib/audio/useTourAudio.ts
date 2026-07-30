@@ -31,6 +31,7 @@ const SERVER_STATE: EngineState = {
   position: 0,
   duration: 0,
   buffered: 0,
+  chunkIndex: 0,
   error: null,
 };
 
@@ -119,6 +120,16 @@ export function useTourAudio({
     audioEngine.pause();
   }, []);
 
+  /**
+   * The short way round.
+   *
+   * A stop is four to five minutes, and a walker with an hour and thirteen
+   * stops does not have thirteen of those. In this mode only the opening piece
+   * of each stop is spoken — the one the guide leads with, which is where the
+   * fact people actually want lives — and the walk moves on by itself.
+   */
+  const [speedrun, setSpeedrun] = useState(false);
+
   /** The phone is reading — either because it was chosen, or as a fallback. */
   const deviceChosen = voiceMode === "device" && deviceVoice.supported;
   const broken = stopState.script === "failed" || stopState.voice === "failed";
@@ -200,7 +211,12 @@ export function useTourAudio({
 
       if (deviceChosen) {
         audioEngine.pause();
-        deviceVoice.speak(library.scriptOf(stop.id) ?? "", lang, () => onAdvanceRef.current());
+        // The phone's voice has no pieces to stop after, so the short way round
+        // has to be done by handing it less to read.
+        const spoken = speedrun
+          ? (library.chunksOf(stop.id)[0] ?? library.scriptOf(stop.id) ?? "")
+          : (library.scriptOf(stop.id) ?? "");
+        deviceVoice.speak(spoken, lang, () => onAdvanceRef.current());
         return;
       }
       deviceVoice.stop();
@@ -215,7 +231,35 @@ export function useTourAudio({
     return () => {
       cancelled = true;
     };
-  }, [active, stop, index, library, lang, deviceChosen]);
+  }, [active, stop, index, library, lang, deviceChosen, speedrun]);
+
+  /**
+   * The narration as written, in the pieces it is spoken in.
+   *
+   * Read through `chunksTotal` rather than held in state: the library fills
+   * these in when the script arrives, and that is the change that says so.
+   */
+  const chunks = useMemo(
+    () => (stop ? library.chunksOf(stop.id) : []),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [stop, library, stopState.chunksTotal],
+  );
+
+  /** The piece being spoken now — the caption. */
+  const caption = engine.track?.stopId === stop?.id ? (chunks[engine.chunkIndex] ?? null) : null;
+
+  /**
+   * In the short version, one piece is the whole stop, so its end is the end.
+   *
+   * Watched here rather than handled in the engine because "how much of a stop
+   * counts as enough" is a decision about the tour, and the engine knows only
+   * about pieces.
+   */
+  useEffect(() => {
+    if (!speedrun || !active || deviceChosen) return;
+    if (engine.track?.stopId !== stop?.id) return;
+    if (engine.chunkIndex >= 1) onAdvanceRef.current();
+  }, [speedrun, active, deviceChosen, engine.chunkIndex, engine.track?.stopId, stop?.id]);
 
   /**
    * Point the engine at the current stop, once there is an element to point.
@@ -310,6 +354,12 @@ export function useTourAudio({
     deviceChosen,
     voiceMode,
     setVoiceMode,
+    speedrun,
+    setSpeedrun,
+    /** The whole narration, for reading rather than listening. */
+    chunks,
+    /** The piece being spoken, for following along. */
+    caption,
     /**
      * True until there is something to press play on. The device voice needs
      * only the words; Gemini needs the words and the first piece of speech.
