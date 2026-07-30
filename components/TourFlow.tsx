@@ -836,11 +836,7 @@ export default function TourFlow({
           }
           footer={
             stage === "brief" ? (
-              <BriefFooter
-                draft={draft}
-                onChange={patchDraft}
-                onContinue={() => setStage("points")}
-              />
+              <BriefFooter onChange={patchDraft} onContinue={() => setStage("points")} />
             ) : stage === "points" ? (
               <PointsFooter draft={draft} onContinue={generate} />
             ) : undefined
@@ -1014,8 +1010,6 @@ export default function TourFlow({
                 position={audio.position}
                 duration={audio.duration}
                 onToggle={audio.toggle}
-                onPrev={() => setCurrentIndex((i) => Math.max(0, i - 1))}
-                onNext={() => setCurrentIndex((i) => Math.min(tour.plan.stops.length - 1, i + 1))}
                 onSeek={audio.seek}
                 onRetry={() => setCurrentIndex((i) => i)}
               />

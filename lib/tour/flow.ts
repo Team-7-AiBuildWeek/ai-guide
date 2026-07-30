@@ -56,47 +56,50 @@ export const EMPTY_DRAFT: Draft = {
 };
 
 /**
- * `label` is the value on its own, for a control that has already said what it
- * is measuring. `walk` is the same length inside a sentence — the button says
- * what it will make, and "Plan a 45 minutes walk" is not English.
+ * Values only. What each one is *called* lives in the phrase table, keyed
+ * `duration.30` and so on — an English label sitting in here is half an app
+ * translated, and it took a language switch to notice.
  */
-export const DURATIONS: { value: Duration; label: string; walk: string }[] = [
-  { value: 30, label: "30 minutes", walk: "a 30-minute walk" },
-  { value: 45, label: "45 minutes", walk: "a 45-minute walk" },
-  { value: 60, label: "1 hour", walk: "an hour's walk" },
-  { value: 90, label: "1½ hours", walk: "a 90-minute walk" },
-  { value: 120, label: "2 hours", walk: "a two-hour walk" },
-  { value: 180, label: "3 hours", walk: "a three-hour walk" },
-  { value: 240, label: "A whole afternoon", walk: "an afternoon's walk" },
+export const DURATIONS: { value: Duration }[] = [
+  { value: 30 },
+  { value: 45 },
+  { value: 60 },
+  { value: 90 },
+  { value: 120 },
+  { value: 180 },
+  { value: 240 },
 ];
 
 /**
- * One word each, because these sit three-across in a segmented row on a phone
- * — about a hundred pixels apiece. "Relaxed, lots of stops" and "Just the
- * highlights" arrived truncated, which is a label that has stopped being one.
- * What each choice means is the prompt's business; see PACE_WORDS and
- * DETAIL_WORDS in lib/prompts/tour-plan.ts, which are unaffected by this.
+ * One word each on screen — they sit three-across on a phone, about a hundred
+ * pixels apiece, and anything longer arrives truncated. The words are in the
+ * phrase table under `detail.*` and `pace.*`.
+ *
+ * What each choice *means* is the prompt's business: see PACE_WORDS and
+ * DETAIL_WORDS in lib/prompts/tour-plan.ts, which are English on purpose and
+ * are read by the model rather than by the walker.
  */
-export const DETAILS: { value: Detail; label: string }[] = [
-  { value: "highlights", label: "Highlights" },
-  { value: "story", label: "A story" },
-  { value: "everything", label: "Everything" },
+export const DETAILS: { value: Detail }[] = [
+  { value: "highlights" },
+  { value: "story" },
+  { value: "everything" },
 ];
 
-export const PACES: { value: Pace; label: string }[] = [
-  { value: "relaxed", label: "Relaxed" },
-  { value: "steady", label: "Steady" },
-  { value: "cover-ground", label: "Fast" },
+export const PACES: { value: Pace }[] = [
+  { value: "relaxed" },
+  { value: "steady" },
+  { value: "cover-ground" },
 ];
 
 /** The icon is what makes a row of chips scannable at a glance rather than
- *  five identical lozenges of text — Airbnb's amenity pills, same idea. */
-export const INTERESTS: { value: Interest; label: string; icon: string }[] = [
-  { value: "history", label: "History", icon: "🏛" },
-  { value: "architecture", label: "Architecture", icon: "🏗" },
-  { value: "food", label: "Food & everyday life", icon: "🍽" },
-  { value: "art", label: "Art", icon: "🎨" },
-  { value: "hidden", label: "Hidden corners", icon: "🔎" },
+ *  five identical lozenges of text — Airbnb's amenity pills, same idea. It is
+ *  also the one part of a label that needs no translating. */
+export const INTERESTS: { value: Interest; icon: string }[] = [
+  { value: "history", icon: "🏛" },
+  { value: "architecture", icon: "🏗" },
+  { value: "food", icon: "🍽" },
+  { value: "art", icon: "🎨" },
+  { value: "hidden", icon: "🔎" },
 ];
 
 /** Examples that fill the box, so nobody faces a blank page. */

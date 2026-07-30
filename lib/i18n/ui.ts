@@ -21,6 +21,22 @@
 
 import { useSyncExternalStore } from "react";
 import { normaliseLang } from "./languages";
+import { cs } from "./locales/cs";
+import { de } from "./locales/de";
+import { es } from "./locales/es";
+import { fr } from "./locales/fr";
+import { hu } from "./locales/hu";
+import { it } from "./locales/it";
+import { ja } from "./locales/ja";
+import { ko } from "./locales/ko";
+import { nl } from "./locales/nl";
+import { pl } from "./locales/pl";
+import { pt } from "./locales/pt";
+import { ru } from "./locales/ru";
+import { sk } from "./locales/sk";
+import { tr } from "./locales/tr";
+import { uk } from "./locales/uk";
+import { zh } from "./locales/zh";
 
 const EN = {
   // ---------------------------------------------------------------- landing
@@ -48,7 +64,29 @@ const EN = {
   "brief.ownWordsHint": "Anything here outranks the settings above. It makes the better tour.",
   "brief.examples": "Or start from one of these",
   "brief.clearAll": "Clear all",
-  "brief.plan": "Plan {walk}",
+  "brief.plan": "Plan the walk",
+  "brief.readFromBrief": "Length set to {length} from what you wrote — change it above if that is not right.",
+
+  // The options themselves. They were data in flow.ts, in English, which is
+  // half an app translated.
+  "duration.30": "30 minutes",
+  "duration.45": "45 minutes",
+  "duration.60": "1 hour",
+  "duration.90": "1½ hours",
+  "duration.120": "2 hours",
+  "duration.180": "3 hours",
+  "duration.240": "A whole afternoon",
+  "detail.highlights": "Highlights",
+  "detail.story": "A story",
+  "detail.everything": "Everything",
+  "pace.relaxed": "Relaxed",
+  "pace.steady": "Steady",
+  "pace.cover-ground": "Fast",
+  "interest.history": "History",
+  "interest.architecture": "Architecture",
+  "interest.food": "Food & everyday life",
+  "interest.art": "Art",
+  "interest.hidden": "Hidden corners",
 
   // ----------------------------------------------------------------- points
   "points.title": "Where do you start?",
@@ -106,88 +144,29 @@ const EN = {
 export type UiKey = keyof typeof EN;
 
 /**
- * Slovak, because this was built in Bratislava and it is the one language
- * besides English somebody here can check. Every other language falls back to
- * English until a speaker of it fills one in.
+ * One file per language, so a translator opens one file and sees one language.
+ * Anything a file leaves out falls back to English, which is what makes a
+ * partial translation worth having.
  */
-const SK: Partial<Record<UiKey, string>> = {
-  "landing.walkCity": "Prejdite si {city}",
-  "landing.walkAnywhere": "Prejdite si ktorékoľvek mesto",
-  "landing.pitch": "Sprievodca v uchu, poskladaný podľa toho, čo naozaj chcete vidieť.",
-  "landing.build": "Vytvoriť prehliadku",
-  "landing.chooseCity": "Vybrať iné mesto",
-  "landing.paused": "Vaša prehliadka, pozastavená",
-  "landing.carryOn": "Pokračovať v prechádzke",
-  "landing.different": "Vytvoriť inú prehliadku",
-  "landing.stopOf": "Zastávka {n} z {total}",
-
-  "brief.title": "Vytvoriť prehliadku",
-  "brief.language": "Jazyk",
-  "brief.howLong": "Ako dlho",
-  "brief.detail": "Koľko detailov",
-  "brief.pace": "Tempo",
-  "brief.interests": "Čo vás zaujíma",
-  "brief.personalise": "Prispôsobiť viac",
-  "brief.personaliseHint": "Opíšte prechádzku vlastnými slovami. Vyjde z toho lepšia prehliadka.",
-  "brief.personaliseSet": "Vaše slová sú zadané — majú prednosť pred nastaveniami vyššie.",
-  "brief.ownWords": "Povedzte mi to vlastnými slovami",
-  "brief.ownWordsHint":
-    "Čokoľvek tu má prednosť pred nastaveniami vyššie. Vyjde z toho lepšia prehliadka.",
-  "brief.examples": "Alebo začnite jedným z týchto",
-  "brief.clearAll": "Vymazať všetko",
-  "brief.plan": "Naplánovať {walk}",
-
-  "points.title": "Odkiaľ vyrážate?",
-  "points.city": "Mesto",
-  "points.change": "Zmeniť",
-  "points.choose": "Vybrať",
-  "points.whichCity": "Ktoré mesto?",
-  "points.cancel": "Zrušiť",
-  "points.start": "Začiatok",
-  "points.end": "Koniec",
-  "points.notSet": "Nenastavené",
-  "points.useLocation": "Použiť moju polohu",
-  "points.locating": "Hľadám polohu…",
-  "points.clear": "Vymazať",
-  "points.searching": "Hľadám…",
-  "points.addEnd": "Vybrať, kde skončiť (nepovinné)",
-  "points.needStart": "Nastavte začiatok",
-  "points.loop": "Končí tam, kde začína",
-  "points.bothSet": "Začiatok aj koniec sú nastavené",
-  "points.create": "Vytvoriť prehliadku",
-
-  "gen.title": "Pripravujem vašu prehliadku…",
-  "gen.wait": "Potrvá to do minúty. Nechajte obrazovku zapnutú.",
-  "gen.failed": "Toto nevyšlo.",
-  "gen.retry": "Skúsiť znova",
-  "gen.changeDetails": "Zmeniť zadanie",
-  "gen.cancel": "Zrušiť",
-
-  "profile.title": "Môj profil",
-  "profile.built": "Vytvorené prechádzky",
-  "profile.stops": "Zastávky",
-  "profile.distance": "Vzdialenosť",
-  "profile.settings": "Nastavenia",
-  "profile.settingsHint":
-    "Toto sa prenesie do každej novej prechádzky. Pri tvorbe prehliadky sa dá zmeniť.",
-  "profile.voice": "Hlas",
-  "profile.voiceGuide": "Sprievodca",
-  "profile.voicePhone": "Telefón",
-  "profile.voiceHint":
-    "Hlas sprievodcu je syntetizovaný a znie ako človek. Vlastný hlas telefónu je zadarmo, funguje offline a znie ako telefón.",
-  "profile.past": "Predošlé prechádzky",
-  "profile.empty": "Zatiaľ nič. Prechádzky, ktoré vytvoríte, ostanú tu, v tomto zariadení.",
-  "profile.askedFor": "Zadané",
-  "profile.walking": "Chôdza",
-  "profile.theStops": "Zastávky",
-  "profile.deleteOne": "Zmazať túto prechádzku",
-  "profile.clearAll": "Vymazať všetko",
-  "profile.save": "Uložiť nastavenia",
-  "profile.today": "Dnes",
-  "profile.yesterday": "Včera",
+const DICTIONARIES: Record<string, Partial<Record<UiKey, string>>> = {
+  en: EN,
+  cs,
+  de,
+  es,
+  fr,
+  hu,
+  it,
+  ja,
+  ko,
+  nl,
+  pl,
+  pt,
+  ru,
+  sk,
+  tr,
+  uk,
+  zh,
 };
-
-const DICTIONARIES: Record<string, Partial<Record<UiKey, string>>> = { en: EN, sk: SK };
 
 /** Which languages the interface itself is written in, as against the tours. */
 export const TRANSLATED = Object.keys(DICTIONARIES);

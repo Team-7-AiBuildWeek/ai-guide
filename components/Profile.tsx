@@ -136,8 +136,10 @@ export default function Profile() {
 
   const voice = useSyncExternalStore(
     never,
-    () => (localStorage.getItem(VOICE_MODE_KEY) === "device" ? "device" : "guide") as VoiceMode,
-    () => "guide" as VoiceMode,
+    // Unset means the phone, matching useTourAudio's default while there are
+    // no synthesis credits.
+    () => (localStorage.getItem(VOICE_MODE_KEY) === "guide" ? "guide" : "device") as VoiceMode,
+    () => "device" as VoiceMode,
   );
 
   const setVoice = (mode: VoiceMode) => {

@@ -81,8 +81,6 @@ export default function Player({
   position,
   duration,
   onToggle,
-  onPrev,
-  onNext,
   onSeek,
   onRetry,
 }: {
@@ -117,8 +115,6 @@ export default function Player({
   position: number;
   duration: number;
   onToggle: () => void;
-  onPrev: () => void;
-  onNext: () => void;
   onSeek: (seconds: number) => void;
   onRetry: () => void;
 }) {
@@ -172,7 +168,18 @@ export default function Player({
       </div>
 
       {/* Scrubber. A range input rather than a bar, because a walker who
-          missed a sentence wants to go back ten seconds, not restart. */}
+          missed a sentence wants to go back ten seconds, not restart.
+
+          Only for the guide's voice. `speechSynthesis` reports no position and
+          no length, so with the phone reading there is nothing to draw and
+          nothing to drag — and a dead control that looks alive is worse than
+          saying so. */}
+      {usingDeviceVoice ? (
+        <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          Your phone’s voice cannot be scrubbed or timed. Switch the voice to
+          Guide below for the position bar.
+        </p>
+      ) : (
       <div>
         {/* The recorded-so-far bar sits behind the handle. Two pixels of grey
             is enough to explain why the end of the track is not reachable yet
@@ -228,6 +235,7 @@ export default function Player({
           {Math.round(pct)}% through {stopName}
         </div>
       </div>
+      )}
 
       {failed && !usingDeviceVoice ? (
         <button type="button" onClick={onRetry} className="btn btn--quiet w-full">
@@ -235,15 +243,6 @@ export default function Player({
         </button>
       ) : (
         <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onPrev}
-            disabled={index <= 0}
-            className="btn btn--quiet shrink-0 px-4"
-            aria-label="Previous stop"
-          >
-            ‹‹
-          </button>
           <button
             type="button"
             onClick={() => onSeek(Math.max(0, position - 15))}
@@ -259,15 +258,6 @@ export default function Player({
             aria-label={playing ? "Pause" : "Play"}
           >
             {playing ? "Pause" : "Play"}
-          </button>
-          <button
-            type="button"
-            onClick={onNext}
-            disabled={index >= total - 1}
-            className="btn btn--quiet shrink-0 px-4"
-            aria-label="Next stop"
-          >
-            ››
           </button>
         </div>
       )}
@@ -358,12 +348,7 @@ export default function Player({
               type="button"
               aria-pressed={voiceMode === mode}
               onClick={() => onVoiceMode(mode)}
-              className={[
-                "min-h-[44px] rounded-[3px] px-3 font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold",
-                voiceMode === mode
-                  ? "bg-[color:var(--ink)] text-[color:var(--on-dark)]"
-                  : "text-[color:var(--ink-soft)]",
-              ].join(" ")}
+              className="pill"
             >
               {label}
             </button>

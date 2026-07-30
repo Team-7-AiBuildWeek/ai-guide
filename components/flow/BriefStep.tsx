@@ -50,16 +50,13 @@ import Stepper from "./Stepper";
  * sliding through that gap.
  */
 export function BriefFooter({
-  draft,
   onChange,
   onContinue,
 }: {
-  draft: Draft;
   onChange: (patch: Partial<Draft>) => void;
   onContinue: () => void;
 }) {
   const t = useT();
-  const walk = DURATIONS.find((d) => d.value === draft.durationMinutes)?.walk ?? "the walk";
   return (
     <div className="flex items-center justify-between gap-3">
       <button
@@ -82,7 +79,7 @@ export function BriefFooter({
         onClick={onContinue}
         className="btn btn--primary min-w-0 px-6 font-semibold"
       >
-        <span className="truncate">{t("brief.plan", { walk })}</span>
+        <span className="truncate">{t("brief.plan")}</span>
       </button>
     </div>
   );
@@ -132,7 +129,6 @@ export default function BriefStep({
   // name the value — by the time you have written "all afternoon" the words
   // for it are off the top of the screen.
   const durationIndex = DURATIONS.findIndex((d) => d.value === draft.durationMinutes);
-  const durationLabel = DURATIONS[durationIndex]?.label;
 
   return (
     <div className="flex flex-col gap-4">
@@ -160,7 +156,7 @@ export default function BriefStep({
       <div className="flex flex-col gap-4">
         <Stepper
           label={t("brief.howLong")}
-          value={durationLabel ?? `${draft.durationMinutes} minutes`}
+          value={t(`duration.${draft.durationMinutes}`)}
           atMin={durationIndex <= 0}
           atMax={durationIndex >= DURATIONS.length - 1}
           onStep={(d) => {
@@ -170,13 +166,13 @@ export default function BriefStep({
         />
         <Segmented
           label={t("brief.detail")}
-          options={DETAILS}
+          options={DETAILS.map((d) => ({ value: d.value, label: t(`detail.${d.value}`) }))}
           value={draft.detail}
           onChange={(v) => onChange({ detail: v as Detail })}
         />
         <Segmented
           label={t("brief.pace")}
-          options={PACES}
+          options={PACES.map((p) => ({ value: p.value, label: t(`pace.${p.value}`) }))}
           value={draft.pace}
           onChange={(v) => onChange({ pace: v as Pace })}
         />
@@ -198,7 +194,7 @@ export default function BriefStep({
                 <span aria-hidden="true" className="pill--icon">
                   {i.icon}
                 </span>
-                {i.label}
+                {t(`interest.${i.value}`)}
               </button>
             );
           })}
@@ -250,12 +246,11 @@ export default function BriefStep({
           placeholder="Old town history, not too much walking, something about the coronations"
           className="mt-3 w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] p-3 text-[length:var(--text-body)] leading-relaxed text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
         />
-        {readFromBrief && durationLabel ? (
-          <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-            Length set to {durationLabel.toLowerCase()} from what you wrote — change it above if
-            that is not right.
-          </p>
-        ) : null}
+          {readFromBrief ? (
+            <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+              {t("brief.readFromBrief", { length: t(`duration.${draft.durationMinutes}`) })}
+            </p>
+          ) : null}
 
         {/* Four full-width rows of prose spent about a fifth of the whole
             screen on examples nobody reads twice. As chips they are still
