@@ -16,6 +16,38 @@
 import { useEffect, useRef, useState } from "react";
 import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
+/**
+ * The line being spoken, with the word the guide is on marked.
+ *
+ * The vendor gives no word timings, so the position within the line is where
+ * the voice is in it, spread evenly across its words. Speech is close enough to
+ * a constant rate over a sentence or two that this lands within a word or so —
+ * near enough to follow, and the reason the whole line stays legible rather
+ * than only the marked word.
+ */
+function SpokenLine({ text, progress }: { text: string; progress: number }) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const at = Math.min(words.length - 1, Math.floor(progress * words.length));
+  return (
+    <>
+      {words.map((word, i) => (
+        <span
+          key={i}
+          className={
+            i === at
+              ? "rounded-[3px] bg-[color:var(--mint-wash)] px-[2px] text-[color:var(--mint-ink)]"
+              : i < at
+                ? "text-[color:var(--ink)]"
+                : "text-[color:var(--ink-soft)]"
+          }
+        >
+          {word}{" "}
+        </span>
+      ))}
+    </>
+  );
+}
+
 function mmss(s: number) {
   if (!Number.isFinite(s) || s < 0) s = 0;
   const m = Math.floor(s / 60);
@@ -40,6 +72,8 @@ export default function Player({
   onSpeedrun,
   chunks,
   chunkIndex,
+  chunkStart,
+  chunkDuration,
   position,
   duration,
   onToggle,
@@ -73,6 +107,9 @@ export default function Player({
   chunks: string[];
   /** Which of them is sounding now. */
   chunkIndex: number;
+  /** Where that piece starts in the stop, and how long it runs. */
+  chunkStart: number;
+  chunkDuration: number;
   position: number;
   duration: number;
   onToggle: () => void;
@@ -82,6 +119,9 @@ export default function Player({
   onRetry: () => void;
 }) {
   const pct = duration > 0 ? (position / duration) * 100 : 0;
+  /** How far through the piece being spoken, 0–1. */
+  const within =
+    chunkDuration > 0 ? Math.max(0, Math.min(1, (position - chunkStart) / chunkDuration)) : 0;
 
   /**
    * The line being spoken is kept in view as the narration moves.
@@ -226,7 +266,7 @@ export default function Player({
           onClick={() => onSpeedrun(!speedrun)}
           className={`btn min-w-0 flex-1 ${speedrun ? "btn--dark" : "btn--quiet"}`}
         >
-          {speedrun ? "TLDR on" : "TLDR"}
+          Quick summary
         </button>
       </div>
 
@@ -238,7 +278,7 @@ export default function Player({
           id="narration-text"
           className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-4"
         >
-          <p className="u-eyebrow">{speedrun ? "The gist" : "What you are hearing"}</p>
+          <p className="u-eyebrow">{speedrun ? "Quick summary" : "What you are hearing"}</p>
           <div className="mt-2 flex flex-col gap-3">
             {(speedrun ? chunks.slice(0, 1) : chunks).map((text, i) => {
               const now = i === chunkIndex;
@@ -247,15 +287,15 @@ export default function Player({
                   key={i}
                   ref={now ? spoken : undefined}
                   className={[
-                    "text-[length:var(--text-body)] leading-relaxed transition-colors",
+                    "text-[length:var(--text-body)] leading-relaxed",
                     now
-                      ? "font-medium text-[color:var(--ink)]"
+                      ? ""
                       : i < chunkIndex
                         ? "text-[color:var(--ink-mute)]"
                         : "text-[color:var(--ink-soft)]",
                   ].join(" ")}
                 >
-                  {text}
+                  {now ? <SpokenLine text={text} progress={within} /> : text}
                 </p>
               );
             })}

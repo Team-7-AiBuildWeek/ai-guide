@@ -61,6 +61,11 @@ export type EngineState = {
    * is what the captions are built on.
    */
   chunkIndex: number;
+  /** Seconds of narration before that piece, and how long it runs. Together
+   *  they say how far into the piece the voice is, which is as close to a
+   *  word cursor as a vendor without word timings allows. */
+  chunkStart: number;
+  chunkDuration: number;
   error: string | null;
 };
 
@@ -104,6 +109,8 @@ class AudioEngine {
     duration: 0,
     buffered: 0,
     chunkIndex: 0,
+    chunkStart: 0,
+    chunkDuration: 0,
     error: null,
   };
 
@@ -182,11 +189,14 @@ class AudioEngine {
     const within = el && Number.isFinite(el.currentTime) ? el.currentTime : 0;
     const ready = this.chunks.filter((c) => c !== null).length;
     const total = this.chunks.length || 1;
+    const start = this.elapsedBefore(this.playIndex);
     this.set({
-      position: this.elapsedBefore(this.playIndex) + within,
+      position: start + within,
       duration: this.totalDuration,
       buffered: ready / total,
       chunkIndex: this.playIndex,
+      chunkStart: start,
+      chunkDuration: this.lengthOf(this.playIndex),
     });
   }
 
@@ -283,6 +293,8 @@ class AudioEngine {
       duration: track.chunkEstimates.reduce((a, b) => a + b, 0),
       buffered: 0,
       chunkIndex: 0,
+      chunkStart: 0,
+      chunkDuration: 0,
       playing: false,
     });
 

@@ -741,7 +741,11 @@ export default function TourFlow({
       {sheetHidden ? null : (
         <BottomSheet
           height={sheetHeight}
-          onHeightChange={setSheetDrag}
+          // Only the walk resizes. The landing screen's whole content is the
+          // collapsed row, so pulling it open showed an empty panel; the forms
+          // are already the whole screen, and dragging one down would uncover
+          // the landing screen behind it.
+          onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
           title={
             stage === "brief"
               ? "Build my tour"
@@ -916,6 +920,8 @@ export default function TourFlow({
                 onSpeedrun={audio.setSpeedrun}
                 chunks={audio.chunks}
                 chunkIndex={audio.chunkIndex}
+                chunkStart={audio.chunkStart}
+                chunkDuration={audio.chunkDuration}
                 position={audio.position}
                 duration={audio.duration}
                 onToggle={audio.toggle}

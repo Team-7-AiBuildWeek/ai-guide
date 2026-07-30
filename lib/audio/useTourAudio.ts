@@ -32,6 +32,8 @@ const SERVER_STATE: EngineState = {
   duration: 0,
   buffered: 0,
   chunkIndex: 0,
+  chunkStart: 0,
+  chunkDuration: 0,
   error: null,
 };
 
