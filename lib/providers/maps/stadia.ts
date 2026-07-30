@@ -36,6 +36,17 @@ const CITY_LAYERS = "locality,localadmin";
 /** Things a walker can stand in front of. Stadia rejects `intersection`. */
 const PRECISE_LAYERS = "venue,address,street";
 
+/**
+ * Places a walker can be *in*: the district, the town, the street.
+ *
+ * Deliberately without `venue` — see `suggest`, where these are asked for
+ * separately precisely so that the points-of-interest index cannot bury them.
+ */
+const WHERE_LAYERS = "street,neighbourhood,borough,localadmin,locality";
+
+/** How far a district may be and still be worth putting first. */
+const AREA_LEAD_KM = 25;
+
 type GeocodeFeature = {
   geometry: { coordinates: [number, number] } | null;
   properties: {
@@ -45,6 +56,10 @@ type GeocodeFeature = {
     coarse_location?: string | null;
     formatted_address_line?: string | null;
     formatted_address_lines?: string[] | null;
+    /** v1 only: "Petržalské korzo, Bratislava, Slovakia". */
+    label?: string | null;
+    /** Kilometres from the focus point, when one was given. */
+    distance?: number | null;
   };
 };
 
@@ -132,9 +147,14 @@ function decodePolyline(encoded: string, precision = 6): [number, number][] {
 function toPlace(f: GeocodeFeature): Place | null {
   if (!f.geometry) return null;
   const p = f.properties;
+  // v1's label leads with the name the caller is already showing in bold, so
+  // it is trimmed down to what the name does not say: the city and country.
+  const context =
+    p.label && p.label.startsWith(`${p.name}, `) ? p.label.slice(p.name.length + 2) : p.label;
   const address =
     p.formatted_address_lines?.join(", ") ??
     p.formatted_address_line ??
+    context ??
     p.coarse_location ??
     p.name;
   return {
@@ -172,6 +192,10 @@ export class StadiaMapProvider implements MapProvider {
 
   async geocode(query: string, opts: GeocodeOptions = {}): Promise<Place[]> {
     const { bounds, focus, kind = "place", lang = "en" } = opts;
+    // The walker's search box is somebody typing, not somebody who has
+    // finished. That is a different endpoint and a different problem — see
+    // `suggest`.
+    if (kind === "place") return this.suggest(query, opts);
     // With bounds this is a hard circle, not a preference — anything outside
     // is not returned at all. A focus point only reorders, so it is safe to
     // leave off entirely: a city search has to be able to reach any country.
@@ -197,6 +221,91 @@ export class StadiaMapProvider implements MapProvider {
       }),
     );
     return (body.features ?? []).map(toPlace).filter((p): p is Place => p !== null);
+  }
+
+  /**
+   * The search box, while it is being typed into.
+   *
+   * Three things were wrong with running this through `/search`:
+   *
+   *  1. `/search` does not match prefixes. "pe" is not a word in "Petržalka",
+   *     so nothing local matched at all — and with nothing local to rank, the
+   *     focus point had nothing to do, and the walker got Peru, Pernambuco and
+   *     Perm. `/autocomplete` is the endpoint built for a half-typed word.
+   *  2. The POI index buries everything else. Asked for twenty results for
+   *     "pe" it returns twenty points of interest — three of them statues of
+   *     Sándor Petőfi — and never once the district of eighty thousand people
+   *     whose name begins with those letters. No single query can be re-ranked
+   *     out of that, because the streets and districts are never in it.
+   *  3. Landmarks still matter: "mich" should find Michael's Gate, "hrad" the
+   *     castle. Those only come from that same POI index.
+   *
+   * So: two queries, one for places a walker can be *in* — districts, towns,
+   * streets — and one for things they can stand in front of. Districts lead,
+   * because a short word is more often the start of a big obvious thing than
+   * of a statue, and the rest alternate so neither kind can crowd the other
+   * out. Six results, from about sixteen.
+   */
+  private async suggest(text: string, opts: GeocodeOptions): Promise<Place[]> {
+    const { bounds, focus, lang = "en" } = opts;
+    const near = bounds ?? focus;
+    const common = {
+      text,
+      size: 8,
+      lang,
+      ...(near ? { "focus.point.lat": near.lat, "focus.point.lon": near.lng } : {}),
+    };
+
+    const [where, what] = await Promise.allSettled([
+      this.json<GeocodeResponse>(
+        this.url("/geocoding/v1/autocomplete", { ...common, layers: WHERE_LAYERS }),
+      ),
+      this.json<GeocodeResponse>(
+        this.url("/geocoding/v1/autocomplete", { ...common, layers: "venue" }),
+      ),
+    ]);
+    // One index having a bad day should cost half the suggestions, not all of
+    // them. Both failing is a real failure and is allowed to surface.
+    if (where.status === "rejected" && what.status === "rejected") throw where.reason;
+
+    const whereFeatures = where.status === "fulfilled" ? (where.value.features ?? []) : [];
+    const pick = (test: (f: GeocodeFeature) => boolean) =>
+      whereFeatures
+        .filter(test)
+        .map(toPlace)
+        .filter((p): p is Place => p !== null);
+
+    // A district only leads if it is one the walker could walk to. Without
+    // this, "mich" put Michelhausen — a village an hour up the Danube — above
+    // Michalská, the street two minutes away, purely for being a district.
+    const isArea = (f: GeocodeFeature) => f.properties.layer !== "street";
+    const nearby = (f: GeocodeFeature) => (f.properties.distance ?? Infinity) <= AREA_LEAD_KM;
+
+    const areas = pick((f) => isArea(f) && nearby(f));
+    const streets = pick((f) => !isArea(f));
+    const farAreas = pick((f) => isArea(f) && !nearby(f));
+    const venues =
+      what.status === "fulfilled"
+        ? (what.value.features ?? []).map(toPlace).filter((p): p is Place => p !== null)
+        : [];
+
+    const out: Place[] = [];
+    const seen = new Set<string>();
+    const add = (p: Place | undefined) => {
+      if (!p || out.length >= 6 || seen.has(p.name)) return;
+      seen.add(p.name);
+      out.push(p);
+    };
+
+    areas.slice(0, 2).forEach(add);
+    for (let i = 0; i < 8; i++) {
+      add(streets[i]);
+      add(venues[i]);
+    }
+    // Somewhere further afield is still a better answer than nothing, so the
+    // ones held back above fill whatever room is left.
+    farAreas.forEach(add);
+    return out;
   }
 
   async reverseGeocode(lat: number, lng: number, opts: GeocodeOptions = {}): Promise<Place> {
