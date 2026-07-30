@@ -343,6 +343,19 @@ export function useTourAudio({
     setUnlocked(true);
   }, []);
 
+  /**
+   * Quiet, whichever voice is talking.
+   *
+   * `pause` only reaches the engine, and the walker cannot tell which of the
+   * two is speaking — nor should they have to. Paused rather than stopped, so
+   * whatever interrupted the narration can hand it back where it left off.
+   */
+  const pauseAll = useCallback(() => {
+    audioEngine.pause();
+    const speaking = deviceVoice.getState();
+    if (speaking.speaking && !speaking.paused) deviceVoice.toggle();
+  }, []);
+
   /** Any play gesture also counts as the unlocking tap. */
   const toggle = useCallback(() => {
     if (usingDeviceVoice) {
@@ -393,6 +406,7 @@ export function useTourAudio({
     start,
     play: () => audioEngine.play(),
     pause: () => audioEngine.pause(),
+    pauseAll,
     toggle,
     seek: (s: number) => audioEngine.seek(s),
     nudge: (d: number) => audioEngine.nudge(d),

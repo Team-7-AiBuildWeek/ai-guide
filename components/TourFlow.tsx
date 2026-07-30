@@ -393,6 +393,19 @@ export default function TourFlow({
   });
 
   /**
+   * Asking a question silences the guide.
+   *
+   * A walker types with the narration still going, then reads an answer over
+   * the top of it — two voices for one question. Here rather than on each way
+   * in, because there are several: the mini player, the collapsed row, and the
+   * sheet's own controls all open it.
+   */
+  const pauseAll = audio.pauseAll;
+  useEffect(() => {
+    if (askOpen) pauseAll();
+  }, [askOpen, pauseAll]);
+
+  /**
    * Stops already triggered by proximity.
    *
    * Without this, standing near a stop re-triggers it every time GPS jitters,
