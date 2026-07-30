@@ -156,8 +156,14 @@ export function loadTour(): StoredTour | null {
 export function saveTour(t: StoredTour) {
   try {
     localStorage.setItem(TOUR_KEY, JSON.stringify(t));
-  } catch {
-    /* quota — a long tour with full scripts can be large */
+  } catch (err) {
+    /**
+     * Swallowed for the walker's sake — a failed save must not take the walk
+     * down with it — but said out loud, because the consequence is that a
+     * reload loses the tour and until now nothing anywhere said why. A long
+     * walk with every script written is the case that gets near the quota.
+     */
+    console.warn("[walk] the tour could not be saved; a reload will lose it", err);
   }
 }
 
