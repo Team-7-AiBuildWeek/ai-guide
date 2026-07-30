@@ -5,8 +5,8 @@
  *
  * The status lines come from the server as each stage actually begins, so they
  * are true. Truth alone is not enough though — thirty to sixty seconds of a
- * still screen reads as crashed, so the step that is running breathes, and
- * counts, and the line beneath it trickles toward the next one.
+ * still screen reads as crashed, so the step that is running lights a word at a
+ * time, counts, and the line beneath it trickles toward the next one.
  */
 
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -83,13 +83,20 @@ function WordWave({ text }: { text: string }) {
   );
 }
 
-export const PHASE_LABELS: { key: string; label: string }[] = [
-  { key: "stops", label: "Choosing your stops" },
-  { key: "locating", label: "Finding them on the map" },
-  { key: "ordering", label: "Putting them in walking order" },
-  { key: "route", label: "Planning the walking route" },
-  { key: "writing", label: "Writing the first stop" },
-  { key: "done", label: "Ready" },
+/**
+ * Three steps on screen, six reported by the server.
+ *
+ * Finding the stops on the map, ordering them into a walk and routing between
+ * them are all the same wait to the person waiting: the map work. As rows of
+ * their own they were three lines ticking past too quickly to read, which made
+ * a minute look busier than it was without making it shorter. They still
+ * arrive — each one sends a line of its own, and that shows under the step it
+ * belongs to, so nothing is hidden, only stacked.
+ */
+export const PHASE_LABELS: { key: string; label: string; covers: string[] }[] = [
+  { key: "stops", label: "Choosing your stops", covers: ["stops", "locating", "ordering", "route"] },
+  { key: "writing", label: "Writing the first stop", covers: ["writing"] },
+  { key: "done", label: "Ready", covers: ["done"] },
 ];
 
 /**
@@ -122,7 +129,7 @@ export default function GeneratingStep({
   onRetry: () => void;
 }) {
   const t = useT();
-  const activeIndex = PHASE_LABELS.findIndex((p) => p.key === phase);
+  const activeIndex = PHASE_LABELS.findIndex((p) => p.covers.includes(phase));
 
   if (error) {
     return (
