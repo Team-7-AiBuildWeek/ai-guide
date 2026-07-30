@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { VoiceMode } from "@/lib/audio/useTourAudio";
+import StopPhoto from "./StopPhoto";
 
 /**
  * The line being spoken, with the word the guide is on marked.
@@ -70,6 +71,7 @@ export default function Player({
   failReason,
   failedPart,
   usingDeviceVoice,
+  photo,
   voiceMode,
   onVoiceMode,
   speedrun,
@@ -100,6 +102,8 @@ export default function Player({
   failedPart: "script" | "voice";
   /** The phone is reading — chosen, or because synthesis was unavailable. */
   usingDeviceVoice: boolean;
+  /** Where this stop is, so its photograph can be found. */
+  photo: { name: string; localName?: string; lat: number; lng: number; lang: string };
   voiceMode: VoiceMode;
   onVoiceMode: (m: VoiceMode) => void;
   /** Only the opening of each stop, then walk on. */
@@ -158,6 +162,8 @@ export default function Player({
           {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the guide's voice was unavailable.")}
         </p>
       ) : null}
+      <StopPhoto {...photo} />
+
       <div className="flex items-baseline justify-between gap-3">
         <p className="min-w-0 truncate font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
           {stopName}

@@ -999,6 +999,13 @@ export default function TourFlow({
                 failReason={audio.failReason}
                 failedPart={audio.failedPart}
                 usingDeviceVoice={audio.usingDeviceVoice}
+                photo={{
+                  name: currentStop?.name ?? "",
+                  localName: currentStop?.localName,
+                  lat: currentStop?.lat ?? 0,
+                  lng: currentStop?.lng ?? 0,
+                  lang: draft.lang,
+                }}
                 voiceMode={audio.voiceMode}
                 onVoiceMode={audio.setVoiceMode}
                 speedrun={audio.speedrun}
