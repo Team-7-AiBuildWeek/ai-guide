@@ -7,18 +7,23 @@
  * that swap: the whole point is that the collapsed row grows into the full
  * screen, and a swap makes that impossible to animate.
  *
- * On the physics, which took a second attempt:
+ * On the physics, which took three goes:
  *
- *  - The grab area is the whole bar, not the 4px line in it. A handle you have
- *    to hit is a handle that "sometimes does not work".
- *  - Letting go throws the sheet. A slow drag lands at the nearest height, a
- *    flick moves one height in the direction it was thrown, however far it
- *    actually travelled.
- *  - The snap is animated to a measured pixel height. Animating to `auto` —
- *    which is what the collapsed row is — does nothing at all, so the sheet
- *    used to jump the last part of the way.
- *  - The pointer is captured only once the finger has actually moved, so a tap
- *    on a button inside the draggable area is still a tap on that button.
+ *  - The height is written straight to the DOM while a finger is down. Putting
+ *    it in React state re-rendered the sheet and everything in it — player,
+ *    transcript, every stop — on every touchmove, which on a phone is sixty
+ *    renders a second and reads as the sheet lagging behind the thumb. React
+ *    hears about the drag once, when it ends.
+ *  - The content drags the sheet too, not just the bar. Anywhere in a phone
+ *    sheet is a handle when the content is already scrolled to the top, and
+ *    "swipe down on the panel" is the gesture people arrive with. Below the
+ *    top the same swipe scrolls, which is why this is a non-passive touch
+ *    listener rather than a pointer handler: it has to decide, per move,
+ *    whether the browser or the sheet gets the gesture.
+ *  - Letting go throws it. A slow drag lands at the nearest height, a flick
+ *    moves one height in the direction it was thrown, however far it travelled.
+ *  - Past full it resists rather than stopping dead, so pulling too far feels
+ *    like a limit instead of a bug.
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -37,11 +42,11 @@ const SLOP_PX = 6;
 /** Pixels per millisecond past which a drag counts as thrown, not placed. */
 const FLICK_VELOCITY = 0.35;
 
-/** Matches the CSS below, after which the inline height is handed back. */
+/** Matches the CSS transition, after which the inline height is handed back. */
 const SETTLE_MS = 420;
 
-/** Beyond this much of the screen, the sheet shows its full contents. */
-const EXPANDED_SHARE = 0.35;
+/** How much of a pull past the top actually moves it. */
+const OVERSHOOT = 0.2;
 
 type Drag = {
   startY: number;
@@ -51,8 +56,9 @@ type Drag = {
   /** Pixels per ms; positive is upward. */
   velocity: number;
   moved: boolean;
-  captured: boolean;
   viewport: number;
+  /** Set when the gesture began in the scrolling content rather than the bar. */
+  fromContent: boolean;
 };
 
 export default function BottomSheet({
@@ -84,16 +90,17 @@ export default function BottomSheet({
    */
   const collapsedPx = useRef(0);
 
-  /** Inline height, while dragging and while settling afterwards. */
-  const [px, setPx] = useState<number | null>(null);
-  /** True only while a finger is down: the transition must be off then. */
-  const [live, setLive] = useState(false);
   /**
-   * Whether the sheet is currently big enough to show its full contents. State
-   * rather than a sum done at render time, because the only honest input is the
-   * live drag, and reading that during render is reading a ref during render.
+   * What the sheet was showing when the drag began, held for the whole
+   * gesture — and the only thing a drag tells React until it ends.
+   *
+   * Swapping contents mid-drag looks better and breaks the drag: the element
+   * the gesture is attached to is inside the branch being swapped, so crossing
+   * the threshold unmounts it, no touchend or pointerup ever arrives, and the
+   * sheet is left frozen at whatever height the finger last set. Null means no
+   * gesture is in progress.
    */
-  const [bigEnough, setBigEnough] = useState(false);
+  const [frozen, setFrozen] = useState<boolean | null>(null);
 
   const open = height !== "collapsed";
   /**
@@ -102,9 +109,10 @@ export default function BottomSheet({
    * be pulled up into an empty panel.
    */
   const draggable = !!onHeightChange;
+  const expanded = frozen ?? open;
 
   useEffect(() => {
-    if (height === "collapsed" && !live && sheetRef.current) {
+    if (height === "collapsed" && !drag.current && sheetRef.current) {
       collapsedPx.current = sheetRef.current.getBoundingClientRect().height;
     }
   });
@@ -129,116 +137,174 @@ export default function BottomSheet({
     return viewport * SHARE[h];
   }, []);
 
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (!sheetRef.current || e.button !== 0) return;
-      window.clearTimeout(settle.current ?? undefined);
-      const startPx = sheetRef.current.getBoundingClientRect().height;
-      drag.current = {
-        startY: e.clientY,
-        startPx,
-        lastY: e.clientY,
-        lastT: e.timeStamp,
-        velocity: 0,
-        moved: false,
-        captured: false,
-        viewport: window.innerHeight,
-      };
-      setLive(true);
-      setPx(startPx);
-      // Whatever it is showing now is right until the drag says otherwise.
-      setBigEnough(open);
-    },
-    [open],
-  );
+  // ------------------------------------------------------------- the gesture
 
-  const onPointerMove = useCallback((e: React.PointerEvent) => {
+  const begin = useCallback((clientY: number, fromContent: boolean) => {
+    const el = sheetRef.current;
+    if (!el) return;
+    window.clearTimeout(settle.current ?? undefined);
+    drag.current = {
+      startY: clientY,
+      startPx: el.getBoundingClientRect().height,
+      lastY: clientY,
+      lastT: performance.now(),
+      velocity: 0,
+      moved: false,
+      viewport: window.innerHeight,
+      fromContent,
+    };
+    // The transition is what makes a release spring; during the drag it is
+    // what makes the sheet lag behind the thumb.
+    el.style.transition = "none";
+    setFrozen(height !== "collapsed");
+  }, [height]);
+
+  const move = useCallback((clientY: number) => {
     const d = drag.current;
-    if (!d) return;
+    const el = sheetRef.current;
+    if (!d || !el) return;
 
-    const dt = Math.max(1, e.timeStamp - d.lastT);
-    d.velocity = (d.lastY - e.clientY) / dt;
-    d.lastY = e.clientY;
-    d.lastT = e.timeStamp;
-
-    if (!d.moved && Math.abs(e.clientY - d.startY) > SLOP_PX) {
-      d.moved = true;
-      // Claimed only now: before this it might have been a tap on a control
-      // sitting inside the draggable area, and capturing would swallow it.
-      if (!d.captured) {
-        e.currentTarget.setPointerCapture(e.pointerId);
-        d.captured = true;
-      }
-    }
+    const now = performance.now();
+    const dt = Math.max(1, now - d.lastT);
+    d.velocity = (d.lastY - clientY) / dt;
+    d.lastY = clientY;
+    d.lastT = now;
+    if (!d.moved && Math.abs(clientY - d.startY) > SLOP_PX) d.moved = true;
     if (!d.moved) return;
 
-    const raised = Math.max(72, Math.min(d.viewport, d.startPx + (d.startY - e.clientY)));
-    setPx(raised);
-    setBigEnough(raised > d.viewport * EXPANDED_SHARE);
+    const wanted = d.startPx + (d.startY - clientY);
+    // Past the top it gives, rather than stopping dead against nothing.
+    const raised =
+      wanted > d.viewport
+        ? d.viewport + (wanted - d.viewport) * OVERSHOOT
+        : Math.max(72, wanted);
+
+    // Straight to the DOM. This is the whole reason the drag is smooth.
+    el.style.height = `${raised}px`;
   }, []);
 
-  const finish = useCallback(
-    (e: React.PointerEvent) => {
-      const d = drag.current;
-      drag.current = null;
-      if (!d) return;
-      setLive(false);
-      if (d.captured && e.currentTarget.hasPointerCapture(e.pointerId)) {
-        e.currentTarget.releasePointerCapture(e.pointerId);
-      }
+  const end = useCallback(() => {
+    const d = drag.current;
+    const el = sheetRef.current;
+    drag.current = null;
+    setFrozen(null);
+    if (!d || !el) return;
 
-      // A tap, and only on the bar itself — a tap on a button inside the
-      // collapsed row belongs to that button.
-      if (!d.moved) {
-        setPx(null);
-        const onBar = (e.target as HTMLElement | null)?.closest("[data-sheet-bar]");
-        if (!onBar) return;
-        if (height === "collapsed") onHeightChange?.("half");
-        else onCollapse?.();
-        return;
-      }
+    el.style.transition = "";
+    if (!d.moved) {
+      el.style.height = "";
+      return;
+    }
 
-      const landedAt = d.startPx + (d.startY - d.lastY);
-      const nearest = ORDER.reduce((best, h) =>
-        Math.abs(detentPx(h, d.viewport) - landedAt) <
-        Math.abs(detentPx(best, d.viewport) - landedAt)
-          ? h
-          : best,
-      );
+    const landedAt = el.getBoundingClientRect().height;
+    const nearest = ORDER.reduce((best, h) =>
+      Math.abs(detentPx(h, d.viewport) - landedAt) <
+      Math.abs(detentPx(best, d.viewport) - landedAt)
+        ? h
+        : best,
+    );
 
-      // Thrown rather than placed: go one step the way it was thrown, from
-      // wherever it was let go. This is what makes a short flick down close a
-      // full sheet instead of leaving it hanging at half.
-      let target = nearest;
-      if (Math.abs(d.velocity) > FLICK_VELOCITY) {
-        const from = ORDER.indexOf(nearest);
-        target = ORDER[Math.max(0, Math.min(ORDER.length - 1, from + (d.velocity > 0 ? 1 : -1)))];
-      }
+    // Thrown rather than placed: one step the way it was thrown, from wherever
+    // it was let go. This is what makes a short flick down close a full sheet
+    // instead of leaving it hanging at half.
+    let target = nearest;
+    if (Math.abs(d.velocity) > FLICK_VELOCITY) {
+      const from = ORDER.indexOf(nearest);
+      target = ORDER[Math.max(0, Math.min(ORDER.length - 1, from + (d.velocity > 0 ? 1 : -1)))];
+    }
 
-      // Animated to a real number, then handed back to the class once it has
-      // arrived. Going straight to `auto` would not animate at all.
-      setPx(detentPx(target, d.viewport));
-      settle.current = window.setTimeout(() => setPx(null), SETTLE_MS);
-      if (target !== height) onHeightChange?.(target);
-    },
-    [detentPx, height, onCollapse, onHeightChange],
-  );
+    // Animated to a real number, then handed back to the class once it has
+    // arrived — going straight to `auto` would not animate at all.
+    el.style.height = `${detentPx(target, d.viewport)}px`;
+    settle.current = window.setTimeout(() => {
+      if (sheetRef.current) sheetRef.current.style.height = "";
+    }, SETTLE_MS);
+    if (target !== height) onHeightChange?.(target);
+  }, [detentPx, height, onHeightChange]);
 
   /**
-   * The whole bar drags, not the line drawn on it. `touch-none` is what stops
-   * the browser claiming the gesture as a page scroll and leaving the sheet
-   * with three events and then silence.
+   * Dragging from inside the scrolling content.
+   *
+   * Non-passive, because at the top of the scroll a downward swipe has to stop
+   * being a scroll and become a drag, and that decision can only be made by
+   * cancelling the browser's default halfway through the gesture.
    */
-  const dragProps = draggable
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel || !draggable) return;
+
+    let candidate: { y: number; taken: boolean } | null = null;
+
+    const onStart = (e: TouchEvent) => {
+      if (e.touches.length !== 1) return;
+      candidate = { y: e.touches[0].clientY, taken: false };
+    };
+
+    const onMove = (e: TouchEvent) => {
+      if (!candidate || e.touches.length !== 1) return;
+      const y = e.touches[0].clientY;
+
+      if (!candidate.taken) {
+        const pulledDown = y - candidate.y > SLOP_PX;
+        // Only at the very top, and only downward: anywhere else the walker is
+        // reading, and taking the gesture would break scrolling.
+        if (!pulledDown || panel.scrollTop > 0) return;
+        candidate.taken = true;
+        begin(candidate.y, true);
+      }
+      e.preventDefault();
+      move(y);
+    };
+
+    const onEnd = () => {
+      if (candidate?.taken) end();
+      candidate = null;
+    };
+
+    panel.addEventListener("touchstart", onStart, { passive: true });
+    panel.addEventListener("touchmove", onMove, { passive: false });
+    panel.addEventListener("touchend", onEnd);
+    panel.addEventListener("touchcancel", onEnd);
+    return () => {
+      panel.removeEventListener("touchstart", onStart);
+      panel.removeEventListener("touchmove", onMove);
+      panel.removeEventListener("touchend", onEnd);
+      panel.removeEventListener("touchcancel", onEnd);
+    };
+  }, [draggable, begin, move, end, expanded]);
+
+
+  // The bar and the collapsed row: pointer events, because there is nothing to
+  // share the gesture with there.
+  const barHandlers = draggable
     ? {
-        onPointerDown,
-        onPointerMove,
-        onPointerUp: finish,
-        onPointerCancel: finish,
+        onPointerDown: (e: React.PointerEvent) => {
+          if (e.button !== 0) return;
+          begin(e.clientY, false);
+        },
+        onPointerMove: (e: React.PointerEvent) => {
+          if (!drag.current || drag.current.fromContent) return;
+          // Claimed only once the finger has moved, so a tap on a button
+          // inside the collapsed row is still that button's tap.
+          if (drag.current.moved && e.currentTarget.hasPointerCapture?.(e.pointerId) === false) {
+            e.currentTarget.setPointerCapture(e.pointerId);
+          }
+          move(e.clientY);
+        },
+        onPointerUp: (e: React.PointerEvent) => {
+          const wasTap = drag.current && !drag.current.moved;
+          const target = e.target as HTMLElement | null;
+          end();
+          if (!wasTap) return;
+          // A tap on the bar itself is the shortcut; a tap on a control in the
+          // collapsed row belongs to that control.
+          if (!target?.closest("[data-sheet-bar]")) return;
+          if (height === "collapsed") onHeightChange?.("half");
+          else onCollapse?.();
+        },
+        onPointerCancel: () => end(),
       }
     : {};
-  /** `touch-none` is what stops the browser claiming the gesture as a page
-   *  scroll and leaving the sheet with three events and then silence. */
   const dragClass = draggable ? "touch-none" : "";
 
   const bar = (
@@ -266,33 +332,25 @@ export default function BottomSheet({
     </div>
   );
 
-  // Mid-drag the sheet shows whichever contents suit the size it is at, so
-  // opening it is one continuous movement rather than a swap at the end.
-  const expanded = px !== null ? bigEnough : open;
-
   return (
     <section
       ref={sheetRef}
       aria-label={title ?? "Tour options"}
-      style={px !== null ? { height: `${px}px` } : undefined}
       className={[
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",
         "bg-[color:var(--surface)] shadow-[var(--shadow-lift)]",
         // A spring, not a linear slide — it should feel like it was thrown up.
-        // Never while a finger is down: an animated height fights the drag and
-        // the sheet lags behind the thumb.
-        live ? "" : "transition-[height] duration-[420ms] ease-[cubic-bezier(0.22,1.2,0.36,1)]",
-        px === null && height === "full" ? "h-[100dvh]" : "",
-        px === null && height === "half" ? "h-[55dvh]" : "",
-        px === null && height === "collapsed" ? "h-auto" : "",
-        height === "full" && px === null ? "rounded-t-none" : "",
+        "transition-[height] duration-[420ms] ease-[cubic-bezier(0.22,1.2,0.36,1)]",
+        height === "full" ? "h-[100dvh] rounded-t-none" : "",
+        height === "half" ? "h-[55dvh]" : "",
+        height === "collapsed" ? "h-auto" : "",
       ].join(" ")}
     >
       {expanded ? (
         <div className="flex h-full flex-col">
           <header
-            {...dragProps}
+            {...barHandlers}
             className={[
               dragClass,
               "flex shrink-0 flex-col border-b border-[color:var(--line)]",
@@ -330,7 +388,7 @@ export default function BottomSheet({
       ) : (
         // The whole collapsed row drags, buttons and all — the capture-after-
         // movement rule above is what keeps their taps working.
-        <div {...dragProps} className={`${dragClass} pb-[max(1rem,env(safe-area-inset-bottom))]`}>
+        <div {...barHandlers} className={`${dragClass} pb-[max(1rem,env(safe-area-inset-bottom))]`}>
           {bar}
           {/* The bar is a grab area, not a margin. Without this the first line
               of the row sits directly under it and the sheet reads as clipped. */}
