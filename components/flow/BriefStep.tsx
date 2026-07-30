@@ -218,7 +218,7 @@ export default function BriefStep({
           aria-expanded={personalise}
           aria-controls="personalise"
           onClick={() => setPersonalise((v) => !v)}
-          className="btn btn--soft btn--lg w-full justify-between text-left"
+          className="btn btn--primary btn--lg w-full justify-between text-left"
         >
           <span>{t("brief.personalise")}</span>
           <span aria-hidden="true" className="text-[length:var(--text-caption)]">
