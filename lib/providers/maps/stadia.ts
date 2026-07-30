@@ -328,32 +328,97 @@ export class StadiaMapProvider implements MapProvider {
     return kind === "city" ? place : { ...place, lat, lng };
   }
 
+  /**
+   * The pretty way, as far as a router can know what pretty means.
+   *
+   * Valhalla has no idea which streets are beautiful. What it knows is what
+   * kind of way each one is, and in an old town that correlates well enough:
+   * the lanes and passages are the pretty part and the four-lane road is not.
+   *
+   * `shortest` being off is most of the change — with it on, Valhalla
+   * optimises distance and every preference here is ignored. The factors are
+   * few because they were measured, not guessed. Six real legs across
+   * Bratislava, comparing each setting against Valhalla's own defaults:
+   *
+   *  - `alley_factor` and `use_living_streets` are what put a walk down the
+   *    passages instead of along the street beside them.
+   *  - `driveway_factor` and `service_factor` are guards, not improvements —
+   *    none of the measured legs went near a delivery yard, but a tour that
+   *    routes behind a supermarket has failed at something basic.
+   *  - `sidewalk_factor` and `use_hills` changed nothing on any leg, at any
+   *    value, so they are not here. Inert knobs read as decisions.
+   *  - `walkway_factor` is deliberately absent: at 0.4 it made things *worse*.
+   *    Between Hlavné námestie and St Martin's it left Ventúrska and
+   *    Kapitulská — the lanes anyone would walk — for the open plaza at
+   *    Rudnayovo námestie, because a plaza is also tagged a walkway and it is
+   *    a bigger one. Favouring walkways favours the widest walkway.
+   */
+  private static readonly SCENIC = {
+    alley_factor: 0.5, // the passages an old town is made of
+    use_living_streets: 1, // shared-surface lanes: yes, please
+    driveway_factor: 8, // back of a supermarket: no
+    service_factor: 4, // service roads and delivery yards
+    use_ferry: 0,
+  };
+
+  /** The same walk, optimised for distance. The comparison, and the fallback. */
+  private static readonly DIRECT = {
+    shortest: true,
+    walkway_factor: 1,
+    sidewalk_factor: 1,
+    alley_factor: 1,
+    use_ferry: 0,
+  };
+
+  /**
+   * How much longer the pretty way may be before it stops reading as pretty.
+   *
+   * Unbounded, "scenic" sends someone around three sides of a block they can
+   * see across, and an app that does that is not romantic, it is broken. A
+   * third further is a couple of extra minutes on a half-hour walk — noticed
+   * as a nicer street, not as a detour.
+   *
+   * It earns its place: from Eurovea to the castle the scenic costing wants
+   * Špitálska and 900 m extra, while the short way goes along the river and up
+   * the castle steps, which is the better walk by any reading. The cap throws
+   * the detour away and keeps the steps.
+   *
+   * Measured against the whole trip rather than each leg, which is the
+   * forgiving way round: one leg that wanders is absorbed by five that do not,
+   * and one genuinely better long way is not thrown away because of a
+   * neighbour.
+   */
+  private static readonly MAX_DETOUR = 1.35;
+
   async walkingRoute(points: LatLng[]): Promise<WalkingRoute> {
     if (points.length < 2) {
       throw new ProviderError(this.name, "a route needs at least two points");
     }
 
+    // Both at once: one round trip's latency for two answers, and the walk is
+    // routed once per tour, so the second request is cheap next to the twenty
+    // model calls that already happened.
+    const [scenic, direct] = await Promise.all([
+      this.routeWith(points, StadiaMapProvider.SCENIC),
+      this.routeWith(points, StadiaMapProvider.DIRECT).catch(() => null),
+    ]);
+
+    if (!direct) return scenic;
+    // The pretty way, unless it has stopped being a walk and become a detour.
+    return scenic.meters <= direct.meters * StadiaMapProvider.MAX_DETOUR ? scenic : direct;
+  }
+
+  private async routeWith(
+    points: LatLng[],
+    pedestrian: Record<string, number | boolean>,
+  ): Promise<WalkingRoute> {
     const body = await this.json<RouteResponse>(this.url("/route/v1"), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         locations: points.map((p) => ({ lat: p.lat, lon: p.lng, type: "break" })),
         costing: "pedestrian",
-        costing_options: {
-          pedestrian: {
-            // Distance, not time. Valhalla's default pedestrian costing is a
-            // time model with preferences baked in — it will happily add a
-            // block to stay on a nicer footway. Between two stops a walker can
-            // see, that reads as the app sending them the wrong way.
-            shortest: true,
-            // A tour is not a hike: these are the shortcuts people actually
-            // take through an old town.
-            walkway_factor: 1,
-            sidewalk_factor: 1,
-            alley_factor: 1,
-            use_ferry: 0,
-          },
-        },
+        costing_options: { pedestrian },
         units: "kilometers",
       }),
     });
