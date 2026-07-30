@@ -7,7 +7,7 @@
  */
 
 export type LLMProviderName = "mock" | "anthropic" | "openai" | "google";
-export type TTSProviderName = "mock" | "elevenlabs" | "openai" | "google" | "google-cloud";
+export type TTSProviderName = "mock" | "cartesia" | "elevenlabs" | "openai" | "google" | "google-cloud";
 export type MapProviderName = "mock" | "stadia" | "maptiler" | "mapbox" | "osm";
 
 function pick<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
@@ -23,7 +23,7 @@ export const config = {
   ),
   ttsProvider: pick<TTSProviderName>(
     process.env.TTS_PROVIDER,
-    ["mock", "elevenlabs", "openai", "google", "google-cloud"],
+    ["mock", "cartesia", "elevenlabs", "openai", "google", "google-cloud"],
     "mock",
   ),
   mapProvider: pick<MapProviderName>(
@@ -44,6 +44,7 @@ export const config = {
   /** Google *Cloud* TTS is a separate service and often a separate key. */
   googleCloudApiKey: process.env.GOOGLE_CLOUD_API_KEY ?? process.env.GOOGLE_API_KEY,
   elevenlabsApiKey: process.env.ELEVENLABS_API_KEY,
+  cartesiaApiKey: process.env.CARTESIA_API_KEY,
   stadiaApiKey: process.env.STADIA_API_KEY,
   maptilerApiKey: process.env.MAPTILER_API_KEY,
   mapboxAccessToken: process.env.MAPBOX_ACCESS_TOKEN,
@@ -71,6 +72,14 @@ export const config = {
   elevenlabsVoice: process.env.ELEVENLABS_VOICE ?? "21m00Tcm4TlvDq8ikWAM",
 
   /**
+   * Cartesia. `sonic-3.5` is the current model; `sonic-latest` follows the
+   * newest, which is a different trade — it changes under you.
+   */
+  cartesiaModel: process.env.CARTESIA_MODEL ?? "sonic-3.5",
+  /** Audition the library at play.cartesia.ai/voices, or at /dev/tts. */
+  cartesiaVoice: process.env.CARTESIA_VOICE ?? "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4",
+
+  /**
    * Which model the *selected* speech provider is using.
    *
    * Only for cache keys and diagnostics: anything that caches synthesised
@@ -80,6 +89,8 @@ export const config = {
    */
   get ttsModel(): string {
     switch (this.ttsProvider) {
+      case "cartesia":
+        return this.cartesiaModel;
       case "elevenlabs":
         return this.elevenlabsModel;
       case "google":

@@ -17,6 +17,7 @@ import { GoogleLLMProvider } from "./llm/google";
 
 import type { TTSProvider } from "./tts";
 import { MockTTSProvider } from "./tts/mock";
+import { CartesiaTTSProvider } from "./tts/cartesia";
 import { ElevenLabsTTSProvider } from "./tts/elevenlabs";
 import { OpenAITTSProvider } from "./tts/openai";
 import { GoogleTTSProvider } from "./tts/google";
@@ -50,6 +51,8 @@ export function getLLM(): LLMProvider {
 export function getTTS(): TTSProvider {
   if (tts) return tts;
   switch (config.ttsProvider) {
+    case "cartesia":
+      return (tts = new CartesiaTTSProvider());
     case "elevenlabs":
       return (tts = new ElevenLabsTTSProvider());
     case "openai":
