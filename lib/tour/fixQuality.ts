@@ -56,6 +56,19 @@ export function isTrusted(reading: Reading | null): reading is Reading {
   return !!reading && reading.accuracy <= TRUSTED_M;
 }
 
+/**
+ * Why the radius is that wide, when it is wide enough to have one cause.
+ *
+ * Past a couple of hundred metres this is not weak GPS, it is no GPS: the
+ * position came from wifi or the cell network. On a phone that usually means
+ * precise location is switched off for the browser, which is a setting rather
+ * than a fact about the sky, and worth saying out loud.
+ */
+export function accuracyHint(accuracy: number): string | null {
+  if (accuracy <= 200) return null;
+  return "That is a network lookup, not GPS. On a phone, check that precise location is allowed for this browser; a laptop has no GPS chip and positions by wifi.";
+}
+
 /** The word for a radius, for anywhere that shows one. */
 export function qualityWord(accuracy: number): "Good" | "Fair" | "Poor" {
   if (accuracy <= 15) return "Good";

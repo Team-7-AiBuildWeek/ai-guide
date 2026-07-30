@@ -102,6 +102,30 @@ export function nextTurn(
   return { maneuver: upcoming, meters };
 }
 
+/**
+ * The walker's position, moved onto the route — but only ever within the
+ * distance the fix itself admits to being wrong by.
+ *
+ * This is what makes a phone map look glued to the street. It is also how a
+ * map lies: snap without a limit and someone walking a parallel alley is drawn
+ * confidently on the wrong street. Inside its own error circle the route is
+ * simply the likelier explanation of the same reading — a walker following a
+ * route is on it, and the metres between are the receiver's, not theirs.
+ * Outside it, the reading is telling us something real and is left alone.
+ */
+export function snapToRoute(
+  route: GeoJSON.Feature | null,
+  at: Point | null,
+  within: number,
+): Point | null {
+  if (!route || !at) return null;
+  const line = toPoints(route);
+  if (line.length < 2) return null;
+
+  const here = projectOnRoute(line, at);
+  return here.offRoute <= within ? here.point : null;
+}
+
 /** "40 m", "1.2 km" — short enough to read at a glance while moving. */
 export function formatDistance(meters: number): string {
   if (meters < 10) return "now";

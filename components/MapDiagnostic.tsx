@@ -10,7 +10,7 @@
 
 import TourMap from "./TourMap";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
-import { qualityWord } from "@/lib/tour/fixQuality";
+import { accuracyHint, qualityWord } from "@/lib/tour/fixQuality";
 
 export default function MapDiagnostic({
   styleUrl,
@@ -74,6 +74,11 @@ export default function MapDiagnostic({
               <p className="mt-1 truncate font-[family-name:var(--font-display)] tabular-nums">
                 {fix.lat.toFixed(5)}, {fix.lng.toFixed(5)}
               </p>
+              {accuracyHint(fix.accuracy) ? (
+                <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--warn)]">
+                  {accuracyHint(fix.accuracy)}
+                </p>
+              ) : null}
             </>
           ) : (
             <p className="font-[family-name:var(--font-display)]">Finding you…</p>

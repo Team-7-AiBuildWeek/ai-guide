@@ -19,7 +19,7 @@ import GeneratingStep from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
 import TurnCard from "./flow/TurnCard";
-import { nextTurn } from "@/lib/tour/navigation";
+import { nextTurn, snapToRoute } from "@/lib/tour/navigation";
 import Player from "./flow/Player";
 import MiniPlayer from "./flow/MiniPlayer";
 import LayerSwitcher from "./flow/LayerSwitcher";
@@ -287,6 +287,23 @@ export default function TourFlow({
     [tour?.route, tour?.maneuvers, fix],
   );
 
+  /**
+   * The dot on the street rather than in the building beside it.
+   *
+   * Only ever moved as far as the fix's own stated error, with a floor of a
+   * few metres so a good fix can still be tidied off a doorway. A walk that
+   * has genuinely left the route — a detour, a wrong turn — is drawn where it
+   * really is, which is the moment being drawn honestly matters most.
+   */
+  const SNAP_FLOOR_M = 12;
+  const snapped = useMemo(
+    () =>
+      stage === "tour" && fix
+        ? snapToRoute(tour?.route ?? null, fix, Math.max(fix.accuracy, SNAP_FLOOR_M))
+        : null,
+    [stage, tour?.route, fix],
+  );
+
   const currentStop = tour?.plan.stops[currentIndex] ?? null;
   const distanceToStop =
     fix && currentStop ? distanceMeters(fix, { lat: currentStop.lat, lng: currentStop.lng }) : null;
@@ -499,6 +516,7 @@ export default function TourFlow({
         styleUrl={styleUrl}
         center={center}
         fix={fix}
+        dot={snapped}
         route={stage === "tour" ? tour?.route ?? null : null}
         stops={stage === "tour" ? stops : []}
         currentStopIndex={stage === "tour" ? currentIndex : -1}

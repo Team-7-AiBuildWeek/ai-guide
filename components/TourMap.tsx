@@ -61,6 +61,7 @@ export default function TourMap({
   styleUrl,
   center,
   fix,
+  dot = null,
   route = null,
   stops = [],
   currentStopIndex = -1,
@@ -78,6 +79,9 @@ export default function TourMap({
   styleUrl: string;
   center: { lat: number; lng: number };
   fix: Fix | null;
+  /** Where to draw the dot, when that is not the raw fix — see `snapToRoute`.
+   *  The circle stays on the fix either way, so nothing is hidden. */
+  dot?: { lat: number; lng: number } | null;
   route?: GeoJSON.Feature | null;
   stops?: MapStop[];
   currentStopIndex?: number;
@@ -221,14 +225,18 @@ export default function TourMap({
     if (!map || !fix) return;
     fixRef.current = fix;
 
+    // The dot follows the route where it can; the circle never does, because
+    // it is the honest part of this picture.
+    const at = dot ?? fix;
+
     // A DOM overlay needs no style, so it must not wait for one.
     if (!gpsMarker.current) {
       const el = document.createElement("div");
       el.className = "gps-dot";
       el.setAttribute("aria-hidden", "true");
-      gpsMarker.current = new Marker({ element: el }).setLngLat([fix.lng, fix.lat]).addTo(map);
+      gpsMarker.current = new Marker({ element: el }).setLngLat([at.lng, at.lat]).addTo(map);
     } else {
-      gpsMarker.current.setLngLat([fix.lng, fix.lat]);
+      gpsMarker.current.setLngLat([at.lng, at.lat]);
     }
 
     (map.getSource(ACCURACY) as GeoJSONSource | undefined)?.setData(
@@ -237,11 +245,11 @@ export default function TourMap({
 
     if (!hasCentred.current) {
       hasCentred.current = true;
-      map.easeTo({ center: [fix.lng, fix.lat], zoom: 16.5, duration: 800, padding: { bottom: bottomInset } });
+      map.easeTo({ center: [at.lng, at.lat], zoom: 16.5, duration: 800, padding: { bottom: bottomInset } });
     } else if (follow) {
-      map.easeTo({ center: [fix.lng, fix.lat], duration: 600, padding: { bottom: bottomInset } });
+      map.easeTo({ center: [at.lng, at.lat], duration: 600, padding: { bottom: bottomInset } });
     }
-  }, [fix, follow, bottomInset]);
+  }, [fix, dot, follow, bottomInset]);
 
   // --------------------------------------------------------------- lookAt --
   useEffect(() => {
