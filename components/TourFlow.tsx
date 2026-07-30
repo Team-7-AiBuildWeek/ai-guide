@@ -15,6 +15,7 @@ import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet from "./BottomSheet";
 import BriefStep from "./flow/BriefStep";
 import PointsStep from "./flow/PointsStep";
+import CityPicker from "./flow/CityPicker";
 import GeneratingStep from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
@@ -67,6 +68,8 @@ export default function TourFlow({
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [tour, setTour] = useState<StoredTour | null>(null);
   const [picking, setPicking] = useState<"start" | "end" | null>(null);
+  /** The city search, opened from the landing screen. */
+  const [cityOpen, setCityOpen] = useState(false);
   const [phase, setPhase] = useState("stops");
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
@@ -260,14 +263,23 @@ export default function TourFlow({
   const chooseCity = useCallback(
     (c: City) => {
       setCityPinned(c);
+      // A start belonging to a different city is not a deliberate choice worth
+      // keeping — it is the last city's leftovers, and keeping it builds a walk
+      // that begins hundreds of kilometres from the city it claims to be in.
+      // Now that the city can be changed from the landing screen, that is a
+      // couple of taps away rather than something nobody would stumble into.
+      const inCity = (p: { lat: number; lng: number } | null) =>
+        !!p && distanceMeters(p, { lat: c.lat, lng: c.lng }) < CITY_RADIUS_M;
       patchDraft({
         city: c,
-        // A city centre is a defensible starting point and saves a second
-        // search; anything already set was chosen deliberately, so it stays.
-        start: draft.start ?? { lat: c.lat, lng: c.lng, label: c.name },
+        // A city centre is a defensible starting point and saves a second search.
+        start: inCity(draft.start) ? draft.start : { lat: c.lat, lng: c.lng, label: c.name },
+        // No such fallback for the end: a loop is the default, and inventing a
+        // finish nobody asked for is worse than having none.
+        end: inCity(draft.end) ? draft.end : null,
       });
     },
-    [patchDraft, draft.start],
+    [patchDraft, draft.start, draft.end],
   );
 
   // ------------------------------------------------------------ tour data --
@@ -814,6 +826,30 @@ export default function TourFlow({
                 >
                   Build my tour
                 </button>
+                {/* The heading names whichever city the GPS landed in, which
+                    reads as the only answer available. Somebody planning
+                    tomorrow's walk in another country needs the way out to be
+                    on this screen, not three steps into a flow. */}
+                {cityOpen ? (
+                  <div className="mt-3">
+                    <CityPicker
+                      city={draft.city}
+                      detecting={detectingCity}
+                      lang={draft.lang}
+                      open
+                      onOpenChange={setCityOpen}
+                      onChange={chooseCity}
+                    />
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCityOpen(true)}
+                    className="btn btn--quiet btn--lg mt-3 w-full"
+                  >
+                    Choose any city
+                  </button>
+                )}
               </>
             )
           }

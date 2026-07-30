@@ -19,9 +19,13 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import type { City, Place } from "@/lib/providers/types";
 import type { Draft, Point } from "@/lib/tour/flow";
 import type { Fix } from "@/lib/tour/useLiveLocation";
+import { distanceMeters } from "@/lib/tour/route";
 import CityPicker from "./CityPicker";
 
 type Target = "start" | "end";
+
+/** Past this from the chosen city, a GPS fix is somewhere else entirely. */
+const CITY_RADIUS_M = 30_000;
 
 /** Hoisted: a component declared inside another is a new type every render. */
 function PointRow({
@@ -97,19 +101,42 @@ function PointRow({
         </p>
       ) : null}
 
-      <input
-        id={inputId}
-        aria-label={`Search for ${t === "start" ? "a starting point" : "an end point"}`}
-        value={query}
-        onChange={(e) => onQuery(e.target.value)}
-        placeholder={
-          cityName
-            ? `Search ${cityName} for ${t === "start" ? "a start" : "an end"}`
-            : `Search for ${t === "start" ? "a start" : "an end"}`
-        }
-        autoComplete="off"
-        className="mt-3 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
-      />
+      {/* The pin sits on the field, because it answers the same question by
+          other means: "somewhere I cannot name". A full-width button below the
+          field read as a third, separate thing to understand. */}
+      <div className="mt-3 flex items-center gap-2">
+        <input
+          id={inputId}
+          aria-label={`Search for ${t === "start" ? "a starting point" : "an end point"}`}
+          value={query}
+          onChange={(e) => onQuery(e.target.value)}
+          placeholder={
+            cityName
+              ? `Search ${cityName} for ${t === "start" ? "a start" : "an end"}`
+              : `Search for ${t === "start" ? "a start" : "an end"}`
+          }
+          autoComplete="off"
+          className="min-h-[48px] min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
+        />
+        <button
+          type="button"
+          onClick={onDropPin}
+          aria-label={`Drop a pin on the map for the ${label.toLowerCase()}`}
+          title="Drop a pin on the map"
+          className="btn btn--quiet btn--icon shrink-0"
+          style={{ minHeight: 48 }}
+        >
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path
+              d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11Z"
+              stroke="currentColor"
+              strokeWidth="1.8"
+              strokeLinejoin="round"
+            />
+            <circle cx="12" cy="10" r="2.4" stroke="currentColor" strokeWidth="1.8" />
+          </svg>
+        </button>
+      </div>
 
       {/* The list hangs off the field that produced it, inside the box it
           fills. It is the whole point of the arrangement. */}
@@ -139,12 +166,6 @@ function PointRow({
         </ul>
       ) : null}
 
-      {/* Pressing this hides the whole sheet so the map is reachable, which is
-          why there is no "tap the map" state to show here — the instruction
-          lives over the map, where it can be seen. */}
-      <button type="button" onClick={onDropPin} className="btn btn--small btn--quiet mt-2 w-full">
-        Or drop a pin on the map
-      </button>
     </div>
   );
 }
@@ -174,8 +195,26 @@ export default function PointsStep({
   const [results, setResults] = useState<Place[]>([]);
   const [searching, setSearching] = useState(false);
   const [showEnd, setShowEnd] = useState(false);
+  const [cityOpen, setCityOpen] = useState(false);
   const debounce = useRef<number | null>(null);
   const city = draft.city;
+
+  /**
+   * What the search ranks around.
+   *
+   * The GPS fix wins when it is inside the chosen city, because a walker
+   * standing on one side of town wants the nearer of two streets with the same
+   * name, and the city centre cannot tell them apart. It loses when the two
+   * disagree — someone planning tomorrow's walk in Vienna from a sofa in
+   * Bratislava means Vienna, and their own coordinates are noise.
+   */
+  const anchor =
+    fix && (!city || distanceMeters(fix, { lat: city.lat, lng: city.lng }) < CITY_RADIUS_M)
+      ? { lat: fix.lat, lng: fix.lng }
+      : city
+        ? { lat: city.lat, lng: city.lng }
+        : null;
+
 
   // Debounced hard: Nominatim's policy is one request a second, and typing a
   // street name is eight keystrokes.
@@ -187,13 +226,10 @@ export default function PointsStep({
     debounce.current = window.setTimeout(async () => {
       setSearching(true);
       try {
-        // Ranked around the chosen city but not walled into it: people search
-        // for a station on the edge of town, and a hard boundary would hide it.
-        const near = city
-          ? `&nearLat=${city.lat}&nearLng=${city.lng}`
-          : fix
-            ? `&nearLat=${fix.lat}&nearLng=${fix.lng}`
-            : "";
+        // Ranked around where the walker actually is but not walled into it:
+        // people search for a station on the edge of town, and a hard boundary
+        // would hide it.
+        const near = anchor ? `&nearLat=${anchor.lat}&nearLng=${anchor.lng}` : "";
         const res = await fetch(
           `/api/geocode?q=${encodeURIComponent(query.trim())}${near}&lang=${encodeURIComponent(draft.lang)}`,
         );
@@ -247,7 +283,14 @@ export default function PointsStep({
 
   return (
     <div className="flex flex-col gap-5">
-      <CityPicker city={city} detecting={detectingCity} lang={draft.lang} onChange={onCity} />
+      <CityPicker
+        city={city}
+        detecting={detectingCity}
+        lang={draft.lang}
+        open={cityOpen}
+        onOpenChange={setCityOpen}
+        onChange={onCity}
+      />
       <PointRow
         t="start"
         point={draft.start}

@@ -17,6 +17,8 @@ export default function CityPicker({
   city,
   detecting,
   lang,
+  open,
+  onOpenChange,
   onChange,
 }: {
   city: City | null;
@@ -24,9 +26,11 @@ export default function CityPicker({
   detecting: boolean;
   /** The walk's language — city names come back in it where the map has them. */
   lang: string;
+  /** Controlled, so the landing screen can open straight into the search. */
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   onChange: (c: City) => void;
 }) {
-  const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<City[]>([]);
   const [searching, setSearching] = useState(false);
@@ -66,7 +70,7 @@ export default function CityPicker({
           </div>
           <button
             type="button"
-            onClick={() => setOpen(true)}
+            onClick={() => onOpenChange(true)}
             className="btn btn--quiet btn--small shrink-0"
           >
             {city ? "Change" : "Choose"}
@@ -90,7 +94,7 @@ export default function CityPicker({
         <button
           type="button"
           onClick={() => {
-            setOpen(false);
+            onOpenChange(false);
             setQuery("");
           }}
           className="btn btn--quiet btn--small shrink-0"
@@ -120,7 +124,7 @@ export default function CityPicker({
                 type="button"
                 onClick={() => {
                   onChange(c);
-                  setOpen(false);
+                  onOpenChange(false);
                   setQuery("");
                   setResults([]);
                 }}
