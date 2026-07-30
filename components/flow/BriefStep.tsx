@@ -18,6 +18,7 @@ import {
   PACES,
   type Draft,
 } from "@/lib/tour/flow";
+import { LANGUAGES } from "@/lib/i18n/languages";
 import type { Detail, Interest, Pace } from "@/lib/providers/types";
 import { parseDuration } from "@/lib/tour/duration";
 
@@ -95,6 +96,28 @@ export default function BriefStep({
 
   return (
     <div className="flex flex-col gap-7">
+      {/* First, and outside both branches: the language decides what the whole
+          walk is written and spoken in, whichever way the brief is given — and
+          somebody who does not read English needs to find it before they read
+          anything else. */}
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor="tour-lang" className="u-eyebrow">
+          Language
+        </label>
+        <select
+          id="tour-lang"
+          value={draft.lang}
+          onChange={(e) => onChange({ lang: e.target.value })}
+          className="min-h-[44px] max-w-[60%] rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[length:var(--text-body)] text-[color:var(--ink)]"
+        >
+          {LANGUAGES.map((l) => (
+            <option key={l.code} value={l.code}>
+              {l.endonym === l.english ? l.endonym : `${l.endonym} — ${l.english}`}
+            </option>
+          ))}
+        </select>
+      </div>
+
       {simple ? (
         <>
           <div className="flex flex-col gap-8">

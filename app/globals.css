@@ -42,6 +42,9 @@
   --mint-ink: #1e7a52; /* the green when it must be text: 5.3:1 on white */
 
   --danger: #b91c1c;
+  /* Amber, and only for the dark overlays: --danger is a red that disappears
+     against them, and a weak GPS signal is a caveat, not an error. */
+  --warn: #fbbf24;
 
   /* --- type ------------------------------------------------------------
      18px base, 1.25 ratio, same as the source. Display sizes use clamp so a

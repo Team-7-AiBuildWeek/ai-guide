@@ -16,6 +16,7 @@
  * touching an API client to do it.
  */
 
+import { languageName } from "@/lib/i18n/languages";
 import type { Detail, Stop, TourRequest } from "@/lib/providers/types";
 
 /**
@@ -129,7 +130,7 @@ export function buildItineraryPrompt(req: TourRequest): string {
       ? `CITY: ${req.city.label}. Every stop is in this city and nowhere else.`
       : `City: not given — work it out from the coordinates below and name it in the summary.`,
     ``,
-    `Language: write the title, summary and every name in ${req.lang === "sk" ? "Slovak" : "English"}.`,
+    `Language: write the title, summary and every name in ${languageName(req.lang)}.`,
     ``,
     `Start point: ${req.start.label ?? "unnamed spot"} at ${req.start.lat}, ${req.start.lng}.`,
     req.end
@@ -207,7 +208,7 @@ export function buildScriptPrompt(args: {
 
   const lines = [
     req.city ? `City: ${req.city.label}.` : ``,
-    `Language: write in ${req.lang === "sk" ? "Slovak" : "English"}.`,
+    `Language: write in ${languageName(req.lang)}.`,
     ``,
     `THIS STOP: ${stop.name}${stop.localName && stop.localName !== stop.name ? ` (${stop.localName})` : ""}`,
     `Its place in the walk: stop ${position} of ${total}.`,

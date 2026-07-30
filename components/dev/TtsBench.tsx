@@ -9,6 +9,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { LANGUAGES } from "@/lib/i18n/languages";
 import type { Voice } from "@/lib/providers/types";
 
 const SAMPLE =
@@ -136,8 +137,11 @@ export default function TtsBench({
             onChange={(e) => setLang(e.target.value)}
             className="mt-2 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[color:var(--ink)]"
           >
-            <option value="en">English</option>
-            <option value="sk">Slovak</option>
+            {LANGUAGES.map((l) => (
+              <option key={l.code} value={l.code}>
+                {l.english}
+              </option>
+            ))}
           </select>
         </div>
       </div>

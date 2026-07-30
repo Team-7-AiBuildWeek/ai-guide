@@ -8,7 +8,8 @@
  * with a flat battery.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { acceptReading, smooth, type Smoothed } from "./fixQuality";
 import { useSimulatedWalk } from "./useSimulatedWalk";
 
 export type Fix = { lat: number; lng: number; accuracy: number; at: number };
@@ -17,6 +18,9 @@ export type LocationStatus =
   | { kind: "locating" }
   | { kind: "tracking" }
   | { kind: "error"; message: string; hint?: string };
+
+/** How long a position stays worth showing after the fixes stop arriving. */
+const STALE_FIX_MS = 20_000;
 
 function isApplePlatform(): boolean {
   if (typeof navigator === "undefined") return false;
@@ -66,6 +70,9 @@ export function useLiveLocation(initialSimulate = false) {
 
   const simFix = useSimulatedWalk(simulating);
 
+  /** The last reading we believed, and the filter state that came with it. */
+  const acceptedRef = useRef<Smoothed | null>(null);
+
   useEffect(() => {
     if (simulating) return; // no point holding a watch we are overriding
     const geo = navigator.geolocation;
@@ -76,20 +83,61 @@ export function useLiveLocation(initialSimulate = false) {
       return;
     }
 
-    const id = geo.watchPosition(
-      (pos) => {
-        setRealFix({
-          lat: pos.coords.latitude,
-          lng: pos.coords.longitude,
-          accuracy: pos.coords.accuracy,
-          at: pos.timestamp,
-        });
-        setStatus({ kind: "tracking" });
-      },
-      (err) => setStatus({ kind: "error", ...describeGeolocationError(err) }),
-      { enableHighAccuracy: true, maximumAge: 2000, timeout: 15000 },
-    );
+    const onReading = (pos: GeolocationPosition) => {
+      const reading = {
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy,
+        // The device's own clock for the reading, not ours: a fix handed over
+        // late is still a fix from when it was taken.
+        at: pos.timestamp,
+      };
+      // Only on the way in, or on a change: a fresh object every second would
+      // re-render every screen holding this hook for no news.
+      setStatus((s) => (s.kind === "tracking" ? s : { kind: "tracking" }));
+      if (!acceptReading(acceptedRef.current, reading)) return;
+
+      const next = smooth(acceptedRef.current, reading);
+      acceptedRef.current = next;
+      setRealFix({ lat: next.lat, lng: next.lng, accuracy: next.accuracy, at: next.at });
+    };
+
+    const onError = (err: GeolocationPositionError) => {
+      // Walking under a bridge or into a courtyard drops fixes, and browsers
+      // report the gap as a timeout or as no position at all. Replacing the
+      // map with an error for that is worse than the gap itself: keep the last
+      // position until it is old enough to be a lie. A refused permission is
+      // the exception — that is not going to fix itself by waiting.
+      const last = acceptedRef.current;
+      const transient = err.code !== err.PERMISSION_DENIED;
+      if (transient && last && Date.now() - last.at < STALE_FIX_MS) return;
+      setStatus({ kind: "error", ...describeGeolocationError(err) });
+    };
+
+    /**
+     * `maximumAge: 0` because a cached fix is how you end up standing at the
+     * last place the phone was sure about — often the last building with wifi,
+     * a street or two back.
+     */
+    const options: PositionOptions = {
+      enableHighAccuracy: true,
+      maximumAge: 0,
+      timeout: 20_000,
+    };
+
+    // The watch alone can take several seconds to say anything. Asking once,
+    // in parallel, puts a dot on the map while the GPS chip warms up — and it
+    // goes through the same filter, so a coarse first answer is replaced
+    // rather than believed.
+    geo.getCurrentPosition(onReading, () => {}, { ...options, timeout: 10_000 });
+
+    const id = geo.watchPosition(onReading, onError, options);
     return () => geo.clearWatch(id);
+  }, [simulating]);
+
+  // A new walk should not inherit the last one's filter state.
+  useEffect(() => {
+    if (simulating) acceptedRef.current = null;
   }, [simulating]);
 
   const fix: Fix | null = useMemo(

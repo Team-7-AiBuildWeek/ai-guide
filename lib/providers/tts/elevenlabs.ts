@@ -1,6 +1,7 @@
 /** ElevenLabs text-to-speech, over plain fetch. */
 
 import { config, requireKey } from "@/lib/config";
+import { LANGUAGE_CODES } from "@/lib/i18n/languages";
 import { ProviderError, type Voice } from "@/lib/providers/types";
 import type { SynthesizeOptions, TTSProvider } from "./index";
 import { applyLexicon } from "./lexicon";
@@ -52,8 +53,8 @@ export class ElevenLabsTTSProvider implements TTSProvider {
     return body.voices.map((v) => ({
       id: v.voice_id,
       name: v.name,
-      // The multilingual model covers both languages we care about.
-      langs: ["sk", "en"],
+      // The multilingual model covers every language the app offers.
+      langs: LANGUAGE_CODES,
     }));
   }
 }

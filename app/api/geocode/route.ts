@@ -10,6 +10,7 @@
  * city am I in" and "which corner of this square" are not the same question.
  */
 
+import { normaliseLang } from "@/lib/i18n/languages";
 import { getMaps } from "@/lib/providers/factory";
 import type { GeocodeKind, GeocodeOptions } from "@/lib/providers/maps";
 
@@ -27,7 +28,11 @@ export async function GET(request: Request) {
   const radiusKm = Number(url.searchParams.get("radiusKm"));
   const maps = getMaps();
 
-  const opts: GeocodeOptions = { kind };
+  // Labels come back in the walker's language when they asked for one. The
+  // stops the model gives us are looked up server-side without it, on purpose:
+  // those have to match what is written on the building.
+  const asking = url.searchParams.get("lang");
+  const opts: GeocodeOptions = { kind, ...(asking ? { lang: normaliseLang(asking) } : {}) };
   if (Number.isFinite(nearLat) && Number.isFinite(nearLng)) {
     // A radius means "nowhere else will do". Without one this is only a
     // ranking hint, which is what searching for a place inside a chosen city

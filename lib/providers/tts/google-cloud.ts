@@ -7,6 +7,7 @@
  */
 
 import { config, requireKey } from "@/lib/config";
+import { ttsLocale, VOICE_LOCALE_PREFIXES } from "@/lib/i18n/languages";
 import { ProviderError, type Voice } from "@/lib/providers/types";
 import type { SynthesizeOptions, TTSProvider } from "./index";
 import { toSSML } from "./lexicon";
@@ -33,7 +34,7 @@ export class GoogleCloudTTSProvider implements TTSProvider {
 
   async synthesize(text: string, opts: SynthesizeOptions): Promise<ArrayBuffer> {
     const apiKey = requireKey(config.googleCloudApiKey, "GOOGLE_API_KEY", "google-cloud");
-    const languageCode = opts.lang === "sk" ? "sk-SK" : "en-GB";
+    const languageCode = ttsLocale(opts.lang);
 
     const res = await fetch(SYNTH, {
       method: "POST",
@@ -60,7 +61,11 @@ export class GoogleCloudTTSProvider implements TTSProvider {
     }
     const body = (await res.json()) as VoicesResponse;
     return body.voices
-      .filter((v) => v.languageCodes.some((c) => c.startsWith("sk") || c.startsWith("en")))
+      // Google lists well over a thousand voices; keep the ones a walk can
+      // actually be given in.
+      .filter((v) =>
+        v.languageCodes.some((c) => VOICE_LOCALE_PREFIXES.includes(c.split("-")[0])),
+      )
       .map((v) => ({
         id: v.name,
         name: v.name,

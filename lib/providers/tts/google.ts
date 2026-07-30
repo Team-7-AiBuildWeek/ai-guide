@@ -14,6 +14,7 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { config, requireKey } from "@/lib/config";
+import { LANGUAGE_CODES, languageName } from "@/lib/i18n/languages";
 import { ProviderError, type Voice } from "@/lib/providers/types";
 import type { SynthesizeOptions, TTSProvider } from "./index";
 import { applyLexicon } from "./lexicon";
@@ -71,7 +72,7 @@ export class GoogleTTSProvider implements TTSProvider {
     // lexicon respells names rather than supplying IPA, and the delivery note
     // rides along in the prompt.
     const spoken = applyLexicon(text);
-    const language = opts.lang === "sk" ? "Slovak" : "English";
+    const language = languageName(opts.lang);
     const prompt =
       `Read the following aloud in ${language}, as a walking-tour guide speaking ` +
       `to one person beside you. Unhurried and warm, never announcer-like. ` +
@@ -157,8 +158,9 @@ export class GoogleTTSProvider implements TTSProvider {
     return VOICES.map((v) => ({
       id: v.id,
       name: `${v.id} — ${v.character}`,
-      // Gemini TTS is multilingual and picks the language from the prompt.
-      langs: ["sk", "en"],
+      // Gemini TTS is multilingual and picks the language from the prompt, so
+      // every voice speaks every language the app offers.
+      langs: LANGUAGE_CODES,
     }));
   }
 }

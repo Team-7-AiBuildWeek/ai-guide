@@ -7,6 +7,7 @@
  * standing in the same square.
  */
 
+import { languageName } from "@/lib/i18n/languages";
 import type { AskRequest } from "@/lib/providers/types";
 
 const INTEREST_WORDS: Record<AskRequest["interests"][number], string> = {
@@ -61,7 +62,7 @@ export function buildAskPrompt(req: AskRequest): string {
 
   lines.push(
     ``,
-    `Reply in ${req.lang === "sk" ? "Slovak" : "English"}.`,
+    `Reply in ${languageName(req.lang)}.`,
     ``,
     `Their question: """${req.question.trim()}"""`,
     ``,

@@ -1,6 +1,7 @@
 /** MapTiler: tiles + geocoding. Routing falls back to a straight line — MapTiler has no routing API. */
 
 import { config, requireKey } from "@/lib/config";
+import { geocodeLanguages } from "@/lib/i18n/languages";
 import {
   ProviderError,
   type LatLng,
@@ -38,16 +39,19 @@ export class MapTilerMapProvider implements MapProvider {
     return requireKey(config.maptilerApiKey, "MAPTILER_API_KEY", "maptiler");
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async geocode(query: string, _opts?: GeocodeOptions): Promise<Place[]> {
-    const url = `${GEOCODE}/${encodeURIComponent(query)}.json?key=${this.key()}&limit=6&language=sk,en`;
+  async geocode(query: string, opts?: GeocodeOptions): Promise<Place[]> {
+    const url =
+      `${GEOCODE}/${encodeURIComponent(query)}.json?key=${this.key()}&limit=6` +
+      `&language=${geocodeLanguages(opts?.lang)}`;
     const res = await fetch(url);
     if (!res.ok) throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);
     return toPlaces((await res.json()) as MapTilerResponse);
   }
 
-  async reverseGeocode(lat: number, lng: number): Promise<Place> {
-    const url = `${GEOCODE}/${lng},${lat}.json?key=${this.key()}&limit=1&language=sk,en`;
+  async reverseGeocode(lat: number, lng: number, opts?: GeocodeOptions): Promise<Place> {
+    const url =
+      `${GEOCODE}/${lng},${lat}.json?key=${this.key()}&limit=1` +
+      `&language=${geocodeLanguages(opts?.lang)}`;
     const res = await fetch(url);
     if (!res.ok) throw new ProviderError(this.name, `HTTP ${res.status}: ${await res.text()}`);
     const places = toPlaces((await res.json()) as MapTilerResponse);

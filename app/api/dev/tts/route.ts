@@ -5,6 +5,7 @@
  * Development aid — gate or delete it before the app is public.
  */
 
+import { normaliseLang } from "@/lib/i18n/languages";
 import { getTTS } from "@/lib/providers/factory";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const maxDuration = 120;
 async function synthesize(text: string, lang: string, voice?: string) {
   const tts = getTTS();
   const started = Date.now();
-  const audio = await tts.synthesize(text, { lang, voice });
+  const audio = await tts.synthesize(text, { lang: normaliseLang(lang), voice });
   return new Response(audio, {
     headers: {
       "content-type": tts.mimeType,

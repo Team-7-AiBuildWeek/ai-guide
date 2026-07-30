@@ -1,19 +1,21 @@
 /** OpenAI text-to-speech, over plain fetch. */
 
 import { config, requireKey } from "@/lib/config";
+import { LANGUAGE_CODES } from "@/lib/i18n/languages";
 import { ProviderError, type Voice } from "@/lib/providers/types";
 import type { SynthesizeOptions, TTSProvider } from "./index";
 import { applyLexicon } from "./lexicon";
 
 const ENDPOINT = "https://api.openai.com/v1/audio/speech";
 
+/** Every voice is multilingual, so none of them is tied to a language. */
 const VOICES: Voice[] = [
-  { id: "alloy", name: "Alloy", langs: ["en", "sk"], gender: "neutral" },
-  { id: "echo", name: "Echo", langs: ["en", "sk"], gender: "male" },
-  { id: "fable", name: "Fable", langs: ["en", "sk"], gender: "neutral" },
-  { id: "onyx", name: "Onyx", langs: ["en", "sk"], gender: "male" },
-  { id: "nova", name: "Nova", langs: ["en", "sk"], gender: "female" },
-  { id: "shimmer", name: "Shimmer", langs: ["en", "sk"], gender: "female" },
+  { id: "alloy", name: "Alloy", langs: LANGUAGE_CODES, gender: "neutral" },
+  { id: "echo", name: "Echo", langs: LANGUAGE_CODES, gender: "male" },
+  { id: "fable", name: "Fable", langs: LANGUAGE_CODES, gender: "neutral" },
+  { id: "onyx", name: "Onyx", langs: LANGUAGE_CODES, gender: "male" },
+  { id: "nova", name: "Nova", langs: LANGUAGE_CODES, gender: "female" },
+  { id: "shimmer", name: "Shimmer", langs: LANGUAGE_CODES, gender: "female" },
 ];
 
 export class OpenAITTSProvider implements TTSProvider {

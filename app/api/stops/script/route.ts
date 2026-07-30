@@ -10,6 +10,7 @@
  * can share them — see the note there.
  */
 
+import { normaliseLang } from "@/lib/i18n/languages";
 import { cachedScript, writeStopScript, type ScriptJob } from "@/lib/tour/scriptCache";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +26,9 @@ export async function POST(request: Request) {
   if (!body?.stop?.id || !body?.req) {
     return Response.json({ error: "A stop and the tour request are required." }, { status: 400 });
   }
+
+  // The cache is keyed by language, so settle on one before looking it up.
+  body.req.lang = normaliseLang(body.req.lang);
 
   const hit = cachedScript(body);
   if (hit) return Response.json({ ...hit, cached: true });

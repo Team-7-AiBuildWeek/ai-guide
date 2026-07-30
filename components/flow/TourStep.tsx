@@ -10,12 +10,14 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Stop, TourPlan } from "@/lib/providers/types";
+import { TRUSTED_M } from "@/lib/tour/fixQuality";
 
 type QA = { question: string; answer: string | null; failed?: boolean };
 
 export function DirectionsPanel({
   stop,
   distanceMeters,
+  accuracy,
   turnInstruction,
   turnMeters,
   open,
@@ -24,6 +26,8 @@ export function DirectionsPanel({
 }: {
   stop: Stop | null;
   distanceMeters: number | null;
+  /** The current fix's radius in metres, so a bad one can say so. */
+  accuracy?: number | null;
   /** The router's own words for the next turn, when the route provided them. */
   turnInstruction?: string;
   turnMeters?: number;
@@ -46,6 +50,14 @@ export function DirectionsPanel({
                 {distanceMeters < 1000
                   ? `${Math.round(distanceMeters)} m away`
                   : `${(distanceMeters / 1000).toFixed(1)} km away`}
+              </p>
+            ) : null}
+            {/* Said plainly, because "300 m away" from a fix that is itself
+                150 m wide is a number worth distrusting — and because it
+                explains why the tour has stopped advancing on its own. */}
+            {typeof accuracy === "number" && accuracy > TRUSTED_M ? (
+              <p className="mt-1 text-[length:var(--text-caption)] tabular-nums text-[color:var(--warn)]">
+                Weak signal · ±{Math.round(accuracy)} m — advance by hand
               </p>
             ) : null}
           </div>

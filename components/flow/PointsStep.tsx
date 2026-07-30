@@ -120,7 +120,9 @@ export default function PointsStep({
           : fix
             ? `&nearLat=${fix.lat}&nearLng=${fix.lng}`
             : "";
-        const res = await fetch(`/api/geocode?q=${encodeURIComponent(query.trim())}${near}`);
+        const res = await fetch(
+          `/api/geocode?q=${encodeURIComponent(query.trim())}${near}&lang=${encodeURIComponent(draft.lang)}`,
+        );
         const body = (await res.json()) as { places?: Place[] };
         setResults(body.places ?? []);
       } catch {
@@ -157,7 +159,7 @@ export default function PointsStep({
 
   return (
     <div className="flex flex-col gap-5">
-      <CityPicker city={city} detecting={detectingCity} onChange={onCity} />
+      <CityPicker city={city} detecting={detectingCity} lang={draft.lang} onChange={onCity} />
       <PointRow
         t="start"
         point={draft.start}

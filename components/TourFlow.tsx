@@ -27,6 +27,8 @@ import { useTourAudio } from "@/lib/audio/useTourAudio";
 import { audioEngine, clearPlayback } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
 import { distanceMeters } from "@/lib/tour/route";
+import { normaliseLang, speechLocale } from "@/lib/i18n/languages";
+import { isTrusted } from "@/lib/tour/fixQuality";
 import {
   EMPTY_DRAFT,
   clearTour,
@@ -95,7 +97,10 @@ export default function TourFlow({
     // state during the mount commit.
     queueMicrotask(() => {
       const d = loadDraft();
+      // Nothing saved: open in the browser's own language when it is one of
+      // ours, so most walkers never have to find the picker at all.
       if (d) setDraft(d);
+      else setDraft((prev) => ({ ...prev, lang: normaliseLang(navigator.language) }));
       const t = loadTour();
       if (t) {
         setTour(t);
@@ -238,7 +243,7 @@ export default function TourFlow({
     // Deferred a tick: setting state straight from an effect body cascades a
     // render, and this one is about to wait on the network regardless.
     queueMicrotask(() => setDetectingCity(true));
-    cityAt(fix.lat, fix.lng)
+    cityAt(fix.lat, fix.lng, draft.lang)
       .then((c) => {
         if (c) patchDraft({ city: c });
       })
@@ -246,7 +251,7 @@ export default function TourFlow({
         setDetectingCity(false);
         cityLookupRef.current = false;
       });
-  }, [fix, draft.city, cityPinned, patchDraft]);
+  }, [fix, draft.city, draft.lang, cityPinned, patchDraft]);
 
   /** Choosing a city moves the map and, if nothing is set yet, the start. */
   const chooseCity = useCallback(
@@ -317,7 +322,11 @@ export default function TourFlow({
   const [justArrived, setJustArrived] = useState<string | null>(null);
 
   useEffect(() => {
-    if (stage !== "tour" || !autoAdvance || !fix || !tour) return;
+    if (stage !== "tour" || !autoAdvance || !tour) return;
+    // A ±150 m fix sits inside 35 m of a stop while you are two streets away,
+    // and starts the wrong narration. Better to wait for a fix that knows
+    // which street it is on — the panel says why, and the arrows still work.
+    if (!isTrusted(fix)) return;
 
     // 35 m: tighter than a GPS fix is reliable in a street of tall buildings,
     // and the stops are close together in an old town.
@@ -340,6 +349,49 @@ export default function TourFlow({
     if (arrival.index !== currentIndex) setCurrentIndex(arrival.index);
     setJustArrived(arrival.name);
   }, [fix, stage, autoAdvance, tour, currentIndex]);
+
+  /**
+   * The screen stays awake for as long as the walk is running.
+   *
+   * Not a comfort: a browser stops delivering positions to a page it considers
+   * hidden, so a phone that sleeps in a pocket stops navigating, and wakes
+   * convinced you are still standing where you locked it.
+   */
+  useEffect(() => {
+    if (stage !== "tour") return;
+    const lock = navigator.wakeLock;
+    if (!lock) return;
+
+    let held: WakeLockSentinel | null = null;
+    let done = false;
+
+    const acquire = async () => {
+      if (held && !held.released) return;
+      try {
+        const sentinel = await lock.request("screen");
+        // The effect can be torn down while the request is in flight.
+        if (done) void sentinel.release();
+        else held = sentinel;
+      } catch {
+        // Refused, or the battery is too low to be generous. The walk still
+        // works; the screen just goes dark the way it always did.
+      }
+    };
+
+    // The lock is dropped whenever the page is hidden and is never handed back
+    // on its own, so coming back to the tab has to ask again.
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void acquire();
+    };
+
+    void acquire();
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      done = true;
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (held && !held.released) void held.release();
+    };
+  }, [stage]);
 
   const ask = useCallback(
     async (question: string) => {
@@ -375,7 +427,7 @@ export default function TourFlow({
       if (typeof speechSynthesis === "undefined") return;
       speechSynthesis.cancel();
       const u = new SpeechSynthesisUtterance(text);
-      u.lang = draft.lang === "sk" ? "sk-SK" : "en-GB";
+      u.lang = speechLocale(draft.lang);
       u.rate = 0.95;
       speechSynthesis.speak(u);
     },
@@ -521,6 +573,7 @@ export default function TourFlow({
           <DirectionsPanel
             stop={currentStop}
             distanceMeters={distanceToStop}
+            accuracy={fix?.accuracy ?? null}
             turnInstruction={turn?.maneuver.instruction}
             turnMeters={turn?.meters}
             open={directionsOpen}

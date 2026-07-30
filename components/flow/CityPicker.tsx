@@ -16,11 +16,14 @@ import { searchCities } from "@/lib/tour/city";
 export default function CityPicker({
   city,
   detecting,
+  lang,
   onChange,
 }: {
   city: City | null;
   /** GPS has a fix and the name is still being looked up. */
   detecting: boolean;
+  /** The walk's language — city names come back in it where the map has them. */
+  lang: string;
   onChange: (c: City) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -41,13 +44,13 @@ export default function CityPicker({
     if (query.trim().length < 2) return;
     debounce.current = window.setTimeout(async () => {
       setSearching(true);
-      setResults(await searchCities(query));
+      setResults(await searchCities(query, lang));
       setSearching(false);
     }, 600);
     return () => {
       if (debounce.current) window.clearTimeout(debounce.current);
     };
-  }, [query]);
+  }, [query, lang]);
 
   const visible = query.trim().length >= 2 ? results : [];
 

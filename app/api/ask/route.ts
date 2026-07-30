@@ -6,6 +6,7 @@
  * a place name.
  */
 
+import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM } from "@/lib/providers/factory";
 import type { AskRequest } from "@/lib/providers/types";
 
@@ -26,7 +27,7 @@ export async function POST(request: Request) {
   try {
     const answer = await getLLM().answerQuestion({
       question: body.question,
-      lang: body.lang ?? "en",
+      lang: normaliseLang(body.lang),
       freeText: body.freeText,
       interests: body.interests ?? [],
       detail: body.detail ?? "story",

@@ -13,6 +13,7 @@
  * while the walker is still reading the summary.
  */
 
+import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
 import type { TourRequest } from "@/lib/providers/types";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
@@ -41,6 +42,8 @@ export async function POST(request: Request) {
   if (!req?.start) {
     return Response.json({ error: "A starting point is required." }, { status: 400 });
   }
+  // An unknown code would otherwise reach the prompt verbatim and be written in.
+  req.lang = normaliseLang(req.lang);
 
   const stream = new ReadableStream({
     async start(controller) {

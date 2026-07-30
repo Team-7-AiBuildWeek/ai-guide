@@ -10,6 +10,7 @@
 
 import TourMap from "./TourMap";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
+import { qualityWord } from "@/lib/tour/fixQuality";
 
 export default function MapDiagnostic({
   styleUrl,
@@ -21,7 +22,9 @@ export default function MapDiagnostic({
   initialSimulate?: boolean;
 }) {
   const { fix, status, simulating, simFix, toggleSimulation } = useLiveLocation(initialSimulate);
-  const quality = fix ? (fix.accuracy < 15 ? "Good" : fix.accuracy < 40 ? "Fair" : "Poor") : null;
+  // The same thresholds the tour acts on, so this page explains the tour's
+  // behaviour rather than describing a second, private idea of "good".
+  const quality = fix ? qualityWord(fix.accuracy) : null;
 
   return (
     <div className="relative h-full w-full">

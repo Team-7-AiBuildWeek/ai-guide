@@ -13,6 +13,8 @@
  * while it is speaking and says whose voice you are hearing.
  */
 
+import { speechLocale } from "@/lib/i18n/languages";
+
 export type DeviceVoiceState = {
   speaking: boolean;
   paused: boolean;
@@ -62,7 +64,7 @@ class DeviceVoice {
 
     merged.forEach((part, i) => {
       const u = new SpeechSynthesisUtterance(part.trim());
-      u.lang = lang === "sk" ? "sk-SK" : "en-GB";
+      u.lang = speechLocale(lang);
       u.rate = 0.95;
       if (i === 0) u.onstart = () => this.set({ speaking: true, paused: false });
       if (i === merged.length - 1) {
