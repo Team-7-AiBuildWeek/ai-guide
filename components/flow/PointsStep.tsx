@@ -95,13 +95,12 @@ function PointRow({
           ) : null}
         </div>
       </div>
-      {/* Full width, below the button: sharing the line with it wrapped the
-          longitude onto its own row. */}
-      {point ? (
-        <p className="mt-1 text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
-          {point.lat.toFixed(5)}, {point.lng.toFixed(5)}
-        </p>
-      ) : null}
+      {/* No latitude and longitude under the name. Five decimal places of it
+          answered a question nobody standing in a street asks, and under "Where
+          I am now" it read as something to check rather than something already
+          done. The label says what the point is in all three cases: a place has
+          its name, a dropped pin carries its coordinates in the label itself,
+          and the GPS one says where you are. */}
 
       {/* The pin sits on the field, because it answers the same question by
           other means: "somewhere I cannot name". A full-width button below the
@@ -299,9 +298,11 @@ export default function PointsStep({
     setQuery(q);
   }, []);
 
-  const fillFromLocation = (t: Target) => {
+  // `target`, not `t`: `t` is the translator in this scope, and the label needs it.
+  const fillFromLocation = (target: Target) => {
     if (!fix) return;
-    setPoint(t, { lat: fix.lat, lng: fix.lng, label: "Where I am now" });
+    // Translated, unlike before: it sits directly under a Slovak eyebrow.
+    setPoint(target, { lat: fix.lat, lng: fix.lng, label: t("points.hereNow") });
   };
 
   // Stale results stay in state but are never shown for a too-short query.

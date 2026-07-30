@@ -75,7 +75,19 @@ export type Duration = 30 | 45 | 60 | 90 | 120 | 180 | 240;
 /** Slider values are stored as words, not numbers — see the design brief. */
 export type Detail = "highlights" | "story" | "everything";
 export type Pace = "relaxed" | "steady" | "cover-ground";
-export type Interest = "history" | "architecture" | "food" | "art" | "hidden";
+export type Interest =
+  | "history"
+  | "architecture"
+  | "food"
+  | "art"
+  | "hidden"
+  | "nature"
+  | "music"
+  | "literature"
+  | "sacred"
+  | "royal"
+  | "legends"
+  | "conflict";
 
 /** Where the walk is. Named, because "somewhere near 48.14, 17.10" is not
  *  something a guide can write about. */

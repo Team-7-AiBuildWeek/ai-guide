@@ -64,6 +64,13 @@ const INTEREST_WORDS: Record<TourRequest["interests"][number], string> = {
   food: "food and everyday life, then and now",
   art: "art and what it meant to the people who paid for it",
   hidden: "hidden corners most visitors walk straight past",
+  nature: "parks, gardens, trees and water, and how the city grew around them",
+  music: "music: who played here, where they played, and what the city sounded like",
+  literature: "books and the writers who lived, drank and set their work here",
+  sacred: "places of worship, what is believed in them, and who built them",
+  royal: "rulers and power: who held it here, how they took it and how they lost it",
+  legends: "legends, folklore and the stories the city tells about itself, true or not",
+  conflict: "wars, occupations and the darker past, told plainly and without relish",
 };
 
 /** Minutes of walking between one stop and the next, by pace. */

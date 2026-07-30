@@ -16,6 +16,13 @@ const INTEREST_WORDS: Record<AskRequest["interests"][number], string> = {
   food: "food and everyday life",
   art: "art and who paid for it",
   hidden: "corners most visitors miss",
+  nature: "parks, gardens and water",
+  music: "music and who played it here",
+  literature: "books and the writers who lived here",
+  sacred: "places of worship and what is believed in them",
+  royal: "rulers and who held power",
+  legends: "legends and folklore",
+  conflict: "wars and the darker past",
 };
 
 const DEPTH_WORDS: Record<AskRequest["detail"], string> = {

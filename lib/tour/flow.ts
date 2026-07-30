@@ -91,23 +91,34 @@ export const PACES: { value: Pace }[] = [
   { value: "cover-ground" },
 ];
 
-/** The icon is what makes a row of chips scannable at a glance rather than
- *  five identical lozenges of text — Airbnb's amenity pills, same idea. It is
- *  also the one part of a label that needs no translating. */
+/**
+ * The icon is what makes a row of chips scannable at a glance rather than a
+ * dozen identical lozenges of text — Airbnb's amenity pills, same idea. It is
+ * also the one part of a label that needs no translating.
+ *
+ * Twelve rather than five, because five made every walk sound the same: three
+ * of them are what any guidebook covers, so picking from them told the model
+ * nothing it was not already going to say. The seven added are the ones that
+ * change which stops get chosen — a walk about music, or about who held power,
+ * goes to different corners of a city than a walk about architecture.
+ *
+ * They are ordered by how many cities can honestly answer them, and each one
+ * has to work in every city on the map: the sacred icon is the generic
+ * place-of-worship symbol, not a church, because this is not a European app.
+ */
 export const INTERESTS: { value: Interest; icon: string }[] = [
   { value: "history", icon: "🏛" },
   { value: "architecture", icon: "🏗" },
   { value: "food", icon: "🍽" },
   { value: "art", icon: "🎨" },
   { value: "hidden", icon: "🔎" },
-];
-
-/** Examples that fill the box, so nobody faces a blank page. */
-export const EXAMPLE_BRIEFS = [
-  "Old town history, not too much walking, something about the coronations",
-  "Architecture and hidden courtyards, I have an hour",
-  "Where people actually eat, and why the old town looks like this",
-  "Tell me everything — I have all afternoon",
+  { value: "nature", icon: "🌳" },
+  { value: "music", icon: "🎵" },
+  { value: "literature", icon: "📖" },
+  { value: "sacred", icon: "🛐" },
+  { value: "royal", icon: "👑" },
+  { value: "legends", icon: "🐉" },
+  { value: "conflict", icon: "🎖" },
 ];
 
 // ------------------------------------------------------------- persistence

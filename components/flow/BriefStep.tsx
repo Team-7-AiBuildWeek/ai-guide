@@ -25,7 +25,6 @@ import {
   DETAILS,
   DURATIONS,
   EMPTY_DRAFT,
-  EXAMPLE_BRIEFS,
   INTERESTS,
   PACES,
   type Draft,
@@ -252,23 +251,11 @@ export default function BriefStep({
             </p>
           ) : null}
 
-        {/* Four full-width rows of prose spent about a fifth of the whole
-            screen on examples nobody reads twice. As chips they are still
-            one tap, and they wrap into a third of the space. */}
-        <p className="u-eyebrow mt-4">{t("brief.examples")}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {EXAMPLE_BRIEFS.map((ex) => (
-            <button
-              key={ex}
-              type="button"
-              onClick={() => setBrief(ex)}
-              title={ex}
-              className="pill max-w-full"
-            >
-              <span className="truncate">{ex.split(",")[0]}</span>
-            </button>
-          ))}
-        </div>
+          {/* No canned briefs underneath. Anyone who opened this panel did so to
+              write their own sentence, and a row of ready-made ones just below
+              the box invited them to tap one instead — a worse brief than the
+              chips above, because it overrules them. The placeholder already
+              shows the shape of a good one. */}
         </div>
       ) : null}
     </div>
