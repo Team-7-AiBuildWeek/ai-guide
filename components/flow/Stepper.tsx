@@ -4,10 +4,15 @@
  * One value, stepped up and down. Airbnb's "Bedrooms − Any +".
  *
  * For an ordered list too long to name in a row: the value is written out in
- * words beside the two buttons, so the whole control is one line instead of a
- * label, a track and a read-out. Both ends stop rather than wrap — a walker
- * pressing minus past the shortest walk means the shortest walk, not the
- * longest.
+ * words between the two buttons, so there is no track and no separate read-out.
+ * Both ends stop rather than wrap — a walker pressing minus past the shortest
+ * walk means the shortest walk, not the longest.
+ *
+ * Sized to match the segmented rows below it — same track, same radius, same
+ * full width — because how long the walk is decides more than any of them: it
+ * sets how many stops there are and how far apart. Squeezed onto the end of
+ * its own label it was the smallest control on the screen and the one worth
+ * the most thought.
  */
 
 export default function Stepper({
@@ -24,15 +29,17 @@ export default function Stepper({
   atMax: boolean;
   onStep: (direction: -1 | 1) => void;
 }) {
+  /* 44px, the smallest thing a thumb hits reliably. It was 36. */
   const button =
-    "flex h-9 w-9 shrink-0 items-center justify-center rounded-full border text-[length:var(--text-body)] " +
+    "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-[color:var(--surface)] " +
+    "text-[length:var(--text-lead)] leading-none " +
     "border-[color:var(--line-strong)] text-[color:var(--ink)] disabled:border-[color:var(--line)] " +
-    "disabled:text-[color:var(--line-strong)] disabled:cursor-not-allowed";
+    "disabled:bg-transparent disabled:text-[color:var(--line-strong)] disabled:cursor-not-allowed";
 
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div>
       <p className="u-eyebrow">{label}</p>
-      <div className="flex items-center gap-3">
+      <div className="mt-2 flex items-center justify-between gap-2 rounded-[var(--radius-pill)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-1">
         <button
           type="button"
           onClick={() => onStep(-1)}
@@ -42,9 +49,9 @@ export default function Stepper({
         >
           −
         </button>
-        {/* Fixed width, so stepping through "1 hour" and "A whole afternoon"
-            does not shunt the buttons sideways under the thumb. */}
-        <span className="min-w-[8.5rem] text-center font-[family-name:var(--font-display)] text-[length:var(--text-body)] font-semibold text-[color:var(--ink)]">
+        {/* Takes the whole middle, so stepping between "1 hour" and "A whole
+            afternoon" does not shunt the buttons sideways under the thumb. */}
+        <span className="min-w-0 flex-1 truncate text-center font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
           {value}
         </span>
         <button

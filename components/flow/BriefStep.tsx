@@ -38,10 +38,16 @@ import Stepper from "./Stepper";
 
 
 /**
- * Airbnb's filter footer: the way out of every choice on the left as plain
- * text, the way on to the right as the only filled button on the screen — and
- * it names what it will make rather than saying "continue", so the settings
- * above have a visible consequence.
+ * The way on across the whole width, and the way out of every choice above it
+ * as plain text. It names what it will make rather than saying "continue", so
+ * the settings above have a visible consequence.
+ *
+ * Airbnb puts these two on one line, but Airbnb's is a filter panel you return
+ * from — this one ends the screen, and the button that ends a screen is worth
+ * the full width and the easiest reach on the phone. Clear all goes above it
+ * rather than below for the same reason: the bottom edge is the easiest thing
+ * to hit by accident, and it should not be the control that throws the whole
+ * brief away.
  *
  * Rendered by the sheet, below the scrolling content, rather than stuck to the
  * bottom of it. As a `sticky` element inside the scroll box the container's
@@ -57,7 +63,7 @@ export function BriefFooter({
 }) {
   const t = useT();
   return (
-    <div className="flex items-center justify-between gap-3">
+    <div className="flex flex-col items-stretch gap-1">
       <button
         type="button"
         onClick={() =>
@@ -69,14 +75,14 @@ export function BriefFooter({
             interests: EMPTY_DRAFT.interests,
           })
         }
-        className="min-h-[44px] shrink-0 font-[family-name:var(--font-display)] font-medium text-[color:var(--ink)] underline underline-offset-4"
+        className="min-h-[36px] self-center font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
       >
         {t("brief.clearAll")}
       </button>
       <button
         type="button"
         onClick={onContinue}
-        className="btn btn--primary min-w-0 px-6 font-semibold"
+        className="btn btn--primary btn--lg w-full font-semibold"
       >
         <span className="truncate">{t("brief.plan")}</span>
       </button>
@@ -212,7 +218,7 @@ export default function BriefStep({
           aria-expanded={personalise}
           aria-controls="personalise"
           onClick={() => setPersonalise((v) => !v)}
-          className="btn btn--primary btn--lg w-full justify-between text-left"
+          className="btn btn--soft btn--lg w-full justify-between text-left"
         >
           <span>{t("brief.personalise")}</span>
           <span aria-hidden="true" className="text-[length:var(--text-caption)]">

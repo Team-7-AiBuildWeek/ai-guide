@@ -222,6 +222,20 @@ pre {
   background: var(--mint-press);
 }
 
+/* Green, but not the green that means "go". For a big obvious control that
+   opens something rather than finishing it — Personalise more sits directly
+   above Plan the walk, and at full mint the screen ended on two identical
+   buttons where only the lower one leaves. Same fill as a chosen chip, because
+   it is the same idea: part of making the choice, not the end of it. */
+.btn--soft {
+  background: var(--mint-soft);
+  border-color: var(--mint-soft-line);
+  color: var(--ink);
+}
+.btn--soft:hover {
+  background: color-mix(in srgb, var(--mint-soft) 88%, var(--ink));
+}
+
 /* The source's own primary — kept for the second action in a pair. */
 .btn--dark {
   background: var(--ink);
