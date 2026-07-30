@@ -225,9 +225,19 @@ export default function BottomSheet({
   /**
    * Dragging from inside the scrolling content.
    *
-   * Non-passive, because at the top of the scroll a downward swipe has to stop
-   * being a scroll and become a drag, and that decision can only be made by
-   * cancelling the browser's default halfway through the gesture.
+   * Which of the two the gesture belongs to depends on where the sheet already
+   * is, and this is the rule every phone sheet uses:
+   *
+   *  - Pulling UP moves the sheet until it has nowhere left to go. Only at full
+   *    height does an upward swipe scroll what is inside. Without this, a sheet
+   *    at half looked stuck: the content took the gesture, scrolled nothing
+   *    because there was nothing above it, and the only way up was to find the
+   *    bar at the top.
+   *  - Pulling DOWN scrolls back through the content first, and moves the sheet
+   *    only once the content is already at its top.
+   *
+   * Non-passive, because that decision has to cancel the browser's default
+   * halfway through a gesture it has already started handling.
    */
   useEffect(() => {
     const panel = panelRef.current;
@@ -245,10 +255,13 @@ export default function BottomSheet({
       const y = e.touches[0].clientY;
 
       if (!candidate.taken) {
-        const pulledDown = y - candidate.y > SLOP_PX;
-        // Only at the very top, and only downward: anywhere else the walker is
-        // reading, and taking the gesture would break scrolling.
-        if (!pulledDown || panel.scrollTop > 0) return;
+        const travelled = y - candidate.y;
+        if (Math.abs(travelled) <= SLOP_PX) return;
+        const mine =
+          travelled < 0
+            ? height !== "full" // up: grow, until there is nothing left to grow into
+            : panel.scrollTop <= 0; // down: only once the content is back at its top
+        if (!mine) return;
         candidate.taken = true;
         begin(candidate.y, true);
       }
@@ -271,7 +284,10 @@ export default function BottomSheet({
       panel.removeEventListener("touchend", onEnd);
       panel.removeEventListener("touchcancel", onEnd);
     };
-  }, [draggable, begin, move, end, expanded]);
+    // `height` is in here because the rule above reads it: the listeners have
+    // to be rebound when the sheet changes detent, or an upward swipe at full
+    // would still be treated as one at half.
+  }, [draggable, begin, move, end, expanded, height]);
 
 
   // The bar and the collapsed row: pointer events, because there is nothing to
