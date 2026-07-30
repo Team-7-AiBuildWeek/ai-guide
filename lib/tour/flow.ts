@@ -34,7 +34,6 @@ export type Draft = {
    *  the same field, so choosing a city by hand overrides the fix rather than
    *  fighting it. */
   city: City | null;
-  useSimpleSettings: boolean;
   durationMinutes: Duration;
   detail: Detail;
   pace: Pace;
@@ -47,7 +46,6 @@ export type Draft = {
 export const EMPTY_DRAFT: Draft = {
   freeText: "",
   city: null,
-  useSimpleSettings: false,
   durationMinutes: 45,
   detail: "story",
   pace: "relaxed",

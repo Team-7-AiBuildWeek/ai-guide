@@ -136,7 +136,10 @@ export default function TourFlow({
     const timeout = window.setTimeout(() => controller.abort(), HARD_LIMIT_MS);
 
     const body: TourRequest = {
-      freeText: draft.useSimpleSettings ? undefined : draft.freeText || undefined,
+      // Both go, always: the settings are the floor and the brief is what
+      // outranks them. The prompt is written to resolve that, and there is no
+      // longer a mode in which one of them is meant not to count.
+      freeText: draft.freeText.trim() || undefined,
       city: draft.city ?? undefined,
       durationMinutes: draft.durationMinutes,
       detail: draft.detail,
