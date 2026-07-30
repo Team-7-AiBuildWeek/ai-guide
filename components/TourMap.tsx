@@ -27,6 +27,28 @@ export type MapPin = { kind: "start" | "end"; lat: number; lng: number };
 const ACCURACY = "gps-accuracy";
 const ROUTE = "tour-route";
 
+/**
+ * A city, not a street: close enough to see the shape of the centre, far
+ * enough to read as a place rather than four blocks.
+ *
+ * Used when the camera is pointed at a city's own coordinates, where its name
+ * is drawn at the centre of the screen and cannot be missed.
+ */
+const CITY_ZOOM = 13.5;
+
+/**
+ * Wider, for the opening shot, which is centred on the walker rather than on
+ * the city.
+ *
+ * The basemap never stops drawing city names — `place_city` in this style has
+ * no maxzoom — so whether you can read which town you are in is only ever a
+ * question of whether its centre point is on screen. Landing at street level
+ * put four blocks in frame and that point kilometres outside it, which is how
+ * the app opened on a map of nowhere in particular. This is about eight
+ * kilometres across on a phone: enough to hold the centre from a suburb.
+ */
+const OPENING_ZOOM = 12.5;
+
 function accuracyPolygon(lat: number, lng: number, meters: number, steps = 64) {
   const coords: [number, number][] = [];
   const latR = meters / 111_320;
@@ -133,7 +155,7 @@ export default function TourMap({
       container: containerRef.current,
       style: styleUrl,
       center: [center.lng, center.lat],
-      zoom: 14.5,
+      zoom: OPENING_ZOOM,
       attributionControl: { compact: true },
     });
     mapRef.current = map;
@@ -245,7 +267,12 @@ export default function TourMap({
 
     if (!hasCentred.current) {
       hasCentred.current = true;
-      map.easeTo({ center: [at.lng, at.lat], zoom: 16.5, duration: 800, padding: { bottom: bottomInset } });
+      map.easeTo({
+        center: [at.lng, at.lat],
+        zoom: OPENING_ZOOM,
+        duration: 800,
+        padding: { bottom: bottomInset },
+      });
     } else if (follow) {
       map.easeTo({ center: [at.lng, at.lat], duration: 600, padding: { bottom: bottomInset } });
     }
@@ -260,8 +287,7 @@ export default function TourMap({
     hasCentred.current = true;
     map.easeTo({
       center: [lookAt.lng, lookAt.lat],
-      // A city, not a street: close enough to see the shape of the centre.
-      zoom: 13.5,
+      zoom: CITY_ZOOM,
       duration: 900,
       padding: { bottom: bottomInset },
     });
