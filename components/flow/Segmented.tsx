@@ -40,13 +40,11 @@ export default function Segmented<T extends string>({
               className={[
                 "min-h-[40px] min-w-0 flex-1 rounded-[var(--radius-pill)] px-2 transition-colors active:scale-[0.975]",
                 "font-[family-name:var(--font-display)] text-[length:var(--text-caption)]",
-                // The chosen green, which is the primary button's mint with the
-                // saturation taken out — one colour across the app meaning
-                // "this one", and quiet enough that the button you press to
-                // leave the screen still outranks it. Never green as text on
-                // white: 1.75:1, unreadable in daylight.
+                // The same mint as the primary button, ink on top of it — one
+                // colour across the whole app meaning "this one". Never mint as
+                // text on white: 1.75:1, unreadable in daylight.
                 on
-                  ? "bg-[color:var(--mint-soft)] font-semibold text-[color:var(--ink)]"
+                  ? "bg-[color:var(--mint)] font-semibold text-[color:var(--ink)]"
                   : "font-medium text-[color:var(--ink-soft)]",
               ].join(" ")}
             >

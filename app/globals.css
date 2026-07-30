@@ -41,14 +41,13 @@
   --mint-wash: #eafaf2; /* tinted panel */
   --mint-ink: #1e7a52; /* the green when it must be text: 5.3:1 on white */
 
-  /* The same green with the saturation taken out, for things that are *chosen*
-     rather than things that are *pressed*. On the brief, a dozen chips and two
-     segmented rows all held the full mint, so the one button that actually
-     does something — Plan the walk — was just more of the colour already
-     covering the screen. Same hue, so it still reads as one family; a third of
-     the saturation, so the action wins. Ink on it is 11:1. */
+  /* The same green with the saturation taken out. Used only where a big green
+     control is not the way out of the screen — Personalise more sits directly
+     above Plan the walk and opens a panel in place, and at full mint the brief
+     ended on two identical buttons where only the lower one leaves. Same hue,
+     so it still reads as one family. Ink on it is 11:1. */
   --mint-soft: #a9dcc4;
-  --mint-soft-line: #7fc9a6; /* its own edge, or a chosen chip loses its shape */
+  --mint-soft-line: #7fc9a6; /* its own edge, or the button loses its shape */
 
   --danger: #b91c1c;
   /* Amber, and only for the dark overlays: --danger is a red that disappears
@@ -225,8 +224,7 @@ pre {
 /* Green, but not the green that means "go". For a big obvious control that
    opens something rather than finishing it — Personalise more sits directly
    above Plan the walk, and at full mint the screen ended on two identical
-   buttons where only the lower one leaves. Same fill as a chosen chip, because
-   it is the same idea: part of making the choice, not the end of it. */
+   buttons where only the lower one leaves. */
 .btn--soft {
   background: var(--mint-soft);
   border-color: var(--mint-soft-line);
@@ -313,15 +311,13 @@ pre {
   line-height: 1;
 }
 
-/* Chosen is chosen, and it is the same green wherever it happens — but the
-   quiet one. A screen of chips at full mint made the primary button beneath
-   them disappear into its own colour; this is the same hue with the saturation
-   taken out, so "I picked this" and "press this to go" stop looking alike.
-   Ink on top, 11:1. Never green as text on white; that is 1.75:1 and
+/* Chosen is chosen, and it is the same mint wherever it happens: the mint of
+   the primary button, ink on top of it — 10:1, and the one colour on screen
+   meaning "yes, this one". Never mint as text on white; that is 1.75:1 and
    unreadable in daylight. */
 .pill[aria-pressed="true"] {
-  background: var(--mint-soft);
-  border-color: var(--mint-soft-line);
+  background: var(--mint);
+  border-color: var(--mint);
   color: var(--ink);
   font-weight: 600;
 }
