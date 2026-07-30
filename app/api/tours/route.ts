@@ -28,7 +28,31 @@ const FIRST_SCRIPT_BUDGET_MS = 40_000;
 
 type Phase = "stops" | "locating" | "ordering" | "route" | "writing" | "done" | "error";
 
-function sse(event: { phase: Phase; message?: string; data?: unknown }): Uint8Array {
+/**
+ * The itinerary, sent the moment the model returns it.
+ *
+ * Everything after this point — checking the stops against the map, ordering
+ * them, routing, writing the first narration — takes the bulk of the wait and
+ * changes none of the names. So the walker can be reading what their walk is
+ * about while the rest of it is being built, instead of watching three lines
+ * of progress. It costs nothing to produce: this is the plan we already have.
+ *
+ * Names and angles only. Coordinates at this point are the model's guesses and
+ * the order is not yet the walking order, so anything positional would be
+ * shown wrong and then silently corrected.
+ */
+type Preview = {
+  title: string;
+  summary: string;
+  stops: { name: string; angle: string }[];
+};
+
+function sse(event: {
+  phase: Phase;
+  message?: string;
+  data?: unknown;
+  preview?: Preview;
+}): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 }
 
@@ -47,8 +71,12 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (e: { phase: Phase; message?: string; data?: unknown }) =>
-        controller.enqueue(sse(e));
+      const send = (e: {
+        phase: Phase;
+        message?: string;
+        data?: unknown;
+        preview?: Preview;
+      }) => controller.enqueue(sse(e));
 
       try {
         const llm = getLLM();
@@ -56,7 +84,15 @@ export async function POST(request: Request) {
 
         send({ phase: "stops", message: "Choosing your stops" });
         const plan = await llm.generateTourPlan(req);
-        send({ phase: "stops", message: `${plan.stops.length} stops chosen` });
+        send({
+          phase: "stops",
+          message: `${plan.stops.length} stops chosen`,
+          preview: {
+            title: plan.title,
+            summary: plan.summary,
+            stops: plan.stops.map((s) => ({ name: s.name, angle: s.angle })),
+          },
+        });
 
         // The model's coordinates are plausible, not correct. Look each stop up
         // on the real map before anything is drawn, routed or reordered.

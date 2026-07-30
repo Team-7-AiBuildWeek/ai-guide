@@ -115,15 +115,69 @@ function Elapsed({ children }: { children: (seconds: number) => React.ReactNode 
   return <>{children(seconds)}</>;
 }
 
+/** Names and one line each, sent as soon as the itinerary is written. */
+export type TourPreview = {
+  title: string;
+  summary: string;
+  stops: { name: string; angle: string }[];
+};
+
+/**
+ * The walk, in writing, while the rest of it is being built.
+ *
+ * The itinerary lands roughly a third of the way through the wait, and nothing
+ * that happens after it changes the names — the map checks, the ordering, the
+ * routing and the first narration all take the remaining time. So the seconds
+ * that used to be spent watching three lines of progress are spent reading
+ * what the walk is actually about, and by the time the headphones screen
+ * arrives the walker already knows where they are going.
+ *
+ * The progress spine stays, underneath, smaller. It is still the honest answer
+ * to "is this stuck", and this screen can still take a minute.
+ */
+function Intro({ preview }: { preview: TourPreview }) {
+  return (
+    <div>
+      <h2 className="text-[length:var(--text-h2)]">{preview.title}</h2>
+      <p className="u-measure mt-2 text-[color:var(--ink-soft)]">{preview.summary}</p>
+
+      <ol className="mt-5 flex flex-col gap-3">
+        {preview.stops.map((s, i) => (
+          <li key={i} className="flex gap-3">
+            {/* Numbered, because the walk is walked in this order and the
+                number is the instruction rather than decoration. */}
+            <span
+              aria-hidden="true"
+              className="mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[color:var(--mint-wash)] text-[length:var(--text-caption)] font-semibold tabular-nums text-[color:var(--mint-ink)]"
+            >
+              {i + 1}
+            </span>
+            <span className="min-w-0">
+              <span className="block font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
+                {s.name}
+              </span>
+              <span className="mt-0.5 block text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+                {s.angle}
+              </span>
+            </span>
+          </li>
+        ))}
+      </ol>
+    </div>
+  );
+}
+
 export default function GeneratingStep({
   phase,
   message,
+  preview = null,
   error,
   onCancel,
   onRetry,
 }: {
   phase: string;
   message: string | null;
+  preview?: TourPreview | null;
   error: string | null;
   onCancel: () => void;
   onRetry: () => void;
@@ -151,11 +205,18 @@ export default function GeneratingStep({
   }
 
   return (
-    <div className="flex h-full flex-col justify-center gap-5">
-      <div>
-        <h2 className="text-[length:var(--text-h2)]">{t("gen.title")}</h2>
-        <p className="u-measure mt-3">{t("gen.wait")}</p>
-      </div>
+    /* Centred until there is something to read, then top-aligned: a list of a
+       dozen stops that grows out of the middle of the screen pushes its own
+       first line off the top. */
+    <div className={`flex h-full flex-col gap-5 ${preview ? "justify-start" : "justify-center"}`}>
+      {preview ? (
+        <Intro preview={preview} />
+      ) : (
+        <div>
+          <h2 className="text-[length:var(--text-h2)]">{t("gen.title")}</h2>
+          <p className="u-measure mt-3">{t("gen.wait")}</p>
+        </div>
+      )}
 
       <ol className="spine">
         {PHASE_LABELS.map((p, i) => {

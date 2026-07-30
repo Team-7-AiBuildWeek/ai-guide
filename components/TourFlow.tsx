@@ -19,7 +19,7 @@ import BriefStep, { BriefFooter } from "./flow/BriefStep";
 import PointsStep, { PointsFooter } from "./flow/PointsStep";
 import CityPicker from "./flow/CityPicker";
 import FullscreenButton from "./flow/FullscreenButton";
-import GeneratingStep from "./flow/GeneratingStep";
+import GeneratingStep, { type TourPreview } from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
 import TourStep, { DirectionsPanel } from "./flow/TourStep";
 import TurnCard from "./flow/TurnCard";
@@ -93,6 +93,8 @@ export default function TourFlow({
   const [cityOpen, setCityOpen] = useState(false);
   const [phase, setPhase] = useState("stops");
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
+  /** The itinerary, as soon as it exists — see GeneratingStep. */
+  const [preview, setPreview] = useState<TourPreview | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [askOpen, setAskOpen] = useState(false);
@@ -189,6 +191,10 @@ export default function TourFlow({
     setPhase("stops");
     setPhaseMessage(null);
     setGenError(null);
+    // Last run's itinerary is not this run's. Cleared here rather than on
+    // arrival so a retry does not spend its first seconds showing the walk it
+    // is replacing.
+    setPreview(null);
 
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -249,10 +255,14 @@ export default function TourFlow({
             phase: string;
             message?: string;
             data?: StoredTour;
+            preview?: TourPreview;
           };
           setPhase(evt.phase);
           lastPhase = evt.phase;
           if (evt.message) setPhaseMessage(evt.message);
+          // Arrives with the first event, roughly a third of the way in, and
+          // gives the remaining wait something to be spent on.
+          if (evt.preview) setPreview(evt.preview);
 
           if (evt.phase === "error") throw new Error(evt.message ?? "Generation failed.");
           if (evt.phase === "done" && evt.data) {
@@ -418,6 +428,10 @@ export default function TourFlow({
     index: currentIndex,
     onAdvance: advance,
     active: stage === "tour",
+    // The headphones screen is a tap and a paragraph of reading — long enough
+    // to make the first stop in, and it is the last thing standing between the
+    // walker and the first word.
+    warm: stage === "headphones",
   });
 
   /**
@@ -987,6 +1001,7 @@ export default function TourFlow({
             <GeneratingStep
               phase={phase}
               message={phaseMessage}
+              preview={preview}
               error={genError}
               onCancel={() => {
                 abortRef.current?.abort("cancelled");

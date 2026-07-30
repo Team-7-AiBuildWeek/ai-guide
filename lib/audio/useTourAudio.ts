@@ -61,6 +61,7 @@ export function useTourAudio({
   index,
   onAdvance,
   active,
+  warm = false,
 }: {
   stops: Stop[];
   /** The brief, so a stop written mid-walk matches the one written up front. */
@@ -71,8 +72,18 @@ export function useTourAudio({
   index: number;
   /** Called when a stop finishes, so the tour can walk on by itself. */
   onAdvance: () => void;
-  /** False before the headphones screen — nothing should be fetched yet. */
+  /** False before the walk begins — nothing should be *played* yet. */
   active: boolean;
+  /**
+   * Build the first stop, but do not speak it.
+   *
+   * The screens between "make me a tour" and the first word are dead time the
+   * walker is already spending; the words and the voice for stop one can be
+   * made during it instead of after it. Separate from `active` because the
+   * difference is playback: turning `active` on early would have the phone
+   * start reading the tour aloud over the headphones screen.
+   */
+  warm?: boolean;
 }) {
   const engine = useSyncExternalStore(
     audioEngine.subscribe,
@@ -250,6 +261,31 @@ export function useTourAudio({
       cancelled = true;
     };
   }, [active, stop, index, library, lang, deviceChosen, speedrun]);
+
+  /**
+   * The same work, minus the playing, before the walk starts.
+   *
+   * Skipped once `active` is true so the two never race for the same stop —
+   * and harmless if it did, since both go through the library's job maps and
+   * the second caller joins the first one's promise.
+   *
+   * The script is fetched whichever voice is chosen: the phone reads the same
+   * words, and writing them is the slow half. Synthesis is guide-voice only,
+   * because the phone's voice is made locally at the moment it speaks and
+   * there is nothing to make in advance.
+   */
+  useEffect(() => {
+    if (!warm || active || !stop) return;
+    let cancelled = false;
+    void (async () => {
+      const written = await library.ensureScript(stop.id);
+      if (cancelled || !written || deviceChosen) return;
+      await library.ensureAudio(stop.id);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [warm, active, stop, library, deviceChosen]);
 
   /**
    * The narration as written, in the pieces it is spoken in.
