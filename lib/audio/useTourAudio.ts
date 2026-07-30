@@ -9,7 +9,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { audioEngine, type EngineState } from "./engine";
+import { audioEngine, restorePlayback, type EngineState } from "./engine";
 import { AudioLibrary, type StopState } from "./library";
 import { deviceVoice, type DeviceVoiceState } from "./deviceVoice";
 import type { Stop, TourRequest } from "@/lib/providers/types";
@@ -124,6 +124,49 @@ export function useTourAudio({
   const broken = stopState.script === "failed" || stopState.voice === "failed";
   const usingDeviceVoice = deviceChosen || (broken && deviceVoice.supported);
 
+  /**
+   * How far into each stop the walker had got.
+   *
+   * Leaving a stop used to throw its position away, so stepping forward to see
+   * where the next one was and stepping back again restarted five minutes of
+   * narration from the first word. The engine could always be told where to
+   * open — nobody was telling it.
+   *
+   * Memory only, and per tour: a stop id belongs to the tour that made it, and
+   * the walk itself is what localStorage keeps.
+   */
+  const heardUpToRef = useRef<Record<string, number>>({});
+
+  /** Below this it is not worth resuming; within this of the end, they heard it. */
+  const RESUME_MIN_S = 5;
+  const RESUME_TAIL_S = 10;
+
+  const rememberPosition = useCallback((stopId: string, position: number, duration: number) => {
+    const worthResuming =
+      position > RESUME_MIN_S && (duration <= 0 || position < duration - RESUME_TAIL_S);
+    // A stop played to the end is not "in progress" — coming back to it should
+    // start it again, not drop the walker on its last sentence.
+    if (worthResuming) heardUpToRef.current[stopId] = position;
+    else delete heardUpToRef.current[stopId];
+  }, []);
+
+  /**
+   * The same question after a reload.
+   *
+   * The engine has been writing the playing stop's position to localStorage on
+   * every tick from the beginning, and nothing has ever read it back — so a
+   * tab the phone killed in a pocket cost the walker the stop they were in the
+   * middle of. Seeded here, where it becomes just another remembered position.
+   */
+  useEffect(() => {
+    const saved = restorePlayback();
+    if (!saved || heardUpToRef.current[saved.stopId] !== undefined) return;
+    // Positions belong to the tour that made them; a stop id from a previous
+    // walk is not ours to resume.
+    if (!stops.some((s) => s.id === saved.stopId)) return;
+    rememberPosition(saved.stopId, saved.position, 0);
+  }, [stops, rememberPosition]);
+
   const onAdvanceRef = useRef(onAdvance);
   useEffect(() => {
     onAdvanceRef.current = onAdvance;
@@ -186,8 +229,14 @@ export function useTourAudio({
     let cancelled = false;
 
     void (async () => {
-      const already = audioEngine.getState().track;
-      if (already?.stopId === stop.id) return;
+      const leaving = audioEngine.getState();
+      if (leaving.track?.stopId === stop.id) return;
+
+      // Written down before the engine is pointed anywhere else, because that
+      // is the last moment this position exists.
+      if (leaving.track) {
+        rememberPosition(leaving.track.stopId, leaving.position, leaving.duration);
+      }
 
       // The estimates are the whole stop's length, known from the word count
       // before a second of it has been recorded — so the scrubber has a scale
@@ -201,7 +250,7 @@ export function useTourAudio({
           album,
           chunkEstimates: library.estimatesFor(stop.id),
         },
-        { autoplay: true },
+        { autoplay: true, startAt: heardUpToRef.current[stop.id] ?? 0 },
       );
       if (cancelled) return;
       // Anything already synthesised while we were locked.
@@ -215,7 +264,18 @@ export function useTourAudio({
     };
     // `album` is in here only to satisfy the linter — it is settled on the
     // city screen, long before `active` is ever true, so it cannot re-run this.
-  }, [active, stop, index, library, stops.length, unlocked, deviceChosen, album, stopState.chunksTotal]);
+  }, [
+    active,
+    stop,
+    index,
+    library,
+    stops.length,
+    unlocked,
+    deviceChosen,
+    album,
+    stopState.chunksTotal,
+    rememberPosition,
+  ]);
 
   useEffect(() => {
     if (!active) deviceVoice.stop();

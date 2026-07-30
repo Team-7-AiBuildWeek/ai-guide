@@ -277,7 +277,16 @@ class AudioEngine {
 
     this.setMetadata(track);
     this.persist(true);
-    if (opts.startAt && opts.startAt > 0) this.pendingSeek = opts.startAt;
+
+    if (opts.startAt && opts.startAt > 0) {
+      this.pendingSeek = opts.startAt;
+      // Open at the piece the walker had reached rather than at the first one.
+      // Without this, the first piece to arrive is the one that starts playing
+      // — a minute of narration they already heard — while the seek sits
+      // waiting for a piece further in.
+      const at = this.chunkAt(opts.startAt);
+      if (at) this.playIndex = at.index;
+    }
   }
 
   /** Where to jump to as soon as enough pieces exist to get there. */
