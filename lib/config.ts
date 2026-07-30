@@ -57,6 +57,18 @@ export const config = {
   /** Which prebuilt Gemini voice narrates the tour. Audition them at /dev/tts. */
   geminiVoice: process.env.GEMINI_VOICE ?? "Charon",
 
+  /**
+   * ElevenLabs.
+   *
+   * `eleven_flash_v2_5` by default: a tour is dozens of synthesis calls made
+   * while the walker waits, and flash is the one that answers in about a
+   * second. Set ELEVENLABS_MODEL=eleven_multilingual_v2 for the better read
+   * when latency matters less than the voice.
+   */
+  elevenlabsModel: process.env.ELEVENLABS_MODEL ?? "eleven_flash_v2_5",
+  /** Audition voices at /dev/tts; this is the one a tour uses by default. */
+  elevenlabsVoice: process.env.ELEVENLABS_VOICE ?? "21m00Tcm4TlvDq8ikWAM",
+
   /** Stadia serves an EU endpoint too — api-eu.stadiamaps.com, closer to Bratislava. */
   stadiaBaseUrl: process.env.STADIA_BASE_URL ?? "https://api.stadiamaps.com",
   /** alidade_smooth | alidade_smooth_dark | outdoors | osm_bright | stamen_toner | ... */

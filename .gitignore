@@ -44,3 +44,7 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Speech kept on disk so a replayed stop is never paid for twice. Generated,
+# not authored — see lib/providers/tts/audioCache.ts.
+/public/audio
