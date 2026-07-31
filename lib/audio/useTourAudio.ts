@@ -160,6 +160,12 @@ export function useTourAudio({
   /** The phone is reading — either because it was chosen, or as a fallback. */
   const deviceChosen = voiceMode === "device" && deviceVoice.supported;
   const broken = stopState.script === "failed" || stopState.voice === "failed";
+  /**
+   * Held back by the rate-limit brake, which is not the same as broken and
+   * must not be folded into it: `broken` falls back to the phone's voice, and
+   * a held stop has no words for the phone to read either.
+   */
+  const held = stopState.script === "held";
   const usingDeviceVoice = deviceChosen || (broken && deviceVoice.supported);
 
   /**
@@ -430,8 +436,8 @@ export function useTourAudio({
      * only the words; the synthesised voice needs them and its first recording.
      */
     preparing: deviceChosen
-      ? active && stopState.script !== "ready" && stopState.script !== "failed"
-      : active && !stopState.playable && !broken,
+      ? active && stopState.script !== "ready" && !broken && !held
+      : active && !stopState.playable && !broken && !held,
     /** What the walker is waiting for, in words. */
     waitingFor:
       stopState.script === "writing"
@@ -440,6 +446,11 @@ export function useTourAudio({
           ? "Recording the first minute"
           : null,
     failed: broken,
+    /**
+     * Deliberately not written — the rate-limit brake, not a fault. The player
+     * says so instead of spinning for words that were never coming.
+     */
+    held,
     /** What went wrong, in the provider's own words, and which half of it. */
     failReason: stopState.error,
     failedPart: stopState.script === "failed" ? ("script" as const) : ("voice" as const),

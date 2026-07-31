@@ -1060,6 +1060,7 @@ export default function TourFlow({
                 waitingFor={audio.waitingFor}
                 buffered={audio.buffered}
                 failed={audio.failed}
+                held={audio.held}
                 failReason={audio.failReason}
                 failedPart={audio.failedPart}
                 usingDeviceVoice={audio.usingDeviceVoice}

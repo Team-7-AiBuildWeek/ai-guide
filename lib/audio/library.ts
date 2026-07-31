@@ -24,8 +24,16 @@ import type { Stop, TourRequest } from "@/lib/providers/types";
 import { RATE_LIMIT_MODE } from "@/lib/tour/testing";
 
 export type StopState = {
-  /** Have we got the words yet. */
-  script: "idle" | "writing" | "ready" | "failed";
+  /**
+   * Have we got the words yet.
+   *
+   * "held" is not a failure: it is the rate-limit brake refusing to write a
+   * stop on purpose, so the walk can be tested without spending the quota on
+   * stops nobody will listen to. The stop still exists, still sits on the map
+   * and still has its name — it just has no narration and never asked for
+   * any. See lib/tour/testing.ts.
+   */
+  script: "idle" | "writing" | "ready" | "failed" | "held";
   /**
    * Have we got the voice. Tracked apart from the words because they fail for
    * different reasons and only one of them is about Gemini's speech quota —
@@ -183,10 +191,27 @@ export class AudioLibrary {
       return !!this.entries.get(stopId)?.script;
     }
 
+    const position = this.stops.findIndex((s) => s.id === stopId);
+
+    /**
+     * The rate-limit brake, at the only door both the words and the voice go
+     * through: nothing past the first stop is written, so nothing past the
+     * first stop is ever spoken either — `ensureAudio` gives up when this
+     * returns false, before it reaches synthesis.
+     *
+     * The stop is *held*, not failed. It keeps its place in the walk — on the
+     * map, in the route, in the list — and says plainly that it was not
+     * written, which is a different thing from a stop that broke.
+     * See lib/tour/testing.ts.
+     */
+    if (RATE_LIMIT_MODE && position > 0) {
+      e.state = { ...e.state, script: "held", error: null };
+      this.emit();
+      return false;
+    }
+
     e.state = { ...e.state, script: "writing" };
     this.emit();
-
-    const position = this.stops.findIndex((s) => s.id === stopId);
     const job = (async () => {
       try {
         const res = await fetch("/api/stops/script", {

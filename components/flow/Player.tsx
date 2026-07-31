@@ -68,6 +68,7 @@ export default function Player({
   waitingFor,
   buffered,
   failed,
+  held,
   failReason,
   failedPart,
   usingDeviceVoice,
@@ -96,6 +97,8 @@ export default function Player({
   /** How much of this stop has been recorded, 0–1. */
   buffered: number;
   failed: boolean;
+  /** Held back by the rate-limit brake — deliberate, not a fault. */
+  held: boolean;
   /** Why, in the provider's own words. */
   failReason: string | null;
   /** Which half broke — the words or the voice. */
@@ -153,10 +156,20 @@ export default function Player({
 
   return (
     <div className="flex flex-col gap-2.5">
+      {/* The barrier. Said plainly and without alarm, because nothing is
+          wrong: the stop is on the map and in the route, it simply was not
+          written. Anyone who did not set the flag should still understand
+          what they are looking at. */}
+      {held ? (
+        <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          Not written — only the first stop is generated while the rate-limit
+          brake is on.
+        </p>
+      ) : null}
       {/* The reason matters: a spent daily quota is fixed by enabling billing,
           a busy model by waiting a minute, and a failed script is not about
           the voice at all. "Unavailable" sent people to the wrong place. */}
-      {usingDeviceVoice && voiceMode !== "device" ? (
+      {usingDeviceVoice && voiceMode !== "device" && !held ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           Read by your phone —{" "}
           {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the guide's voice was unavailable.")}

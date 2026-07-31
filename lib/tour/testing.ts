@@ -9,8 +9,12 @@
  *
  * So while this is on:
  *   - narration is two minutes a stop instead of four or five;
- *   - only the stop the walker is actually on is written — the next one is no
- *     longer fetched ahead while they listen.
+ *   - only the FIRST stop is ever written or spoken. Not the next one fetched
+ *     ahead, and not the one the walker arrives at either — stop two onwards
+ *     say so on screen rather than going quietly blank.
+ *
+ * The itinerary is still one call: without it there are no stops to walk to.
+ * It is one call for the whole walk, which was never the expensive part.
  *
  * WHAT IT DOES NOT CHANGE, on purpose: how many stops the walk has. Stop count
  * is duration divided by (narration + walking), so shortening the narration
