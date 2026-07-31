@@ -138,6 +138,18 @@ export async function routeWithRides(
 
     // The ride that follows this run, drawn as the jump it is.
     if (r.rideAfter) {
+      /**
+       * The stop itself, before the jump away from it.
+       *
+       * The walking leg ends wherever the router snapped the boarding stop to
+       * — a few metres off, since a tram platform is not a footpath — and the
+       * blue overlay is drawn from the stop's own coordinates. Without this
+       * the two start from slightly different places and the recolouring
+       * misses by however far the snap happened to land. Measured at 3.5 m,
+       * which is invisible and would stay invisible right up until the day it
+       * was not.
+       */
+      coordinates.push([r.rideAfter.board.lng, r.rideAfter.board.lat]);
       coordinates.push([r.rideAfter.alight.lng, r.rideAfter.alight.lat]);
       // Counted in the tour's own clock, not as walking metres — see
       // lib/tour/timing.ts. Seconds are the estimate; metres stay a walk's.

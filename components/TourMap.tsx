@@ -8,7 +8,7 @@
  * map down and paying for the tiles again.
  */
 
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import {
   Map as MapLibreMap,
   Marker,
@@ -19,13 +19,14 @@ import {
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Fix } from "@/lib/tour/useLiveLocation";
-import type { MapStyle } from "@/lib/providers/types";
+import type { MapStyle, TourRide } from "@/lib/providers/types";
 
 export type MapStop = { id: string; name: string; lat: number; lng: number };
 export type MapPin = { kind: "start" | "end"; lat: number; lng: number };
 
 const ACCURACY = "gps-accuracy";
 const ROUTE = "tour-route";
+const RIDES = "tour-rides";
 
 /**
  * A city, not a street: close enough to see the shape of the centre, far
@@ -131,6 +132,7 @@ export default function TourMap({
   dot = null,
   heading = null,
   route = null,
+  rides = [],
   stops = [],
   currentStopIndex = -1,
   pins = [],
@@ -154,6 +156,15 @@ export default function TourMap({
   /** Degrees clockwise from north, when the device has a compass. */
   heading?: number | null;
   route?: GeoJSON.Feature | null;
+  /**
+   * The legs ridden rather than walked, drawn over the route in blue.
+   *
+   * Kept apart from `route` on purpose: the route stays one continuous line
+   * because the turn-by-turn maneuvers index into it, and splitting it would
+   * point every direction at the wrong corner. This is a second, shorter
+   * line laid exactly over the jumps in it.
+   */
+  rides?: TourRide[];
   stops?: MapStop[];
   currentStopIndex?: number;
   pins?: MapPin[];
@@ -185,6 +196,7 @@ export default function TourMap({
   const pinMarkers = useRef<Marker[]>([]);
   const fixRef = useRef<Fix | null>(null);
   const routeRef = useRef<GeoJSON.Feature | null>(null);
+  const ridesRef = useRef<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
   const styleReady = useRef(false);
   const hasCentred = useRef(false);
   const currentStyleRef = useRef<string | undefined>(styleId);
@@ -240,6 +252,43 @@ export default function TourMap({
         source: ROUTE,
         layout: { "line-cap": "round", "line-join": "round" },
         paint: { "line-color": "#1e7a52", "line-width": 5 },
+      });
+
+      /**
+       * The ridden legs, over the top of the walked line.
+       *
+       * Added after the route so it draws above it: the route already
+       * contains this stretch as a straight jump, and this covers it exactly
+       * rather than sitting beside it. Butt caps, not round, so the blue ends
+       * where the tram stop is instead of overhanging the walk either side by
+       * half a line width.
+       *
+       * Dashed as well as blue — see --transit in globals.css. Which parts of
+       * a route you walk is not a question to answer with hue alone.
+       */
+      map.addSource(RIDES, {
+        type: "geojson",
+        data: ridesRef.current,
+      });
+      map.addLayer({
+        id: "rides-casing",
+        type: "line",
+        source: RIDES,
+        layout: { "line-cap": "butt", "line-join": "round" },
+        paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.9 },
+      });
+      map.addLayer({
+        id: "rides-line",
+        type: "line",
+        source: RIDES,
+        layout: { "line-cap": "butt", "line-join": "round" },
+        paint: {
+          "line-color": "#2563eb",
+          "line-width": 5,
+          // Long dash, short gap: reads as a line with a rhythm rather than a
+          // row of dots, which is what a dotted route looks like at speed.
+          "line-dasharray": [2, 1.2],
+        },
       });
 
       map.addSource(ACCURACY, {
@@ -402,6 +451,40 @@ export default function TourMap({
     if (styleReady.current) apply();
     else map.once("load", apply);
   }, [route]);
+
+  // ---------------------------------------------------------------- rides --
+  /**
+   * One two-point line per ride: the stop it is boarded at, the stop it is
+   * got off at. The same straight jump the route already draws, so laying it
+   * on top recolours that stretch and nothing else.
+   */
+  const rideShapes = useMemo(
+    () => ({
+      type: "FeatureCollection" as const,
+      features: rides.map((r) => ({
+        type: "Feature" as const,
+        properties: { mode: r.mode, ref: r.ref },
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [
+            [r.board.lng, r.board.lat],
+            [r.alight.lng, r.alight.lat],
+          ],
+        },
+      })),
+    }),
+    [rides],
+  );
+
+  useEffect(() => {
+    const map = mapRef.current;
+    ridesRef.current = rideShapes;
+    if (!map) return;
+    const apply = () =>
+      (map.getSource(RIDES) as GeoJSONSource | undefined)?.setData(rideShapes);
+    if (styleReady.current) apply();
+    else map.once("load", apply);
+  }, [rideShapes]);
 
   // ---------------------------------------------------------------- stops --
   useEffect(() => {

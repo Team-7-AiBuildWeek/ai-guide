@@ -711,6 +711,7 @@ export default function TourFlow({
         dot={snapped}
         heading={heading}
         route={stage === "tour" ? tour?.route ?? null : null}
+        rides={stage === "tour" ? tour?.rides ?? [] : []}
         stops={stage === "tour" ? stops : []}
         currentStopIndex={stage === "tour" ? currentIndex : -1}
         onSelectStop={chooseStop}
