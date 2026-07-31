@@ -18,6 +18,7 @@
 
 import { languageName } from "@/lib/i18n/languages";
 import type { Detail, Stop, TourRequest } from "@/lib/providers/types";
+import { RATE_LIMIT_MODE, TESTING_SCRIPT_MINUTES } from "@/lib/tour/testing";
 
 /**
  * Spoken words per minute.
@@ -35,15 +36,28 @@ const SCRIPT_MINUTES: Record<Detail, number> = {
   everything: 5,
 };
 
-export function scriptWords(detail: Detail): number {
-  return Math.round(SCRIPT_MINUTES[detail] * WORDS_PER_MINUTE);
+/**
+ * What a stop is actually written to — two minutes while the rate-limit brake
+ * is on, the real length otherwise. See lib/tour/testing.ts.
+ *
+ * `stopCount` below deliberately does NOT use this: shortening the narration
+ * would otherwise add stops to fill the same hour, which is the opposite of
+ * what the brake is for.
+ */
+function writtenMinutes(detail: Detail): number {
+  return RATE_LIMIT_MODE ? TESTING_SCRIPT_MINUTES : SCRIPT_MINUTES[detail];
 }
 
-/** How long one stop is spoken for. The same figure the walk is planned to,
+export function scriptWords(detail: Detail): number {
+  return Math.round(writtenMinutes(detail) * WORDS_PER_MINUTE);
+}
+
+/** How long one stop is spoken for. The same figure the stop is written to,
  *  so what the walker is told and what they were given agree — see
- *  lib/tour/timing.ts. */
+ *  lib/tour/timing.ts. Follows the brake: a two-minute stop has to be a two
+ *  minute stop on the clock too, or the honest clock stops being honest. */
 export function spokenMinutes(detail: Detail): number {
-  return SCRIPT_MINUTES[detail];
+  return writtenMinutes(detail);
 }
 
 /** Below this a script has not been written, it has been sketched. */
@@ -251,11 +265,25 @@ export function buildScriptPrompt(args: {
     ``,
     `LENGTH — this matters, and models routinely write half of what is asked:`,
     `  script: about ${target} words. Never fewer than ${floor}.`,
-    `That is ${SCRIPT_MINUTES[req.detail]} minutes of speech. Count as you write.`,
+    `That is ${writtenMinutes(req.detail)} minutes of speech. Count as you write.`,
     `A script under ${floor} words is a failed answer however good the prose is.`,
-    `Keep going until the stop is genuinely covered — there is always more to say`,
-    `about a real place than fits, so choose what is worth saying and say it fully.`,
   );
+
+  // Asking for two minutes and then demanding it be exhaustive is a
+  // contradiction, and the model resolves it by overrunning. Under the brake
+  // it gets the opposite instruction.
+  if (RATE_LIMIT_MODE) {
+    lines.push(
+      `This is a SHORT stop. Do not try to cover everything — pick the one thing`,
+      `most worth knowing about this place and tell it properly, then stop.`,
+      `Going over ${target} words is a failed answer.`,
+    );
+  } else {
+    lines.push(
+      `Keep going until the stop is genuinely covered — there is always more to say`,
+      `about a real place than fits, so choose what is worth saying and say it fully.`,
+    );
+  }
 
   return lines.filter((l) => l !== undefined).join("\n");
 }

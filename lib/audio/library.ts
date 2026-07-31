@@ -21,6 +21,7 @@
 
 import { chunkScript, estimateSeconds } from "./chunk";
 import type { Stop, TourRequest } from "@/lib/providers/types";
+import { RATE_LIMIT_MODE } from "@/lib/tour/testing";
 
 export type StopState = {
   /** Have we got the words yet. */
@@ -321,6 +322,11 @@ export class AudioLibrary {
    * to save a wait they may never reach.
    */
   prefetchAround(index: number) {
+    // The rate-limit brake: writing the next stop ahead doubles the calls in
+    // flight, and a walker testing the flow never reaches most of them. While
+    // it is on, a stop is written when it is arrived at and not before.
+    // See lib/tour/testing.ts — flipping that back restores this.
+    if (RATE_LIMIT_MODE) return;
     const next = this.stops[index + 1];
     if (next) void this.ensureScript(next.id);
   }
