@@ -134,12 +134,16 @@ export default function Profile() {
     () => false,
   );
 
+  /**
+   * Unset means the guide, matching useTourAudio's default — and it has to
+   * keep matching it, or this screen shows a walker one voice while the walk
+   * uses the other. "gemini" is the old name for the guide, so it resolves
+   * the same way here as it does there.
+   */
   const voice = useSyncExternalStore(
     never,
-    // Unset means the phone, matching useTourAudio's default while there are
-    // no synthesis credits.
-    () => (localStorage.getItem(VOICE_MODE_KEY) === "guide" ? "guide" : "device") as VoiceMode,
-    () => "device" as VoiceMode,
+    () => (localStorage.getItem(VOICE_MODE_KEY) === "device" ? "device" : "guide") as VoiceMode,
+    () => "guide" as VoiceMode,
   );
 
   const setVoice = (mode: VoiceMode) => {
