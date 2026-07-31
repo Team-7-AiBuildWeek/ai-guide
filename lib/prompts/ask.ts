@@ -28,7 +28,7 @@ const INTEREST_WORDS: Record<AskRequest["interests"][number], string> = {
 const DEPTH_WORDS: Record<AskRequest["detail"], string> = {
   highlights: "Answer in about 40 spoken words. One fact, well chosen.",
   story: "Answer in about 70 spoken words. Room for one detail that sticks.",
-  everything: "Answer in about 130 spoken words. They want the whole thing.",
+  everything: "Answer in about 130 spoken words. They want the depth, not the summary.",
 };
 
 export const ASK_SYSTEM_PROMPT = `You are the guide whose voice this walker has been listening to for the last half hour. They have stopped in the street to ask you something.

@@ -77,7 +77,7 @@ const EN = {
   "duration.240": "A whole afternoon",
   "detail.highlights": "Highlights",
   "detail.story": "A story",
-  "detail.everything": "Everything",
+  "detail.everything": "In depth",
   "pace.relaxed": "Relaxed",
   "pace.steady": "Steady",
   "pace.cover-ground": "Fast",

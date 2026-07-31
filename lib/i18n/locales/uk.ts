@@ -35,7 +35,7 @@ export const uk: Partial<Record<UiKey, string>> = {
   "duration.240": "Цілий день",
   "detail.highlights": "Головне",
   "detail.story": "Історія",
-  "detail.everything": "Усе",
+  "detail.everything": "Детально",
   "pace.relaxed": "Спокійний",
   "pace.steady": "Рівний",
   "pace.cover-ground": "Швидкий",

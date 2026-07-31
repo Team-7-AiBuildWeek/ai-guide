@@ -35,7 +35,7 @@ export const ko: Partial<Record<UiKey, string>> = {
   "duration.240": "오후 내내",
   "detail.highlights": "핵심만",
   "detail.story": "이야기",
-  "detail.everything": "전부",
+  "detail.everything": "자세히",
   "pace.relaxed": "여유롭게",
   "pace.steady": "보통",
   "pace.cover-ground": "빠르게",

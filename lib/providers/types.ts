@@ -72,7 +72,14 @@ export type StopScript = z.infer<typeof StopScriptSchema>;
 /** How long the walker wants to be out, in minutes. */
 export type Duration = 30 | 45 | 60 | 90 | 120 | 180 | 240;
 
-/** Slider values are stored as words, not numbers — see the design brief. */
+/**
+ * Slider values are stored as words, not numbers — see the design brief.
+ *
+ * "everything" is what the deepest setting is *stored* as; the walker reads
+ * "In depth". The label changed because a walk does not show you everything
+ * and should not say it does. The key did not, because it is written into
+ * every saved walk on every device — renaming it would silently orphan them.
+ */
 export type Detail = "highlights" | "story" | "everything";
 export type Pace = "relaxed" | "steady" | "cover-ground";
 export type Interest =

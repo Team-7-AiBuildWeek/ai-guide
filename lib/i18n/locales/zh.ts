@@ -35,7 +35,7 @@ export const zh: Partial<Record<UiKey, string>> = {
   "duration.240": "整个下午",
   "detail.highlights": "只讲重点",
   "detail.story": "讲个故事",
-  "detail.everything": "全都讲",
+  "detail.everything": "深入讲解",
   "pace.relaxed": "轻松",
   "pace.steady": "平稳",
   "pace.cover-ground": "快",

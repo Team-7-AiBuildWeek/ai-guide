@@ -35,7 +35,7 @@ export const ja: Partial<Record<UiKey, string>> = {
   "duration.240": "午後いっぱい",
   "detail.highlights": "要点だけ",
   "detail.story": "物語",
-  "detail.everything": "すべて",
+  "detail.everything": "詳しく",
   "pace.relaxed": "ゆっくり",
   "pace.steady": "ふつう",
   "pace.cover-ground": "速め",

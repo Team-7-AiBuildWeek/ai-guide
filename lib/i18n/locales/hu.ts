@@ -35,7 +35,7 @@ export const hu: Partial<Record<UiKey, string>> = {
   "duration.240": "Egy egész délután",
   "detail.highlights": "A lényeg",
   "detail.story": "Egy történet",
-  "detail.everything": "Minden",
+  "detail.everything": "Részletesen",
   "pace.relaxed": "Kényelmes",
   "pace.steady": "Egyenletes",
   "pace.cover-ground": "Gyors",

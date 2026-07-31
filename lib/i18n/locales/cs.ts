@@ -35,7 +35,7 @@ export const cs: Partial<Record<UiKey, string>> = {
   "duration.240": "Celé odpoledne",
   "detail.highlights": "To hlavní",
   "detail.story": "Příběh",
-  "detail.everything": "Všechno",
+  "detail.everything": "Do hloubky",
   "pace.relaxed": "Klidné",
   "pace.steady": "Střední",
   "pace.cover-ground": "Rychlé",

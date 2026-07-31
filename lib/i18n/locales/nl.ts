@@ -35,7 +35,7 @@ export const nl: Partial<Record<UiKey, string>> = {
   "duration.240": "Een hele middag",
   "detail.highlights": "Hoofdzaken",
   "detail.story": "Een verhaal",
-  "detail.everything": "Alles",
+  "detail.everything": "In detail",
   "pace.relaxed": "Rustig",
   "pace.steady": "Gestaag",
   "pace.cover-ground": "Vlot",

@@ -35,7 +35,7 @@ export const tr: Partial<Record<UiKey, string>> = {
   "duration.240": "Bütün bir öğleden sonra",
   "detail.highlights": "Öne çıkanlar",
   "detail.story": "Bir hikâye",
-  "detail.everything": "Her şey",
+  "detail.everything": "Ayrıntılı",
   "pace.relaxed": "Rahat",
   "pace.steady": "Dengeli",
   "pace.cover-ground": "Hızlı",
