@@ -213,3 +213,40 @@ export function clearTour() {
     /* ignore */
   }
 }
+
+// ------------------------------------------------------------ walking again
+
+const REBUILD_KEY = "btour:rebuild:v1";
+
+/**
+ * A walk asked for again from the profile, waiting for the flow to pick it up.
+ *
+ * The profile is its own page and the flow is on another, so the ask has to
+ * survive a navigation. It goes through localStorage rather than a query
+ * string because an itinerary does not fit in a URL, and because a link
+ * somebody copied should not rebuild a stranger's walk.
+ *
+ * Consumed exactly once — `takeRebuild` reads and deletes in one go, so a
+ * reload of the flow does not build the same walk a second time.
+ */
+export type Rebuild = { req: TourRequest; plan: TourPlan };
+
+export function saveRebuild(r: Rebuild) {
+  try {
+    localStorage.setItem(REBUILD_KEY, JSON.stringify(r));
+  } catch {
+    /* private mode, or full — the button simply does nothing */
+  }
+}
+
+export function takeRebuild(): Rebuild | null {
+  try {
+    const raw = localStorage.getItem(REBUILD_KEY);
+    localStorage.removeItem(REBUILD_KEY);
+    if (!raw) return null;
+    const r = JSON.parse(raw) as Rebuild;
+    return r?.req?.start && r?.plan?.stops?.length ? r : null;
+  } catch {
+    return null;
+  }
+}

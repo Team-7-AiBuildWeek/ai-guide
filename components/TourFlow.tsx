@@ -44,11 +44,12 @@ import {
   resetDraft,
   saveDraft,
   saveTour,
+  takeRebuild,
   type Draft,
   type Stage,
   type StoredTour,
 } from "@/lib/tour/flow";
-import type { City, MapStyle, TourRequest } from "@/lib/providers/types";
+import type { City, MapStyle, TourPlan, TourRequest } from "@/lib/providers/types";
 import { cityAt } from "@/lib/tour/city";
 import { rememberWalk } from "@/lib/tour/history";
 
@@ -152,6 +153,15 @@ export default function TourFlow({
   /** Which way the walker is facing, for the cone on the dot. */
   const heading = useHeading(!simulating);
 
+  /**
+   * `generate` as it is *now*, for the mount effect below.
+   *
+   * That effect runs once and must not be re-run when the draft changes, but
+   * it needs a version of `generate` that is not the one captured on the first
+   * render. A ref is the seam between the two.
+   */
+  const generateRef = useRef<(again?: { req: TourRequest; plan: TourPlan }) => void>(() => {});
+
   // Restore whatever the last session left behind.
   // The pause after a pin lands outlives nothing: if this screen goes away
   // first, the timer must not come back to set state on it.
@@ -167,6 +177,25 @@ export default function TourFlow({
       // ours, so most walkers never have to find the picker at all.
       if (d) setDraft(d);
       else setDraft((prev) => ({ ...prev, lang: normaliseLang(navigator.language) }));
+
+      /**
+       * A walk asked for again from the profile wins over the one in progress.
+       *
+       * Checked before the restore, and taken rather than read: pressing the
+       * button is a decision to walk something else, so landing back on the
+       * old tour would be the app ignoring it. The previous walk is still in
+       * its own slot until this one finishes building.
+       */
+      const again = takeRebuild();
+      if (again) {
+        // The walk's language is the app's too, or a Japanese walk is narrated
+        // in Japanese under English buttons.
+        setDraft((prev) => ({ ...prev, lang: again.req.lang }));
+        announceUiLang(again.req.lang);
+        void generateRef.current(again);
+        return;
+      }
+
       const t = loadTour();
       if (t) {
         setTour(t);
@@ -187,8 +216,17 @@ export default function TourFlow({
   }, []);
 
   // ------------------------------------------------------------- generate --
-  const generate = useCallback(async () => {
-    if (!draft.start) return;
+  /**
+   * Build a tour and walk to it.
+   *
+   * `again` is a walk being repeated from the profile: its brief and its
+   * itinerary come from the record rather than from the draft on screen, so
+   * the walker gets the same stops in whatever language they picked. Passed as
+   * an argument rather than read from state because the ask arrives on the
+   * same tick as the navigation, well before any draft has been set from it.
+   */
+  const generate = useCallback(async (again?: { req: TourRequest; plan: TourPlan }) => {
+    if (!again && !draft.start) return;
     setStage("generating");
     setPhase("stops");
     setPhaseMessage(null);
@@ -208,7 +246,7 @@ export default function TourFlow({
     const HARD_LIMIT_MS = 180_000;
     const timeout = window.setTimeout(() => controller.abort(), HARD_LIMIT_MS);
 
-    const body: TourRequest = {
+    const body: TourRequest = again?.req ?? {
       // Both go, always: the settings are the floor and the brief is what
       // outranks them. The prompt is written to resolve that, and there is no
       // longer a mode in which one of them is meant not to count.
@@ -218,7 +256,7 @@ export default function TourFlow({
       detail: draft.detail,
       pace: draft.pace,
       interests: draft.interests,
-      start: draft.start,
+      start: draft.start!,
       end: draft.end ?? undefined,
       lang: draft.lang,
     };
@@ -231,7 +269,9 @@ export default function TourFlow({
       const res = await fetch("/api/tours", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(body),
+        // The itinerary rides along only when there is one to reuse; without
+        // it the server chooses the stops as it always has.
+        body: JSON.stringify(again ? { ...body, plan: again.plan } : body),
         signal: controller.signal,
       });
       if (!res.ok || !res.body) throw new Error(`Server said ${res.status}.`);
@@ -309,6 +349,7 @@ export default function TourFlow({
       window.clearTimeout(timeout);
     }
   }, [draft]);
+  generateRef.current = generate;
 
   // ------------------------------------------------------------------ city --
   /**

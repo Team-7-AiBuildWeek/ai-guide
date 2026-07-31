@@ -87,6 +87,8 @@ export const pt: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Pedido",
   "profile.walking": "Caminhada",
   "profile.theStops": "As paragens",
+  "profile.walkAgain": "Repetir o passeio",
+  "profile.walkAgainHint": "As mesmas paragens, no idioma que escolher.",
   "profile.deleteOne": "Apagar este passeio",
   "profile.clearAll": "Limpar tudo",
   "profile.save": "Guardar definições",

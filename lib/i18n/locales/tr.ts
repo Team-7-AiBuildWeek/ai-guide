@@ -87,6 +87,8 @@ export const tr: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "İstenen",
   "profile.walking": "Yürüme",
   "profile.theStops": "Duraklar",
+  "profile.walkAgain": "Tekrar yürü",
+  "profile.walkAgainHint": "Aynı duraklar, seçtiğiniz dilde.",
   "profile.deleteOne": "Bu yürüyüşü sil",
   "profile.clearAll": "Hepsini temizle",
   "profile.save": "Ayarları kaydet",

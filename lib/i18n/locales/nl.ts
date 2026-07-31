@@ -87,6 +87,8 @@ export const nl: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Gevraagd",
   "profile.walking": "Lopen",
   "profile.theStops": "De stops",
+  "profile.walkAgain": "Nog eens lopen",
+  "profile.walkAgainHint": "Dezelfde stops, in de taal die je kiest.",
   "profile.deleteOne": "Verwijder deze wandeling",
   "profile.clearAll": "Alles wissen",
   "profile.save": "Instellingen opslaan",

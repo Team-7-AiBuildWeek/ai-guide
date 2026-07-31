@@ -87,6 +87,8 @@ export const ja: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "希望",
   "profile.walking": "歩行",
   "profile.theStops": "立ち寄り先",
+  "profile.walkAgain": "もう一度歩く",
+  "profile.walkAgainHint": "同じスポットを、選んだ言語で。",
   "profile.deleteOne": "この散歩を削除",
   "profile.clearAll": "すべて消去",
   "profile.save": "設定を保存",

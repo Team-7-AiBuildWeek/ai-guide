@@ -87,6 +87,8 @@ export const fr: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Demandé",
   "profile.walking": "Marche",
   "profile.theStops": "Les étapes",
+  "profile.walkAgain": "Refaire la balade",
+  "profile.walkAgainHint": "Les mêmes étapes, dans la langue que vous choisissez.",
   "profile.deleteOne": "Supprimer cette balade",
   "profile.clearAll": "Tout effacer",
   "profile.save": "Enregistrer les réglages",

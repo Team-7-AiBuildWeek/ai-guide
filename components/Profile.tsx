@@ -14,13 +14,15 @@ import Link from "next/link";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
-import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/tour/flow";
+import { EMPTY_DRAFT, loadDraft, saveDraft, saveRebuild } from "@/lib/tour/flow";
 import {
+  canWalkAgain,
   formatDistance,
   formatWhen,
   forgetAllWalks,
   forgetWalk,
   loadWalks,
+  planFor,
   type WalkRecord,
 } from "@/lib/tour/history";
 
@@ -41,6 +43,26 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const minutes = Math.max(1, Math.round(walk.seconds / 60));
+
+  /**
+   * The language this walk is about to be repeated in.
+   *
+   * Starts on the one it was built in, so the button is honest before it is
+   * touched: pressing it without opening the picker walks the same walk again,
+   * exactly as it was.
+   */
+  const [againLang, setAgainLang] = useState(walk.lang);
+  const again = canWalkAgain(walk);
+
+  const walkAgain = () => {
+    const plan = planFor(walk);
+    if (!walk.req || !plan) return;
+    saveRebuild({ req: { ...walk.req, lang: againLang }, plan });
+    // A full navigation rather than a client one: the flow reads the ask on
+    // mount, and a soft push would land on a TourFlow that has already
+    // mounted and already looked.
+    window.location.href = "/";
+  };
 
   return (
     <li className="rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
@@ -92,6 +114,35 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
               </li>
             ))}
           </ol>
+
+          {/* Walking it again. The language sits next to the button rather
+              than behind a second screen, because changing it is the whole
+              reason the button is interesting — the same walk in a language
+              you are learning, or one a visitor reads. */}
+          {again ? (
+            <div className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--canvas)] p-3">
+              <label className="flex items-center justify-between gap-3">
+                <span className="u-eyebrow">{t("brief.language")}</span>
+                <select
+                  value={againLang}
+                  onChange={(e) => setAgainLang(e.target.value)}
+                  className="min-h-[44px] max-w-[60%] rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[length:var(--text-body)] text-[color:var(--ink)]"
+                >
+                  {LANGUAGES.map((l) => (
+                    <option key={l.code} value={l.code}>
+                      {l.endonym === l.english ? l.endonym : `${l.endonym} — ${l.english}`}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button type="button" onClick={walkAgain} className="btn btn--filled mt-3 w-full">
+                {t("profile.walkAgain")}
+              </button>
+              <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+                {t("profile.walkAgainHint")}
+              </p>
+            </div>
+          ) : null}
 
           <button
             type="button"

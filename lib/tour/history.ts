@@ -14,6 +14,7 @@
  */
 
 import type { StoredTour } from "./flow";
+import type { Stop, TourPlan, TourRequest } from "@/lib/providers/types";
 import { tourTiming } from "./timing";
 
 export type WalkRecord = {
@@ -30,7 +31,45 @@ export type WalkRecord = {
   seconds: number;
   /** The walker's own brief, when they wrote one. */
   freeText?: string;
+  /**
+   * Enough to walk it a second time.
+   *
+   * The summary above is for recognising a walk; these two are for rebuilding
+   * it. Kept because "the same walk again, in another language" is otherwise
+   * impossible: asking the model for the same brief twice gives two different
+   * itineraries, and the walker meant *this* one.
+   *
+   * Optional because every walk saved before this existed has neither, and a
+   * history that throws them away to add a button is a bad trade.
+   */
+  req?: TourRequest;
+  /**
+   * The stops as walked, minus their narration.
+   *
+   * The narration is the part that would fill the quota — thirty walks of it
+   * is well past what localStorage gives a site — and it is also the part
+   * that is wrong in the new language. Coordinates here are the snapped ones,
+   * already checked against the real map, so a rebuild needs no geocoding.
+   */
+  stops?: Stop[];
 };
+
+/** A walk that kept enough of itself to be walked again. */
+export function canWalkAgain(w: WalkRecord): boolean {
+  return !!w.req?.start && !!w.stops?.length;
+}
+
+/**
+ * The itinerary, in the shape the tour API takes back.
+ *
+ * Titles and summaries are written in the old language, so they are left
+ * behind: a rebuild in Japanese should not open with an English title. What
+ * survives is the geography — which places, in which order.
+ */
+export function planFor(w: WalkRecord): TourPlan | null {
+  if (!w.stops?.length) return null;
+  return { title: w.title, summary: "", stops: w.stops };
+}
 
 const KEY = "btour:history:v1";
 /** Enough to recognise a habit, few enough to never trouble the quota. */
@@ -70,6 +109,15 @@ export function rememberWalk(tour: StoredTour): void {
     // an hour over.
     seconds: tourTiming(tour).total,
     freeText: tour.req?.freeText,
+    req: tour.req,
+    // Stripped of narration and of the walking cues, which describe the way
+    // from the previous stop in the language it was written in. Both are
+    // rewritten per stop on the next walk anyway.
+    stops: tour.plan.stops.map(({ script, walkingCueToHere, ...rest }) => {
+      void script;
+      void walkingCueToHere;
+      return rest;
+    }),
   };
   save([record, ...loadWalks()]);
 }

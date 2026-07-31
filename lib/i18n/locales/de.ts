@@ -87,6 +87,8 @@ export const de: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Gewünscht",
   "profile.walking": "Gehzeit",
   "profile.theStops": "Die Stationen",
+  "profile.walkAgain": "Noch einmal gehen",
+  "profile.walkAgainHint": "Dieselben Stationen, in der Sprache Ihrer Wahl.",
   "profile.deleteOne": "Diese Tour löschen",
   "profile.clearAll": "Alles löschen",
   "profile.save": "Einstellungen speichern",

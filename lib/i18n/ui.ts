@@ -136,6 +136,8 @@ const EN = {
   "profile.askedFor": "Asked for",
   "profile.walking": "Walking",
   "profile.theStops": "The stops",
+  "profile.walkAgain": "Walk it again",
+  "profile.walkAgainHint": "The same stops, in the language you pick.",
   "profile.deleteOne": "Delete this walk",
   "profile.clearAll": "Clear all",
   "profile.save": "Save settings",

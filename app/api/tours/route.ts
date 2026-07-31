@@ -15,7 +15,7 @@
 
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
-import type { TourRequest } from "@/lib/providers/types";
+import type { TourPlan, TourRequest } from "@/lib/providers/types";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 import { orderStops, walkLength } from "@/lib/tour/order";
 import { writeStopScript } from "@/lib/tour/scriptCache";
@@ -58,13 +58,31 @@ function sse(event: {
 
 export async function POST(request: Request) {
   let req: TourRequest;
+  /**
+   * An itinerary the caller already has, to be walked again rather than
+   * chosen again.
+   *
+   * When it is here, the model is not asked for stops at all: the same brief
+   * twice gives two different walks, and a walker repeating one in another
+   * language means *that* one. The stops arrive already snapped to real
+   * places and already in walking order, so the two passes that do that are
+   * skipped with them — leaving the route and the first narration, which are
+   * the parts that genuinely differ.
+   */
+  let given: TourPlan | null = null;
   try {
-    req = (await request.json()) as TourRequest;
+    const body = (await request.json()) as TourRequest & { plan?: TourPlan };
+    const { plan, ...rest } = body;
+    req = rest as TourRequest;
+    given = plan ?? null;
   } catch {
     return Response.json({ error: "Body must be JSON." }, { status: 400 });
   }
   if (!req?.start) {
     return Response.json({ error: "A starting point is required." }, { status: 400 });
+  }
+  if (given && !given.stops?.length) {
+    return Response.json({ error: "A tour to walk again needs its stops." }, { status: 400 });
   }
   // An unknown code would otherwise reach the prompt verbatim and be written in.
   req.lang = normaliseLang(req.lang);
@@ -82,45 +100,62 @@ export async function POST(request: Request) {
         const llm = getLLM();
         const maps = getMaps();
 
-        send({ phase: "stops", message: "Choosing your stops" });
-        const plan = await llm.generateTourPlan(req);
-        send({
-          phase: "stops",
-          message: `${plan.stops.length} stops chosen`,
-          preview: {
-            title: plan.title,
-            summary: plan.summary,
-            stops: plan.stops.map((s) => ({ name: s.name, angle: s.angle })),
-          },
-        });
+        let plan: TourPlan;
+        if (given) {
+          // Nothing to choose and nothing to check: these stops have been
+          // walked before, at coordinates the map already agreed with.
+          plan = given;
+          send({
+            phase: "stops",
+            message: `The same ${plan.stops.length} stops`,
+            preview: {
+              title: plan.title,
+              summary: plan.summary,
+              stops: plan.stops.map((s) => ({ name: s.name, angle: s.angle })),
+            },
+          });
+        } else {
+          send({ phase: "stops", message: "Choosing your stops" });
+          plan = await llm.generateTourPlan(req);
+          send({
+            phase: "stops",
+            message: `${plan.stops.length} stops chosen`,
+            preview: {
+              title: plan.title,
+              summary: plan.summary,
+              stops: plan.stops.map((s) => ({ name: s.name, angle: s.angle })),
+            },
+          });
 
-        // The model's coordinates are plausible, not correct. Look each stop up
-        // on the real map before anything is drawn, routed or reordered.
-        send({ phase: "locating", message: "Checking the stops against the map" });
-        try {
-          const snapped = await snapStopsToRealPlaces(maps, plan.stops, req.start);
-          plan.stops = snapped.stops;
-          if (snapped.unmatched.length) {
+          // The model's coordinates are plausible, not correct. Look each stop
+          // up on the real map before anything is drawn, routed or reordered.
+          send({ phase: "locating", message: "Checking the stops against the map" });
+          try {
+            const snapped = await snapStopsToRealPlaces(maps, plan.stops, req.start);
+            plan.stops = snapped.stops;
+            if (snapped.unmatched.length) {
+              send({
+                phase: "locating",
+                message: `${snapped.corrected} placed exactly · ${snapped.unmatched.length} kept as estimated`,
+              });
+            }
+          } catch {
+            // Estimated coordinates beat no tour.
+          }
+
+          // Now the coordinates are real, put them in walking order — before
+          // the narration is written, because the cues describe the previous
+          // stop.
+          send({ phase: "ordering", message: "Putting them in walking order" });
+          const before = walkLength(plan.stops, req.start, req.end);
+          plan.stops = orderStops(plan.stops, req.start, req.end);
+          const after = walkLength(plan.stops, req.start, req.end);
+          if (after < before - 50) {
             send({
-              phase: "locating",
-              message: `${snapped.corrected} placed exactly · ${snapped.unmatched.length} kept as estimated`,
+              phase: "ordering",
+              message: `Reordered — about ${Math.round((before - after) / 50) * 50} m less walking`,
             });
           }
-        } catch {
-          // Estimated coordinates beat no tour.
-        }
-
-        // Now the coordinates are real, put them in walking order — before the
-        // narration is written, because the cues describe the previous stop.
-        send({ phase: "ordering", message: "Putting them in walking order" });
-        const before = walkLength(plan.stops, req.start, req.end);
-        plan.stops = orderStops(plan.stops, req.start, req.end);
-        const after = walkLength(plan.stops, req.start, req.end);
-        if (after < before - 50) {
-          send({
-            phase: "ordering",
-            message: `Reordered — about ${Math.round((before - after) / 50) * 50} m less walking`,
-          });
         }
 
         send({ phase: "route", message: "Planning the walking route" });

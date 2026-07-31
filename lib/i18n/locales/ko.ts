@@ -87,6 +87,8 @@ export const ko: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "요청",
   "profile.walking": "걷기",
   "profile.theStops": "장소",
+  "profile.walkAgain": "다시 걷기",
+  "profile.walkAgainHint": "같은 장소를, 선택한 언어로.",
   "profile.deleteOne": "이 산책 삭제",
   "profile.clearAll": "모두 지우기",
   "profile.save": "설정 저장",

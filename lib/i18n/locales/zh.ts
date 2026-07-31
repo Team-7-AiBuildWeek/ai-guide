@@ -87,6 +87,8 @@ export const zh: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "设定时长",
   "profile.walking": "步行",
   "profile.theStops": "站点",
+  "profile.walkAgain": "再走一次",
+  "profile.walkAgainHint": "同样的站点，用你选择的语言。",
   "profile.deleteOne": "删除这条散步",
   "profile.clearAll": "全部清除",
   "profile.save": "保存设置",

@@ -87,6 +87,8 @@ export const hu: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Kért idő",
   "profile.walking": "Gyaloglás",
   "profile.theStops": "A megállók",
+  "profile.walkAgain": "Séta újra",
+  "profile.walkAgainHint": "Ugyanazok a megállók, az általad választott nyelven.",
   "profile.deleteOne": "Séta törlése",
   "profile.clearAll": "Összes törlése",
   "profile.save": "Beállítások mentése",

@@ -87,6 +87,8 @@ export const sk: Partial<Record<UiKey, string>> = {
   "profile.askedFor": "Zadané",
   "profile.walking": "Chôdza",
   "profile.theStops": "Zastávky",
+  "profile.walkAgain": "Prejsť znova",
+  "profile.walkAgainHint": "Rovnaké zastávky, v jazyku, ktorý si vyberiete.",
   "profile.deleteOne": "Zmazať túto prechádzku",
   "profile.clearAll": "Vymazať všetko",
   "profile.save": "Uložiť nastavenia",
