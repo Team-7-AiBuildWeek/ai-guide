@@ -116,17 +116,15 @@ export function useTourAudio({
   const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
 
   /**
-   * Synthesis is billed per call and a long tour is dozens of them, so testing
-   * runs on the phone's own voice by way of the toggle.
-   * localStorage is unreadable during SSR, hence the deferred read.
+   * The guide's voice is the default again, now that there are credits to
+   * spend on it — synthesis is billed per call and a long tour is dozens of
+   * them, so this is the line to flip back to "device" when they run out. It
+   * is the only line that decides, and a walker who has already chosen keeps
+   * their choice either way.
+   *
+   * localStorage is unreadable during SSR, hence the deferred read below.
    */
-  /**
-   * The phone's own voice is the default while there are no synthesis credits
-   * to spend. Flip this back to "guide" when there are — it is the only line
-   * that decides, and a walker who has already chosen keeps their choice
-   * either way.
-   */
-  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("device");
+  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("guide");
   useEffect(() => {
     queueMicrotask(() => {
       const saved = localStorage.getItem(VOICE_MODE_KEY);
