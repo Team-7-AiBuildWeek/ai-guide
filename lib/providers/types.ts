@@ -186,6 +186,30 @@ export type WalkingRoute = {
   maneuvers: Maneuver[];
 };
 
+/**
+ * A leg of the tour spent on a tram or a bus rather than on foot.
+ *
+ * `from` and `to` index the tour's points, where 0 is the starting point and
+ * 1 upwards are the stops — the same numbering the route's legs use, so a ride
+ * and the walking either side of it can be lined up without guessing.
+ *
+ * Times are estimates and stops are counted, because the data behind this has
+ * lines and stops but no timetable. See lib/providers/transit/osm.ts.
+ */
+export type TourRide = {
+  from: number;
+  to: number;
+  mode: "tram" | "bus" | "trolleybus" | "subway" | "light_rail";
+  /** The line number, as painted on the vehicle. */
+  ref: string;
+  /** Where the line is heading, so the walker boards the right direction. */
+  headsign?: string;
+  board: { name: string; lat: number; lng: number };
+  alight: { name: string; lat: number; lng: number };
+  stops: number;
+  minutes: number;
+};
+
 // ------------------------------------------------------------------ errors
 
 /** Thrown by every provider so the app can distinguish vendor faults. */

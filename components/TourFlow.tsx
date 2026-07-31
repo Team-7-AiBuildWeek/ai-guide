@@ -450,6 +450,17 @@ export default function TourFlow({
   );
 
   const currentStop = tour?.plan.stops[currentIndex] ?? null;
+
+  /**
+   * The ride that gets the walker to the stop they are heading for, if this
+   * leg is one.
+   *
+   * A ride's `to` indexes the tour's points, where 0 is the starting point and
+   * the stops run from 1 — so the leg arriving at stop `n` is the ride whose
+   * `to` is `n + 1`. Off by one in either direction and the walker is told to
+   * catch a tram on the leg before or after the one that needs it.
+   */
+  const rideToCurrent = tour?.rides?.find((r) => r.to === currentIndex + 1) ?? null;
   const distanceToStop =
     fix && currentStop ? distanceMeters(fix, { lat: currentStop.lat, lng: currentStop.lng }) : null;
 
@@ -834,6 +845,7 @@ export default function TourFlow({
             accuracy={fix?.accuracy ?? null}
             turnInstruction={turn?.maneuver.instruction}
             turnMeters={turn?.meters}
+            ride={rideToCurrent}
             open={directionsOpen}
             onClose={() => setDirectionsOpen(false)}
             onSpeak={speak}

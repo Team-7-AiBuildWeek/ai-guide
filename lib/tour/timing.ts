@@ -64,7 +64,18 @@ export function tourTiming(tour: StoredTour): TourTiming {
   const walking = tour.meters > 0 ? Math.round(tour.meters / SPEED_MPS[pace]) : tour.seconds;
   const listening = Math.round(tour.plan.stops.length * spokenMinutes(detail) * 60);
 
-  return { walking, listening, total: walking + listening };
+  /**
+   * Time on a tram is time on the walk.
+   *
+   * It cannot come out of `meters`, which counts only what is walked — the
+   * ride's distance was never in there, so nothing has to be taken back out.
+   * It is added on its own because eleven minutes sitting down is eleven
+   * minutes of the hour the walker was promised, and a clock that leaves it
+   * out is the same clock that used to leave out the stops.
+   */
+  const riding = (tour.rides ?? []).reduce((s, r) => s + r.minutes * 60, 0);
+
+  return { walking: walking + riding, listening, total: walking + riding + listening };
 }
 
 /** The one number a walker is given, in whole minutes. */

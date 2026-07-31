@@ -9,8 +9,17 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { Stop, TourPlan } from "@/lib/providers/types";
+import type { Stop, TourPlan, TourRide } from "@/lib/providers/types";
 import { TRUSTED_M } from "@/lib/tour/fixQuality";
+
+/** What to call each thing on the front of the vehicle. */
+const RIDE_WORDS: Record<TourRide["mode"], string> = {
+  tram: "Tram",
+  bus: "Bus",
+  trolleybus: "Trolleybus",
+  subway: "Metro",
+  light_rail: "Train",
+};
 
 type QA = { question: string; answer: string | null; failed?: boolean };
 
@@ -20,6 +29,7 @@ export function DirectionsPanel({
   accuracy,
   turnInstruction,
   turnMeters,
+  ride,
   open,
   onClose,
   onSpeak,
@@ -31,6 +41,8 @@ export function DirectionsPanel({
   /** The router's own words for the next turn, when the route provided them. */
   turnInstruction?: string;
   turnMeters?: number;
+  /** Set when this leg is ridden rather than walked. */
+  ride?: TourRide | null;
   open: boolean;
   onClose: () => void;
   onSpeak: (text: string) => void;
@@ -66,9 +78,38 @@ export function DirectionsPanel({
           </button>
         </div>
 
+        {/* A ridden leg, when this one is. It comes before the turn arrow and
+            replaces it: the arrow is for someone walking, and pointing a
+            walker down a street they are meant to cross by tram is worse than
+            saying nothing. Line number first and biggest — it is what you look
+            for on the front of the thing. */}
+        {ride ? (
+          <div className="mt-4 rounded-[var(--radius-control)] border border-[color:var(--mint)] p-3">
+            <p className="text-[length:var(--text-lead)] font-semibold leading-snug">
+              <span className="text-[color:var(--mint)]">
+                {RIDE_WORDS[ride.mode]} {ride.ref}
+              </span>{" "}
+              from {ride.board.name}
+            </p>
+            <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--on-dark-mute)]">
+              {ride.headsign ? `Towards ${ride.headsign} · ` : ""}
+              {ride.stops} {ride.stops === 1 ? "stop" : "stops"} · about {ride.minutes} min
+            </p>
+            <p className="mt-2 text-[length:var(--text-body)] font-semibold">
+              Get off at {ride.alight.name}
+            </p>
+            {/* Said once, plainly. The data behind this has lines and stops
+                and no timetable, and a made-up departure time is worse than
+                no time at all. */}
+            <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--on-dark-mute)]">
+              Times vary — check the stop.
+            </p>
+          </div>
+        ) : null}
+
         {/* The turn first — it is the thing that expires. The guide's cue is
             the context, and it stays true for the whole leg. */}
-        {turnInstruction ? (
+        {!ride && turnInstruction ? (
           <p className="mt-4 text-[length:var(--text-lead)] font-semibold leading-relaxed">
             {turnInstruction}
             {typeof turnMeters === "number" && turnMeters >= 10 ? (
@@ -92,7 +133,9 @@ export function DirectionsPanel({
           type="button"
           onClick={() =>
             onSpeak(
-              [turnInstruction, cue].filter(Boolean).join(". ") || `Continue to ${stop.name}.`,
+              ride
+                ? `Take ${RIDE_WORDS[ride.mode]} ${ride.ref} from ${ride.board.name}, ${ride.stops} stops, and get off at ${ride.alight.name}.`
+                : [turnInstruction, cue].filter(Boolean).join(". ") || `Continue to ${stop.name}.`,
             )
           }
           className="btn btn--primary mt-5 w-full"

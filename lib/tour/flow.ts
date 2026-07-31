@@ -16,6 +16,7 @@ import type {
   Pace,
   TourPlan,
   TourRequest,
+  TourRide,
 } from "@/lib/providers/types";
 
 export type Stage =
@@ -181,6 +182,11 @@ export type StoredTour = {
   seconds: number;
   /** Empty when the provider could not route — the UI shows the cue instead. */
   maneuvers?: Maneuver[];
+  /**
+   * The legs spent on a tram or a bus rather than on foot. Absent on every
+   * tour built before this existed, which is why nothing may assume it.
+   */
+  rides?: TourRide[];
 };
 
 export function loadTour(): StoredTour | null {

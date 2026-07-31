@@ -15,7 +15,8 @@
 
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
-import type { TourPlan, TourRequest } from "@/lib/providers/types";
+import type { TourPlan, TourRequest, TourRide } from "@/lib/providers/types";
+import { findRides, routeWithRides } from "@/lib/tour/rides";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 import { orderStops, walkLength } from "@/lib/tour/order";
 import { writeStopScript } from "@/lib/tour/scriptCache";
@@ -158,19 +159,41 @@ export async function POST(request: Request) {
           }
         }
 
-        send({ phase: "route", message: "Planning the walking route" });
         const points = [
           { lat: req.start.lat, lng: req.start.lng },
           ...plan.stops.map((s) => ({ lat: s.lat, lng: s.lng })),
           ...(req.end ? [{ lat: req.end.lat, lng: req.end.lng }] : []),
         ];
 
+        /**
+         * Which gaps are ridden rather than walked.
+         *
+         * Before the routing, because it decides what there is to route: a gap
+         * with a tram across it is two short walks and a jump, not one long
+         * march. Returns nothing at all when the city has no transit mapped,
+         * when nothing useful joins the stops, or when the lookup runs out of
+         * time — all of which mean the same thing here, which is walk.
+         */
+        send({ phase: "route", message: "Looking for a way across" });
+        let rides: TourRide[] = [];
+        try {
+          rides = await findRides(points);
+          if (rides.length > 0) {
+            const lines = rides.map((r) => `${r.mode} ${r.ref}`).join(" · ");
+            send({ phase: "route", message: `Riding part of it — ${lines}` });
+          }
+        } catch {
+          // Overpass being unreachable is a walk, not a failure.
+        }
+
+        send({ phase: "route", message: "Planning the walking route" });
+
         let route: GeoJSON.Feature | null = null;
         let meters = 0;
         let seconds = 0;
         let maneuvers: unknown[] = [];
         try {
-          const r = await maps.walkingRoute(points);
+          const r = await routeWithRides(maps, points, rides);
           route = r.geojson as unknown as GeoJSON.Feature;
           meters = r.meters;
           seconds = r.seconds;
@@ -208,7 +231,7 @@ export async function POST(request: Request) {
           // Not fatal: the client asks again for anything it finds missing.
         }
 
-        send({ phase: "done", data: { plan, route, meters, seconds, maneuvers } });
+        send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides } });
       } catch (err) {
         send({
           phase: "error",

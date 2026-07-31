@@ -174,6 +174,20 @@ export function buildItineraryPrompt(req: TourRequest): string {
       ? `This is a long walk. Long walks need range: cross the river, climb the hill, ` +
         `leave the main square behind. ${shape.stops} stops crammed into one plaza is not a ${req.durationMinutes}-minute tour.`
       : ``,
+    /**
+     * The walk is no longer limited to what is walkable. Said to the model
+     * because it has spent the whole prompt being told this is a walking
+     * tour, and will otherwise keep every stop inside one quarter — which was
+     * the right instinct until there was a tram.
+     */
+    `THE TOUR CAN USE PUBLIC TRANSPORT. Where two stops are far apart the app finds`,
+    `the tram or bus between them and tells the walker which line to take. So a`,
+    `landmark on the other side of the city is allowed, and worth it when it is`,
+    `genuinely one of the things to see. Do not name lines or numbers yourself —`,
+    `you do not know them, and the app looks up the real ones.`,
+    `Judgement, not licence: somewhere worth a ride across town, not a stop in`,
+    `every district for the sake of the map. Most stops should still be a walk`,
+    `from the one before.`,
     ``,
     `Pace: ${PACE_WORDS[req.pace]}`,
     `Depth: ${DETAIL_WORDS[req.detail]}`,
