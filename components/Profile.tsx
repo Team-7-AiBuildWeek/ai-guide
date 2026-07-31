@@ -23,9 +23,7 @@ import {
   loadWalks,
   type WalkRecord,
 } from "@/lib/tour/history";
-import type { VoiceMode } from "@/lib/audio/useTourAudio";
 
-const VOICE_MODE_KEY = "btour:voice-mode:v1";
 const never = () => () => {};
 
 function Stat({ label, value }: { label: string; value: string }) {
@@ -134,28 +132,6 @@ export default function Profile() {
     () => false,
   );
 
-  /**
-   * Unset means the guide, matching useTourAudio's default — and it has to
-   * keep matching it, or this screen shows a walker one voice while the walk
-   * uses the other. "gemini" is the old name for the guide, so it resolves
-   * the same way here as it does there.
-   */
-  const voice = useSyncExternalStore(
-    never,
-    () => (localStorage.getItem(VOICE_MODE_KEY) === "device" ? "device" : "guide") as VoiceMode,
-    () => "guide" as VoiceMode,
-  );
-
-  const setVoice = (mode: VoiceMode) => {
-    try {
-      localStorage.setItem(VOICE_MODE_KEY, mode);
-    } catch {
-      /* private mode */
-    }
-    // Nothing subscribes to this key, so the page has to redraw itself.
-    setWalks((w) => [...w]);
-  };
-
   const setDefaultLang = (next: string) => {
     setLang(next);
     saveDraft({ ...(loadDraft() ?? EMPTY_DRAFT), lang: next });
@@ -207,30 +183,6 @@ export default function Profile() {
           </select>
         </div>
 
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="u-eyebrow">{t("profile.voice")}</p>
-          <div className="flex gap-2">
-            {(
-              [
-                ["guide", t("profile.voiceGuide")],
-                ["device", t("profile.voicePhone")],
-              ] as [VoiceMode, string][]
-            ).map(([mode, label]) => (
-              <button
-                key={mode}
-                type="button"
-                aria-pressed={voice === mode}
-                onClick={() => setVoice(mode)}
-                className="pill"
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          {t("profile.voiceHint")}
-        </p>
       </section>
 
       <section>

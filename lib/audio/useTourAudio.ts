@@ -4,8 +4,14 @@
  * Binds the engine and the library to a tour, and to React.
  *
  * Everything the player UI needs is here: what is playing, how much of it has
- * been written and spoken so far, and the things a walker can do — play, skip,
- * seek, and choose whose voice reads it.
+ * been written and spoken so far, and the things a walker can do — play, skip
+ * and seek.
+ *
+ * Which voice reads the tour is no longer among them. A walk is read by the
+ * guide; the phone's own voice steps in only when the guide's cannot be made.
+ * Nobody was ever going to choose the worse voice on purpose, and asking made
+ * the walker responsible for a decision that is really about whether a
+ * synthesis call succeeded.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
@@ -19,16 +25,6 @@ const NO_STATES: Record<string, StopState> = {};
 
 const NO_SPEECH: DeviceVoiceState = { speaking: false, paused: false };
 
-/**
- * Which voice reads the tour. Persisted so a reload keeps the choice.
- *
- * "guide" is whichever synthesis provider is configured — ElevenLabs today,
- * Gemini before it, and the app should not have to be edited to change that
- * again. It used to be called "gemini", which is why the stored value is still
- * accepted below.
- */
-export type VoiceMode = "guide" | "device";
-const VOICE_MODE_KEY = "btour:voice-mode:v1";
 
 const SERVER_STATE: EngineState = {
   ready: false,
@@ -116,36 +112,10 @@ export function useTourAudio({
   const [unlocked, setUnlocked] = useState(audioEngine.unlocked);
 
   /**
-   * The guide's voice is the default again, now that there are credits to
-   * spend on it — synthesis is billed per call and a long tour is dozens of
-   * them, so this is the line to flip back to "device" when they run out. It
-   * is the only line that decides, and a walker who has already chosen keeps
-   * their choice either way.
-   *
-   * localStorage is unreadable during SSR, hence the deferred read below.
+   * A play tap that arrived before there was anything to play it on, waiting
+   * for the stop to be loaded. Nothing else starts a sound on its own.
    */
-  const [voiceMode, setVoiceModeState] = useState<VoiceMode>("guide");
-  useEffect(() => {
-    queueMicrotask(() => {
-      const saved = localStorage.getItem(VOICE_MODE_KEY);
-      if (saved === "device") setVoiceModeState("device");
-      // "gemini" is what this was called when Gemini was the only voice that
-      // was not the phone's. Anyone carrying that in localStorage means guide.
-      else if (saved === "guide" || saved === "gemini") setVoiceModeState("guide");
-    });
-  }, []);
-
-  const setVoiceMode = useCallback((mode: VoiceMode) => {
-    setVoiceModeState(mode);
-    try {
-      localStorage.setItem(VOICE_MODE_KEY, mode);
-    } catch {
-      /* private mode */
-    }
-    // Whichever voice was mid-sentence should stop before the other starts.
-    deviceVoice.stop();
-    audioEngine.pause();
-  }, []);
+  const playOnLoad = useRef(false);
 
   /**
    * The short way round.
@@ -157,16 +127,28 @@ export function useTourAudio({
    */
   const [speedrun, setSpeedrun] = useState(false);
 
-  /** The phone is reading — either because it was chosen, or as a fallback. */
-  const deviceChosen = voiceMode === "device" && deviceVoice.supported;
-  const broken = stopState.script === "failed" || stopState.voice === "failed";
+  /**
+   * The understudy.
+   *
+   * The phone reads only when the guide cannot, and only when there is
+   * something for it to read: a stop whose *words* failed has nothing for
+   * either voice, so the phone is no use there and pretending otherwise gets
+   * it reading an empty string. The fallback is specifically for the case
+   * where the words exist and the synthesis of them did not arrive.
+   */
+  const haveWords = stopState.script === "ready";
+  const guideUnavailable = stopState.voice === "failed";
+  const usingDeviceVoice = guideUnavailable && haveWords && deviceVoice.supported;
+
+  /** Nothing can read this stop: no words, or no voice able to say them. */
+  const broken = stopState.script === "failed" || (guideUnavailable && !usingDeviceVoice);
+
   /**
    * Held back by the rate-limit brake, which is not the same as broken and
-   * must not be folded into it: `broken` falls back to the phone's voice, and
-   * a held stop has no words for the phone to read either.
+   * must not be folded into it: `broken` offers a retry, and a held stop has
+   * nothing to retry — it was never attempted.
    */
   const held = stopState.script === "held";
-  const usingDeviceVoice = deviceChosen || (broken && deviceVoice.supported);
 
   /**
    * How far into each stop the walker had got.
@@ -242,29 +224,21 @@ export function useTourAudio({
       const written = await library.ensureScript(stop.id);
       if (cancelled || !written) return; // the failed state drives the fallback
 
-      if (deviceChosen) {
-        audioEngine.pause();
-        // The phone's voice has no pieces to stop after, so the short way round
-        // has to be done by handing it less to read.
-        const spoken = speedrun
-          ? (library.chunksOf(stop.id)[0] ?? library.scriptOf(stop.id) ?? "")
-          : (library.scriptOf(stop.id) ?? "");
-        deviceVoice.speak(spoken, lang, () => onAdvanceRef.current());
-        return;
-      }
       deviceVoice.stop();
       // Started before the synthesis rather than after it: writing the next
       // stop takes about ninety seconds and hits a different endpoint, so it
       // costs nothing to run it alongside. Waiting until this stop was fully
       // recorded spent the walker's listening time twice over.
       library.prefetchAround(index);
+      // Makes the voice; does not play it. Nothing here starts a sound — that
+      // is the walker's tap, and only the walker's tap.
       await library.ensureAudio(stop.id);
     })();
 
     return () => {
       cancelled = true;
     };
-  }, [active, stop, index, library, lang, deviceChosen, speedrun]);
+  }, [active, stop, index, library]);
 
   /**
    * The same work, minus the playing, before the walk starts.
@@ -273,23 +247,23 @@ export function useTourAudio({
    * and harmless if it did, since both go through the library's job maps and
    * the second caller joins the first one's promise.
    *
-   * The script is fetched whichever voice is chosen: the phone reads the same
-   * words, and writing them is the slow half. Synthesis is guide-voice only,
-   * because the phone's voice is made locally at the moment it speaks and
-   * there is nothing to make in advance.
+   * Both halves are made up front. The phone's voice needs the same words, and
+   * writing them is the slow half; the guide's voice is made in advance
+   * because it can be, and because a walker who taps play should hear
+   * something immediately rather than wait for the first recording.
    */
   useEffect(() => {
     if (!warm || active || !stop) return;
     let cancelled = false;
     void (async () => {
       const written = await library.ensureScript(stop.id);
-      if (cancelled || !written || deviceChosen) return;
+      if (cancelled || !written) return;
       await library.ensureAudio(stop.id);
     })();
     return () => {
       cancelled = true;
     };
-  }, [warm, active, stop, library, deviceChosen]);
+  }, [warm, active, stop, library]);
 
   /**
    * The narration as written, in the pieces it is spoken in.
@@ -314,10 +288,10 @@ export function useTourAudio({
    * about pieces.
    */
   useEffect(() => {
-    if (!speedrun || !active || deviceChosen) return;
+    if (!speedrun || !active || usingDeviceVoice) return;
     if (engine.track?.stopId !== stop?.id) return;
     if (engine.chunkIndex >= 1) onAdvanceRef.current();
-  }, [speedrun, active, deviceChosen, engine.chunkIndex, engine.track?.stopId, stop?.id]);
+  }, [speedrun, active, usingDeviceVoice, engine.chunkIndex, engine.track?.stopId, stop?.id]);
 
   /**
    * Point the engine at the current stop, once there is an element to point.
@@ -327,7 +301,7 @@ export function useTourAudio({
    * walker taps anything, and they are handed over here rather than lost.
    */
   useEffect(() => {
-    if (!active || !stop || !unlocked || deviceChosen) return;
+    if (!active || !stop || !unlocked || usingDeviceVoice) return;
     let cancelled = false;
 
     void (async () => {
@@ -352,12 +326,21 @@ export function useTourAudio({
           album,
           chunkEstimates: library.estimatesFor(stop.id),
         },
-        { autoplay: true, startAt: heardUpToRef.current[stop.id] ?? 0 },
+        // Loaded, cued, and silent. Arriving at a stop is not asking to hear
+        // it: the walker may be reading the map, crossing a road, or still
+        // catching up with the last one. The narration waits for the tap.
+        { autoplay: false, startAt: heardUpToRef.current[stop.id] ?? 0 },
       );
       if (cancelled) return;
       // Anything already synthesised while we were locked.
       for (const [i, url] of library.readyChunks(stop.id)) {
         audioEngine.setChunk(stop.id, i, url);
+      }
+      // The one place a sound starts without a fresh tap — and only because a
+      // tap is exactly what put this here.
+      if (playOnLoad.current) {
+        playOnLoad.current = false;
+        void audioEngine.play();
       }
     })();
 
@@ -373,7 +356,7 @@ export function useTourAudio({
     library,
     stops.length,
     unlocked,
-    deviceChosen,
+    usingDeviceVoice,
     album,
     stopState.chunksTotal,
     rememberPosition,
@@ -402,19 +385,47 @@ export function useTourAudio({
     if (speaking.speaking && !speaking.paused) deviceVoice.toggle();
   }, []);
 
-  /** Any play gesture also counts as the unlocking tap. */
+  /**
+   * Any play gesture also counts as the unlocking tap.
+   *
+   * Nothing speaks until this runs. Since the fetching effects no longer start
+   * the phone's voice, the first tap on a fallback stop has to *begin* the
+   * reading rather than toggle a stream that was never started — toggling one
+   * that does not exist is how the play button became a button that did
+   * nothing.
+   */
   const toggle = useCallback(() => {
     if (usingDeviceVoice) {
+      if (!deviceVoice.getState().speaking && stop) {
+        // The phone's voice has no pieces to stop after, so the short way
+        // round has to be done by handing it less to read.
+        const spoken = speedrun
+          ? (library.chunksOf(stop.id)[0] ?? library.scriptOf(stop.id) ?? "")
+          : (library.scriptOf(stop.id) ?? "");
+        deviceVoice.speak(spoken, lang, () => onAdvanceRef.current());
+        return;
+      }
       deviceVoice.toggle();
       return;
     }
     if (!audioEngine.unlocked) {
       audioEngine.unlock();
       setUnlocked(true);
-      return; // the effect above loads and plays as soon as it sees this
+      /**
+       * Remembered rather than played, because there is nothing to play yet:
+       * the stop is loaded by the effect below, on the render after this one,
+       * and `loadStop` clears any play intent the engine was holding. Calling
+       * play() here would be silently undone a moment later.
+       *
+       * This is the path a tour restored from localStorage takes — it lands on
+       * the tour screen having never seen the headphones tap, so the play
+       * button is the first thing touched.
+       */
+      playOnLoad.current = true;
+      return;
     }
     audioEngine.toggle();
-  }, [usingDeviceVoice]);
+  }, [usingDeviceVoice, stop, speedrun, library, lang]);
 
   return {
     ...engine,
@@ -422,9 +433,6 @@ export function useTourAudio({
     playing: usingDeviceVoice ? speech.speaking && !speech.paused : engine.playing,
     stopState,
     usingDeviceVoice,
-    deviceChosen,
-    voiceMode,
-    setVoiceMode,
     speedrun,
     setSpeedrun,
     /** The whole narration, for reading rather than listening. */
@@ -435,7 +443,7 @@ export function useTourAudio({
      * True until there is something to press play on. The device voice needs
      * only the words; the synthesised voice needs them and its first recording.
      */
-    preparing: deviceChosen
+    preparing: usingDeviceVoice
       ? active && stopState.script !== "ready" && !broken && !held
       : active && !stopState.playable && !broken && !held,
     /** What the walker is waiting for, in words. */

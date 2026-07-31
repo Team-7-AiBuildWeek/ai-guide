@@ -3,9 +3,13 @@
 /**
  * The expanded player.
  *
- * Play/pause, where you are in the stop, and which voice reads it. There used
- * to be a short/full toggle here; every stop is four to five minutes now, so
- * there is nothing to choose between.
+ * Play/pause and where you are in the stop. There used to be a short/full
+ * toggle here, and a voice chooser next to it; every stop is four to five
+ * minutes now, and the voice is the guide's unless hers could not be made, so
+ * there is nothing to choose between in either case.
+ *
+ * Nothing here plays by itself. Arriving at a stop loads it and stops there —
+ * the narration waits for the button.
  *
  * The scrubber shows two things at once: how far the walker has listened, and
  * how much of the narration has actually been recorded. Narration is
@@ -14,7 +18,6 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { VoiceMode } from "@/lib/audio/useTourAudio";
 import StopPhoto from "./StopPhoto";
 
 /**
@@ -73,8 +76,6 @@ export default function Player({
   failedPart,
   usingDeviceVoice,
   photo,
-  voiceMode,
-  onVoiceMode,
   speedrun,
   onSpeedrun,
   chunks,
@@ -103,12 +104,10 @@ export default function Player({
   failReason: string | null;
   /** Which half broke — the words or the voice. */
   failedPart: "script" | "voice";
-  /** The phone is reading — chosen, or because synthesis was unavailable. */
+  /** The phone is reading, because the guide's voice could not be made. */
   usingDeviceVoice: boolean;
   /** Where this stop is, so its photograph can be found. */
   photo: { name: string; localName?: string; lat: number; lng: number; lang: string };
-  voiceMode: VoiceMode;
-  onVoiceMode: (m: VoiceMode) => void;
   /** Only the opening of each stop, then walk on. */
   speedrun: boolean;
   onSpeedrun: (on: boolean) => void;
@@ -169,7 +168,7 @@ export default function Player({
       {/* The reason matters: a spent daily quota is fixed by enabling billing,
           a busy model by waiting a minute, and a failed script is not about
           the voice at all. "Unavailable" sent people to the wrong place. */}
-      {usingDeviceVoice && voiceMode !== "device" && !held ? (
+      {usingDeviceVoice && !held ? (
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           Read by your phone —{" "}
           {failReason ?? (failedPart === "script" ? "this stop could not be written." : "the guide's voice was unavailable.")}
@@ -343,39 +342,6 @@ export default function Player({
         </div>
       ) : null}
 
-      {/* Which voice reads the tour. Synthesis bills per stop and a tour is a
-          dozen calls, so testing runs on the phone's free voice. Named for what
-          they are rather than for whoever supplies them — the guide's voice has
-          been Gemini and is now ElevenLabs, and neither belongs on screen.
-          Remove this control once the narration is settled — it is
-          scaffolding. */}
-      <div
-        role="group"
-        aria-label="Which voice reads the tour"
-        className="flex items-center justify-between gap-2 rounded-[var(--radius-control)] border border-dashed border-[color:var(--line-strong)] px-3 py-2"
-      >
-        <span className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Voice
-        </span>
-        <div className="flex gap-1">
-          {(
-            [
-              ["device", "Phone"],
-              ["guide", "Guide"],
-            ] as [VoiceMode, string][]
-          ).map(([mode, label]) => (
-            <button
-              key={mode}
-              type="button"
-              aria-pressed={voiceMode === mode}
-              onClick={() => onVoiceMode(mode)}
-              className="pill"
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      </div>
     </div>
   );
 }

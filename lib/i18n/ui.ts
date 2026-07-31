@@ -131,11 +131,6 @@ const EN = {
   "profile.settings": "Settings",
   "profile.settingsHint":
     "These carry over to every new walk. Each one can still be changed while building a tour.",
-  "profile.voice": "Voice",
-  "profile.voiceGuide": "Guide",
-  "profile.voicePhone": "Phone",
-  "profile.voiceHint":
-    "The guide’s voice is synthesised and sounds like a person. Your phone’s own voice is free, works offline, and sounds like a phone.",
   "profile.past": "Past walks",
   "profile.empty": "Nothing yet. The walks you build are kept here, on this device.",
   "profile.askedFor": "Asked for",
