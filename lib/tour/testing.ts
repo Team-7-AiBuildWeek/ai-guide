@@ -26,7 +26,7 @@
  * prefetch of the next stop's words. Nothing else needs touching — every
  * other file reads this flag rather than keeping its own copy.
  */
-export const RATE_LIMIT_MODE = true;
+export const RATE_LIMIT_MODE = false;
 
 /** Minutes of narration per stop while the brake is on. */
 export const TESTING_SCRIPT_MINUTES = 2;
