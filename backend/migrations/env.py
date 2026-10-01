@@ -3,8 +3,11 @@ import os
 from alembic import context
 from sqlalchemy import create_engine
 
+from app.config import sqlalchemy_url
+
 config = context.config
-url = config.attributes.get("database_url") or os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+url = sqlalchemy_url(config.attributes.get("database_url") or os.environ.get("DATABASE_URL")
+                     or config.get_main_option("sqlalchemy.url"))
 
 
 def run_migrations_online() -> None:

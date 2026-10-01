@@ -81,3 +81,10 @@ def test_concurrent_requests_for_the_same_miss_create_one_script_one_job_one_res
 def _today():
     from datetime import UTC, datetime
     return datetime.now(UTC).date()
+
+
+def test_hosted_postgres_urls_are_given_the_psycopg_driver():
+    from app.config import sqlalchemy_url
+    assert sqlalchemy_url("postgres://u:p@h/db?sslmode=require") == "postgresql+psycopg://u:p@h/db?sslmode=require"
+    assert sqlalchemy_url("postgresql://u@h/db") == "postgresql+psycopg://u@h/db"
+    assert sqlalchemy_url("postgresql+psycopg://u@h/db") == "postgresql+psycopg://u@h/db"

@@ -40,6 +40,15 @@ THEMES: dict[str, set[str]] = {
 }
 
 
+def sqlalchemy_url(url: str) -> str:
+    """Hosted Postgres (Neon, Supabase) hands out postgres:// or postgresql:// URLs;
+    SQLAlchemy needs to be told to use psycopg 3, the driver this project installs."""
+    for prefix in ("postgres://", "postgresql://"):
+        if url.startswith(prefix):
+            return "postgresql+psycopg://" + url[len(prefix):]
+    return url
+
+
 def _env(name: str, default: str | None = None) -> str | None:
     value = os.environ.get(name)
     return value if value not in (None, "") else default
@@ -47,7 +56,12 @@ def _env(name: str, default: str | None = None) -> str | None:
 
 @dataclass(frozen=True)
 class Settings:
-    database_url: str = field(default_factory=lambda: _env("DATABASE_URL", "postgresql+psycopg://walk@localhost:5432/walk"))
+    database_url: str = field(default_factory=lambda: sqlalchemy_url(
+        _env("DATABASE_URL", "postgresql+psycopg://walk@localhost:5432/walk")))
+    # Migrations take a session lock and run DDL, which a connection pooler (Neon's
+    # default DATABASE_URL) breaks. Neon also provides the direct URL; use it when present.
+    migration_database_url: str = field(default_factory=lambda: sqlalchemy_url(
+        _env("DATABASE_URL_UNPOOLED") or _env("DATABASE_URL", "postgresql+psycopg://walk@localhost:5432/walk")))
 
     # Object storage: Cloudflare R2 in production, MinIO locally. Both speak S3.
     # "local" writes to ./local-audio for laptop runs without Docker (file:// URLs, dev only).
@@ -66,9 +80,9 @@ class Settings:
     signed_url_ttl_s: int = field(default_factory=lambda: int(_env("SIGNED_URL_TTL_S", str(24 * 3600))))
 
     # Providers: real ones by default; "fake" runs everything offline at zero cost.
-    llm_provider: str = field(default_factory=lambda: _env("LLM_PROVIDER", "gemini"))
-    tts_provider: str = field(default_factory=lambda: _env("TTS_PROVIDER", "chirp"))
-    routing_provider: str = field(default_factory=lambda: _env("ROUTING_PROVIDER", "ors"))
+    llm_provider: str = field(default_factory=lambda: _env("BACKEND_LLM_PROVIDER", "gemini"))
+    tts_provider: str = field(default_factory=lambda: _env("BACKEND_TTS_PROVIDER", "chirp"))
+    routing_provider: str = field(default_factory=lambda: _env("BACKEND_ROUTING_PROVIDER", "ors"))
 
     gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
     ors_api_key: str | None = field(default_factory=lambda: _env("ORS_API_KEY"))

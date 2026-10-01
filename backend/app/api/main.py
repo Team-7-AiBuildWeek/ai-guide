@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
         if app.state.settings.migrate_on_start:
             from app.migrate import upgrade_to_head
 
-            upgrade_to_head(app.state.settings.database_url)
+            upgrade_to_head(app.state.settings.migration_database_url)
         app.state.sessions = session_factory()
         app.state.providers = build_providers(app.state.settings)
         app.state.storage = get_storage()

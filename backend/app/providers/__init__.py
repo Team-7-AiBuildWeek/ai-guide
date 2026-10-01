@@ -1,4 +1,8 @@
-"""Provider wiring. Real providers by default; LLM/TTS/ROUTING_PROVIDER=fake for offline."""
+"""Provider wiring. Real providers by default; BACKEND_{LLM,TTS,ROUTING}_PROVIDER=fake for offline.
+
+Prefixed because on Vercel the web app and this backend share one set of environment
+variables, and the web app already uses LLM_PROVIDER and TTS_PROVIDER for itself.
+"""
 
 from dataclasses import dataclass
 

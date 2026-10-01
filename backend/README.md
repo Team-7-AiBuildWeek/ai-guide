@@ -95,7 +95,7 @@ there pushes the function over its 500 MB limit.
 # from backend/
 python3.12 -m venv ../.local/venv && ../.local/venv/bin/pip install -e '.[dev]'
 export DATABASE_URL=postgresql+psycopg://user@localhost:5432/walk
-export LLM_PROVIDER=fake TTS_PROVIDER=fake ROUTING_PROVIDER=fake STORAGE_BACKEND=local ADMIN_TOKEN=change-me
+export BACKEND_LLM_PROVIDER=fake BACKEND_TTS_PROVIDER=fake BACKEND_ROUTING_PROVIDER=fake STORAGE_BACKEND=local ADMIN_TOKEN=change-me
 ../.local/venv/bin/alembic upgrade head
 ../.local/venv/bin/walk storage-init
 ../.local/venv/bin/uvicorn app.api.main:app --reload --port 8000   # API
@@ -177,9 +177,9 @@ The bundle the app downloads (`GET /tours/1/bundle`), one stop shown:
 
 ```sh
 # .env
-LLM_PROVIDER=gemini      GEMINI_API_KEY=...
-TTS_PROVIDER=chirp       GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
-ROUTING_PROVIDER=ors     ORS_API_KEY=...
+BACKEND_LLM_PROVIDER=gemini      GEMINI_API_KEY=...
+BACKEND_TTS_PROVIDER=chirp       GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+BACKEND_ROUTING_PROVIDER=ors     ORS_API_KEY=...
 WIKIMEDIA_CONTACT="you@example.com"     # Wikimedia requires a contact in the User-Agent
 S3_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com  S3_ACCESS_KEY_ID=...  S3_SECRET_ACCESS_KEY=...
 ```
@@ -257,12 +257,12 @@ Project environment variables (shared by both services):
 
 | Variable | |
 |---|---|
-| `DATABASE_URL` | `postgresql+psycopg://...` (Neon or Supabase) |
+| `DATABASE_URL`, `DATABASE_URL_UNPOOLED` | set by the Neon integration; any `postgres://` URL works. Migrations use the unpooled one |
 | `MIGRATE_ON_START=true` | apply migrations when the API starts; serverless has no deploy hook |
 | `CRON_SECRET` | any long random string |
-| `LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
-| `TTS_PROVIDER=chirp`, `GOOGLE_CREDENTIALS_JSON` | the service-account JSON itself, not a path |
-| `ROUTING_PROVIDER=ors`, `ORS_API_KEY` | |
+| `BACKEND_LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
+| `BACKEND_TTS_PROVIDER=chirp`, `GOOGLE_CREDENTIALS_JSON` | the service-account JSON itself, not a path |
+| `BACKEND_ROUTING_PROVIDER=ors`, `ORS_API_KEY` | |
 | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION=auto` | Cloudflare R2 |
 | `REQUEST_BUDGET_USD`, `DAILY_BUDGET_USD`, `ADMIN_TOKEN` | optional |
 
