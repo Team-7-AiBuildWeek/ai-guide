@@ -4,7 +4,7 @@ from alembic import context
 from sqlalchemy import create_engine
 
 config = context.config
-url = os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
+url = config.attributes.get("database_url") or os.environ.get("DATABASE_URL") or config.get_main_option("sqlalchemy.url")
 
 
 def run_migrations_online() -> None:

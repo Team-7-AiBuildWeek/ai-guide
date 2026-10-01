@@ -16,6 +16,7 @@ import {
   backendCityAt,
   backendEnabled,
   backendMeta,
+  kickWorker,
   requestBackendTour,
   type BackendBundle,
   type BackendStop,
@@ -128,6 +129,8 @@ export async function backendPlanFor(req: TourRequest): Promise<BackendPlan | nu
       }
     }
     if (!tour || tour.status === "failed") return null;
+    // Misses are queued; start making them now rather than when someone waits.
+    if (tour.status === "pending") void kickWorker();
     const bundle = await backendBundle(tour.tour_id);
     return {
       plan: planFromBundle(bundle, city.name, req.lang),
@@ -156,12 +159,17 @@ export async function backendStopWhenReady(
 ): Promise<Stop | null> {
   if (!backendEnabled()) return null;
   const deadline = Date.now() + waitMs;
+  let nudged = false;
   for (;;) {
     try {
       const bundle = await backendBundle(ref.tourId);
       const stop = bundle.stops.find((s) => s.position === ref.position);
       if (stop?.audio && stop.transcript) return stopFromBackend(stop, ref.tourId, lang);
       if (bundle.status === "failed") return null;
+      if (!nudged) {
+        nudged = true;
+        void kickWorker(); // someone is waiting: make sure the queue is moving
+      }
     } catch {
       return null;
     }

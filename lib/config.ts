@@ -120,6 +120,12 @@ export const config = {
    * it can serve come from it and everything else still falls back to live.
    */
   backendUrl: (process.env.BACKEND_URL ?? "").trim().replace(/\/+$/, ""),
+  /**
+   * Shared secret for nudging walk-backend's generation queue. On Vercel this is
+   * the project's CRON_SECRET, which Vercel Cron also sends to /api/cron/worker.
+   * Unset (local dev), nothing is nudged: run the backend's own worker instead.
+   */
+  workerSecret: process.env.WORKER_SECRET ?? process.env.CRON_SECRET ?? "",
 
   /** Nominatim demands a contact address in the User-Agent. */
   nominatimUserAgent:

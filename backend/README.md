@@ -1,5 +1,8 @@
 # walk-backend
 
+The Python service behind the web app in this repository (the repo root). Both
+deploy together as one Vercel project; see "Deploying" below.
+
 Backend for a GPS-triggered, AI-narrated walking-tour app. It has one job: **never
 generate the same thing twice.** Generating a minute of narration costs hundreds of
 times more than serving a stored file, so everything here is built around reuse.
@@ -84,14 +87,19 @@ docker compose exec api walk seed-demo
 
 Any Postgres 14+ works.
 
+Keep the virtualenv **outside** `backend/` (the repo's gitignored `.local/` is the
+place): Vercel bundles everything inside a service's folder, and a local `.venv`
+there pushes the function over its 500 MB limit.
+
 ```sh
-python3.12 -m venv .venv && .venv/bin/pip install -e '.[dev]'
+# from backend/
+python3.12 -m venv ../.local/venv && ../.local/venv/bin/pip install -e '.[dev]'
 export DATABASE_URL=postgresql+psycopg://user@localhost:5432/walk
 export LLM_PROVIDER=fake TTS_PROVIDER=fake ROUTING_PROVIDER=fake STORAGE_BACKEND=local ADMIN_TOKEN=change-me
-.venv/bin/alembic upgrade head
-.venv/bin/walk storage-init
-.venv/bin/uvicorn app.api.main:app --reload      # API
-.venv/bin/walk worker                            # queue, in another terminal
+../.local/venv/bin/alembic upgrade head
+../.local/venv/bin/walk storage-init
+../.local/venv/bin/uvicorn app.api.main:app --reload --port 8000   # API
+../.local/venv/bin/walk worker                                     # queue, in another terminal
 ```
 
 `STORAGE_BACKEND=local` writes MP3s to `./local-audio` and serves them from this API at
@@ -99,8 +107,8 @@ export LLM_PROVIDER=fake TTS_PROVIDER=fake ROUTING_PROVIDER=fake STORAGE_BACKEND
 
 On macOS with Python 3.13+, if `walk` fails with `No module named 'app'`, macOS has
 marked the install hook as hidden and Python skips hidden `.pth` files. Run
-`chflags nohidden .venv/lib/python3*/site-packages/*.pth`, or use
-`.venv/bin/python -m app.cli` in place of `walk`.
+`chflags nohidden ../.local/venv/lib/python3*/site-packages/*.pth`, or use
+`python -m app.cli` in place of `walk`.
 
 ## Worked example: seed a city, generate a tour, see what it cost
 
@@ -216,9 +224,9 @@ misses stay `pending` until then; the app polls `GET /tours/{id}`.
 
 ## The web app
 
-`~/Desktop/webapp` uses this backend when its `BACKEND_URL` is set (see its README,
-"Pre-recorded tours"). Everything goes through the web app's own server, so the
-browser never talks to this API. It relies on:
+The web app at the repo root uses this backend when its `BACKEND_URL` is set (see
+the root README, "Pre-recorded tours"). Everything goes through the web app's own
+server, so the browser never talks to this API. It relies on:
 
 - `GET /meta` and `GET /cities` to decide whether a walker's brief is one this backend serves
 - `POST /tours` with `start_lat` / `start_lng`, so the tour begins at the stops nearest
@@ -231,6 +239,35 @@ browser never talks to this API. It relies on:
 With `STORAGE_BACKEND=local`, audio is served by this API at `/files/...` behind an
 expiring HMAC signature (set `PUBLIC_BASE_URL` to where the browser can reach the API).
 In production it comes straight from R2.
+
+## Deploying
+
+One Vercel project serves both halves (`vercel.json` at the repo root, Vercel
+Services, beta): the Next.js app is the public service; this API is private,
+reachable only through the web app's service binding, which sets `BACKEND_URL`.
+
+Vercel functions do not run forever, so there is no `walk worker` there. The queue
+moves through `POST /internal/worker/tick`, which the web app calls after a tour
+that missed and while a walker waits for a stop, and which Vercel Cron calls once
+a day (`/api/cron/worker`) as a backstop. Both sides share `CRON_SECRET`. Running
+`walk worker` from a laptop against the production database works too, and is the
+fastest way to finish a big `prewarm`.
+
+Project environment variables (shared by both services):
+
+| Variable | |
+|---|---|
+| `DATABASE_URL` | `postgresql+psycopg://...` (Neon or Supabase) |
+| `MIGRATE_ON_START=true` | apply migrations when the API starts; serverless has no deploy hook |
+| `CRON_SECRET` | any long random string |
+| `LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
+| `TTS_PROVIDER=chirp`, `GOOGLE_CREDENTIALS_JSON` | the service-account JSON itself, not a path |
+| `ROUTING_PROVIDER=ors`, `ORS_API_KEY` | |
+| `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION=auto` | Cloudflare R2 |
+| `REQUEST_BUDGET_USD`, `DAILY_BUDGET_USD`, `ADMIN_TOKEN` | optional |
+
+Until these are set the backend fails to start, and the web app quietly writes every
+tour live, exactly as it did before the backend existed.
 
 ## Tests
 

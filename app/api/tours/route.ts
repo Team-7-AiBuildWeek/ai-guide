@@ -13,6 +13,8 @@
  * while the walker is still reading the summary.
  */
 
+import { after } from "next/server";
+import { kickWorker } from "@/lib/backend/client";
 import { backendPlanFor, backendStopWhenReady } from "@/lib/backend/tours";
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
@@ -110,6 +112,8 @@ export async function POST(request: Request) {
         const recorded = given ? null : await backendPlanFor(req);
         if (recorded) {
           plan = recorded.plan;
+          // Keep recording the rest of the walk after this response has gone.
+          if (recorded.status === "pending") after(() => kickWorker(10));
           const ready = plan.stops.filter((s) => s.audio).length;
           send({
             phase: "stops",

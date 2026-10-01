@@ -61,6 +61,7 @@ def settings():
     return dataclasses.replace(
         Settings(), llm_provider="fake", tts_provider="fake", routing_provider="fake",
         request_budget_usd=Decimal("3.00"), daily_budget_usd=Decimal("20.00"), admin_token="test-admin",
+        worker_secret="test-worker",
     )
 
 

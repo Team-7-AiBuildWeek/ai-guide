@@ -130,8 +130,8 @@ app runs offline with no API keys and no spend. Copy `.env.example` to
 
 ## Pre-recorded tours (walk-backend)
 
-Set `BACKEND_URL` and the app takes its tours from
-[walk-backend](../walk-backend) whenever it can, so narration is written and
+Set `BACKEND_URL` and the app takes its tours from the
+[backend](backend/README.md) in this repo whenever it can, so narration is written and
 recorded once and shared by every walker, instead of paid for per walk.
 
 | The backend serves the tour when… | Otherwise |
@@ -155,9 +155,14 @@ browser never sees the backend, and saved walks keep playing after the links
 behind them expire.
 
 ```bash
-# in ../walk-backend (see its README): API on :8000 plus its worker
+# backend/ (see backend/README.md): API on :8000 plus its worker
 BACKEND_URL=http://localhost:8000 npm run dev
 ```
+
+On Vercel both deploy as one project (`vercel.json`, Vercel Services): this app
+is the public service, the backend is private and reached through a service
+binding that sets `BACKEND_URL` automatically. See backend/README.md,
+"Deploying", for the environment variables it needs.
 
 ## The provider layer
 

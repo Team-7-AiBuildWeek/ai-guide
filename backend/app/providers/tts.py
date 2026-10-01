@@ -23,11 +23,18 @@ class ChirpTTSProvider:
     name = "google-cloud-tts"
     pricing_provider = "google-cloud-tts"
 
-    def __init__(self, model: str = "chirp3-hd"):
+    def __init__(self, model: str = "chirp3-hd", credentials_json: str | None = None):
         from google.cloud import texttospeech
 
         self.tts = texttospeech
-        self.client = texttospeech.TextToSpeechClient()
+        credentials = None
+        if credentials_json:  # serverless hosts have env vars, not key files
+            import json
+
+            from google.oauth2 import service_account
+
+            credentials = service_account.Credentials.from_service_account_info(json.loads(credentials_json))
+        self.client = texttospeech.TextToSpeechClient(credentials=credentials)
         self.model = model
 
     def synthesize(self, ssml_chunks: list[str], voice_id: str, locale: str) -> list[bytes]:

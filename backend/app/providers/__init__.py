@@ -25,7 +25,7 @@ def build_providers(settings: Settings) -> Providers:
     llm = (FakeLLMProvider() if settings.llm_provider == "fake"
            else GeminiBatchProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY")))
     tts = (FakeTTSProvider(settings.tts_model) if settings.tts_provider == "fake"
-           else ChirpTTSProvider(settings.tts_model))
+           else ChirpTTSProvider(settings.tts_model, settings.google_credentials_json))
     routing = (FakeRoutingProvider(settings.walking_speed_m_s) if settings.routing_provider == "fake"
                else OpenRouteServiceProvider(_require(settings.ors_api_key, "ORS_API_KEY")))
     return Providers(llm=llm, tts=tts, routing=routing)

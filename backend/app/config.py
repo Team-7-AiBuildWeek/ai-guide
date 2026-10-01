@@ -72,6 +72,9 @@ class Settings:
 
     gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
     ors_api_key: str | None = field(default_factory=lambda: _env("ORS_API_KEY"))
+    # Service-account JSON for Cloud TTS, for hosts without a credentials file.
+    # Otherwise GOOGLE_APPLICATION_CREDENTIALS is used, as usual.
+    google_credentials_json: str | None = field(default_factory=lambda: _env("GOOGLE_CREDENTIALS_JSON"))
 
     # Prose and fact-checking. 3.6 Flash is now "previous generation" at the same price.
     script_model: str = field(default_factory=lambda: _env("SCRIPT_MODEL", "gemini-3.8-flash"))
@@ -89,6 +92,11 @@ class Settings:
     daily_budget_usd: Decimal = field(default_factory=lambda: Decimal(_env("DAILY_BUDGET_USD", "20.00")))
 
     admin_token: str | None = field(default_factory=lambda: _env("ADMIN_TOKEN"))
+    # Shared with the web app; required by POST /internal/worker/tick. On Vercel this
+    # is the project's CRON_SECRET, which Vercel Cron also sends.
+    worker_secret: str | None = field(default_factory=lambda: _env("WORKER_SECRET", _env("CRON_SECRET")))
+    # Run pending migrations when the API starts (serverless deploys have no other hook).
+    migrate_on_start: bool = field(default_factory=lambda: _env("MIGRATE_ON_START", "false").lower() == "true")
     walking_speed_m_s: float = 1.2
 
     def voice_id(self, language: str) -> str:

@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import admin, cities, files, tours
+from app.api import admin, cities, files, internal, tours
 from app.config import get_settings
 from app.db import session_factory
 
@@ -14,6 +14,10 @@ async def lifespan(app: FastAPI):
 
     if not hasattr(app.state, "settings"):  # tests set these up front
         app.state.settings = get_settings()
+        if app.state.settings.migrate_on_start:
+            from app.migrate import upgrade_to_head
+
+            upgrade_to_head(app.state.settings.database_url)
         app.state.sessions = session_factory()
         app.state.providers = build_providers(app.state.settings)
         app.state.storage = get_storage()
@@ -25,6 +29,7 @@ app.include_router(cities.router)
 app.include_router(tours.router)
 app.include_router(admin.router)
 app.include_router(files.router)
+app.include_router(internal.router)
 
 
 @app.get("/health")

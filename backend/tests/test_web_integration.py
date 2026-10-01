@@ -90,3 +90,21 @@ def test_local_files_are_served_only_with_a_valid_signature(tmp_path, client, ci
     assert client.get(f"/files/{key}", params={"expires": expired, "sig": local._signature(key, expired)}).status_code == 403
     sig = local._signature("../../etc/passwd", 2**31)
     assert client.get("/files/../../etc/passwd", params={"expires": 2**31, "sig": sig}).status_code in (403, 404)
+
+
+def test_worker_tick_needs_the_secret_and_moves_the_queue(client, city):
+    tour = client.post("/tours", json={"city_id": city.id, "duration_min": 20}).json()
+    assert client.post("/internal/worker/tick").status_code == 403
+    assert client.post("/internal/worker/tick", headers={"Authorization": "Bearer wrong"}).status_code == 403
+    stats = client.post("/internal/worker/tick", params={"rounds": 5},
+                        headers={"Authorization": "Bearer test-worker"}).json()
+    assert stats["tours_ready"] == 1
+    assert client.get(f"/tours/{tour['tour_id']}").json()["status"] == "ready"
+
+
+def test_migrations_from_code_are_idempotent(engine):
+    from app.migrate import upgrade_to_head
+    from conftest import TEST_DATABASE_URL
+
+    upgrade_to_head(TEST_DATABASE_URL)  # already at head: must be a no-op, not an error
+    upgrade_to_head(TEST_DATABASE_URL)

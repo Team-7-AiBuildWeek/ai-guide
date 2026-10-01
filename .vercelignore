@@ -1,0 +1,7 @@
+# Local-only backend state; never uploaded by `vercel deploy`.
+backend/.venv
+backend/.pg
+backend/local-audio
+backend/**/__pycache__
+deploy/netlify.env
+.local

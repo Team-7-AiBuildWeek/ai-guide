@@ -6,3 +6,4 @@ __pycache__/
 .pytest_cache/
 /local-audio/
 *.egg-info/
+build/
