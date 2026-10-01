@@ -114,6 +114,13 @@ export const config = {
    */
   stadiaDomainAuth: (process.env.STADIA_DOMAIN_AUTH ?? "").toLowerCase() === "true",
 
+  /**
+   * The walk-backend service (pre-recorded, shared narration). Unset means the
+   * app writes and voices every tour live, exactly as before. When set, tours
+   * it can serve come from it and everything else still falls back to live.
+   */
+  backendUrl: (process.env.BACKEND_URL ?? "").trim().replace(/\/+$/, ""),
+
   /** Nominatim demands a contact address in the User-Agent. */
   nominatimUserAgent:
     process.env.NOMINATIM_USER_AGENT ?? "walk-bratislava-mvp (contact: set NOMINATIM_USER_AGENT)",

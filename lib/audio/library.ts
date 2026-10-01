@@ -20,7 +20,7 @@
  */
 
 import { chunkScript, estimateSeconds } from "./chunk";
-import type { Stop, TourRequest } from "@/lib/providers/types";
+import type { Stop, StopAudio, TourRequest } from "@/lib/providers/types";
 import { RATE_LIMIT_MODE } from "@/lib/tour/testing";
 
 export type StopState = {
@@ -63,6 +63,12 @@ type Entry = {
   stop: Stop;
   script: string | null;
   cue: string | null;
+  /**
+   * A finished recording from walk-backend. When present the stop is one piece:
+   * the whole recording, played straight from its URL, with nothing to
+   * synthesise and nothing to wait for.
+   */
+  recording: StopAudio | null;
   chunks: string[];
   urls: (string | null)[];
   state: StopState;
@@ -117,6 +123,7 @@ export class AudioLibrary {
       stop,
       script: stop.script ?? null,
       cue: stop.walkingCueToHere ?? null,
+      recording: stop.audio ?? null,
       chunks: [],
       urls: [],
       state: { ...IDLE, script: stop.script ? "ready" : "idle" },
@@ -152,6 +159,7 @@ export class AudioLibrary {
   /** Seconds each piece should run, for the scrubber before they exist. */
   estimatesFor(stopId: string): number[] {
     const e = this.entries.get(stopId);
+    if (e?.recording) return [e.recording.durationMs / 1000];
     return e ? e.chunks.map(estimateSeconds) : [];
   }
 
@@ -171,6 +179,12 @@ export class AudioLibrary {
   }
 
   private prepareChunks(e: Entry) {
+    if (e.recording) {
+      e.chunks = [e.script ?? ""];
+      e.urls = [e.recording.src];
+      e.state = { ...e.state, script: "ready", voice: "ready", chunksReady: 1, chunksTotal: 1, playable: true };
+      return;
+    }
     e.chunks = chunkScript(e.script ?? "");
     e.urls = new Array(e.chunks.length).fill(null);
     e.state = { ...e.state, script: "ready", chunksTotal: e.chunks.length };
@@ -228,6 +242,8 @@ export class AudioLibrary {
         const body = (await res.json()) as {
           script?: string;
           walkingCueToHere?: string;
+          /** Present when walk-backend had this stop recorded. */
+          audio?: StopAudio;
           error?: string;
         };
         if (!res.ok || !body.script) {
@@ -235,7 +251,8 @@ export class AudioLibrary {
         }
         if (this.disposed) return;
         e.script = body.script;
-        e.cue = body.walkingCueToHere ?? e.cue;
+        e.cue = body.walkingCueToHere || e.cue;
+        e.recording = body.audio ?? null;
         this.prepareChunks(e);
       } catch (err) {
         e.state = {
@@ -271,6 +288,13 @@ export class AudioLibrary {
       const ok = await this.ensureScript(stopId);
       const e = this.entries.get(stopId);
       if (!ok || !e || this.disposed) return;
+
+      if (e.recording) {
+        // Already recorded: hand the engine the whole stop as its one piece.
+        this.onChunk(stopId, 0, e.recording.src);
+        this.emit();
+        return;
+      }
 
       e.state = { ...e.state, voice: "recording" };
       this.emit();
@@ -360,7 +384,7 @@ export class AudioLibrary {
   dispose() {
     this.disposed = true;
     for (const e of this.entries.values()) {
-      for (const u of e.urls) if (u) URL.revokeObjectURL(u);
+      for (const u of e.urls) if (u?.startsWith("blob:")) URL.revokeObjectURL(u);
     }
     this.entries.clear();
     this.scriptJobs.clear();

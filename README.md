@@ -128,6 +128,37 @@ open http://localhost:3000/dev/providers
 app runs offline with no API keys and no spend. Copy `.env.example` to
 `.env.local` only when you want to point at a real vendor.
 
+## Pre-recorded tours (walk-backend)
+
+Set `BACKEND_URL` and the app takes its tours from
+[walk-backend](../walk-backend) whenever it can, so narration is written and
+recorded once and shared by every walker, instead of paid for per walk.
+
+| The backend serves the tour when… | Otherwise |
+|---|---|
+| the start point is inside a city the backend has seeded | live, as before |
+| the language is one it narrates (`GET /meta`; en, de, sk today) | live |
+| the walk was set up with the settings, not a free-text brief | live: the walker's own words are meant to shape the narration, and shared recordings cannot |
+| it answers at all (not down, not over its spending cap) | live |
+
+How the pieces map: interests become a backend theme (falling back through the
+walker's other interests to the city's highlights), *Highlights* detail becomes
+the short recording and *Story* / *In depth* the full one, and the tour starts
+from the stops nearest the walker. The app keeps its own routing, trams,
+photos and *Ask*; only the stops and their narration come from the backend.
+
+A stop the backend is still recording is waited for briefly (12 s for the
+first stop, 8 s for later ones) and otherwise written and voiced live, so a
+walker is never left standing there. Recorded stops play from
+`/api/narration/<id>`, which redirects to a freshly signed storage link — the
+browser never sees the backend, and saved walks keep playing after the links
+behind them expire.
+
+```bash
+# in ../walk-backend (see its README): API on :8000 plus its worker
+BACKEND_URL=http://localhost:8000 npm run dev
+```
+
 ## The provider layer
 
 Three interfaces, each with a mock plus real implementations, all selected by

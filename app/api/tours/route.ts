@@ -13,6 +13,7 @@
  * while the walker is still reading the summary.
  */
 
+import { backendPlanFor, backendStopWhenReady } from "@/lib/backend/tours";
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
 import type { TourPlan, TourRequest, TourRide } from "@/lib/providers/types";
@@ -26,6 +27,8 @@ export const maxDuration = 120;
 
 /** How long the first stop's narration may hold up the whole tour. */
 const FIRST_SCRIPT_BUDGET_MS = 40_000;
+/** How long to wait for walk-backend to finish recording the first stop. */
+const FIRST_RECORDING_WAIT_MS = 12_000;
 
 type Phase = "stops" | "locating" | "ordering" | "route" | "writing" | "done" | "error";
 
@@ -102,7 +105,27 @@ export async function POST(request: Request) {
         const maps = getMaps();
 
         let plan: TourPlan;
-        if (given) {
+        // Pre-recorded stops from walk-backend, when it serves this brief.
+        // Null means "write it live", which is also what any backend failure means.
+        const recorded = given ? null : await backendPlanFor(req);
+        if (recorded) {
+          plan = recorded.plan;
+          const ready = plan.stops.filter((s) => s.audio).length;
+          send({
+            phase: "stops",
+            message:
+              ready === plan.stops.length
+                ? `${plan.stops.length} stops, all recorded`
+                : `${plan.stops.length} stops · ${ready} already recorded`,
+            preview: {
+              title: plan.title,
+              summary: plan.summary,
+              stops: plan.stops.map((s) => ({ name: s.name, angle: s.angle })),
+            },
+          });
+          // Real places from the map data, already in walking order from where
+          // the walker stands: there is nothing to snap and nothing to reorder.
+        } else if (given) {
           // Nothing to choose and nothing to check: these stops have been
           // walked before, at coordinates the map already agreed with.
           plan = given;
@@ -211,24 +234,36 @@ export async function POST(request: Request) {
         // where a serverless host cuts the connection and the walker gets no
         // tour at all. Losing the race costs a wait on the headphones screen;
         // losing the connection costs everything.
-        send({ phase: "writing", message: "Writing the first stop" });
-        try {
-          const first = plan.stops[0];
-          const script = await Promise.race([
-            writeStopScript({
-              req,
-              stop: first,
-              previous: null,
-              position: 1,
-              total: plan.stops.length,
-            }),
-            new Promise<null>((resolve) => setTimeout(() => resolve(null), FIRST_SCRIPT_BUDGET_MS)),
-          ]);
-          if (script) plan.stops[0] = { ...first, ...script };
-          // The losing call is not cancelled on purpose: it finishes into the
-          // script cache, so the client's own request for it is a cache hit.
-        } catch {
-          // Not fatal: the client asks again for anything it finds missing.
+        //
+        // A recorded first stop needs none of that. One still being recorded
+        // gets a short wait — far cheaper than writing and voicing it live — and
+        // is written live only if the recording does not arrive in time.
+        const firstStop = plan.stops[0];
+        if (!firstStop.script && firstStop.backend) {
+          send({ phase: "writing", message: "Collecting the first recording" });
+          const ready = await backendStopWhenReady(firstStop.backend, req.lang, FIRST_RECORDING_WAIT_MS);
+          if (ready) plan.stops[0] = { ...firstStop, ...ready };
+        }
+        if (!plan.stops[0].script) {
+          send({ phase: "writing", message: "Writing the first stop" });
+          try {
+            const first = plan.stops[0];
+            const script = await Promise.race([
+              writeStopScript({
+                req,
+                stop: first,
+                previous: null,
+                position: 1,
+                total: plan.stops.length,
+              }),
+              new Promise<null>((resolve) => setTimeout(() => resolve(null), FIRST_SCRIPT_BUDGET_MS)),
+            ]);
+            if (script) plan.stops[0] = { ...first, ...script };
+            // The losing call is not cancelled on purpose: it finishes into the
+            // script cache, so the client's own request for it is a cache hit.
+          } catch {
+            // Not fatal: the client asks again for anything it finds missing.
+          }
         }
 
         send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides } });

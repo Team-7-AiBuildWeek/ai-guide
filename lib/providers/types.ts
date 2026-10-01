@@ -49,6 +49,15 @@ export const StopSchema = z.object({
   walkingCueToHere: z.string().optional(),
   /** Four to five minutes spoken — second pass. */
   script: z.string().optional(),
+  /**
+   * A finished recording from walk-backend, when this stop came from there.
+   * `src` is this app's own stable URL (/api/narration/<id>), never the
+   * storage link behind it, which expires — so a saved walk still plays a
+   * week later. Stops written live have no `audio` and are voiced on demand.
+   */
+  audio: z.object({ src: z.string(), durationMs: z.number() }).optional(),
+  /** Where in a walk-backend tour this stop sits, to collect its recording later. */
+  backend: z.object({ tourId: z.number(), position: z.number() }).optional(),
 });
 
 export const TourPlanSchema = z.object({
@@ -64,6 +73,7 @@ export const StopScriptSchema = z.object({
 });
 
 export type Stop = z.infer<typeof StopSchema>;
+export type StopAudio = NonNullable<Stop["audio"]>;
 export type TourPlan = z.infer<typeof TourPlanSchema>;
 export type StopScript = z.infer<typeof StopScriptSchema>;
 
