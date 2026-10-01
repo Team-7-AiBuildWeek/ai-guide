@@ -1,0 +1,50 @@
+# Local stack: Postgres + MinIO standing in for Cloudflare R2, plus the API and worker.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: walk
+      POSTGRES_PASSWORD: walk
+      POSTGRES_DB: walk
+    ports: ["5432:5432"]
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U walk"]
+      interval: 2s
+      retries: 20
+
+  minio:
+    image: minio/minio:latest
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: walk
+      MINIO_ROOT_PASSWORD: walkwalkwalk
+    ports: ["9000:9000", "9001:9001"]
+    volumes: [miniodata:/data]
+
+  api:
+    build: .
+    command: sh -c "alembic upgrade head && walk storage-init && uvicorn app.api.main:app --host 0.0.0.0 --port 8000"
+    env_file: {path: .env, required: false}
+    environment: &docker-env
+      DATABASE_URL: postgresql+psycopg://walk:walk@db:5432/walk
+      S3_ENDPOINT_URL: http://minio:9000
+      S3_PUBLIC_ENDPOINT_URL: http://localhost:9000
+      S3_ACCESS_KEY_ID: walk
+      S3_SECRET_ACCESS_KEY: walkwalkwalk
+      S3_REGION: us-east-1
+    ports: ["8000:8000"]
+    depends_on:
+      db: {condition: service_healthy}
+      minio: {condition: service_started}
+
+  worker:
+    build: .
+    command: walk worker
+    env_file: {path: .env, required: false}
+    environment: *docker-env
+    depends_on: [api]
+
+volumes:
+  pgdata:
+  miniodata:
