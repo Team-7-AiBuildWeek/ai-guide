@@ -23,6 +23,8 @@ class TourRequestBody(BaseModel):
     depth_level: str = "full"
     duration_min: int = Field(60, ge=10, le=240)
     start_poi_id: int | None = None
+    start_lat: float | None = Field(None, ge=-90, le=90)
+    start_lng: float | None = Field(None, ge=-180, le=180)
 
 
 @router.post("/tours")
@@ -33,8 +35,8 @@ def request_tour(body: TourRequestBody, request: Request, response: Response,
     city = db.get(City, body.city_id)
     if city is None or city.status != "active":
         raise HTTPException(404, "city not found")
-    params = TourParams(**body.model_dump())
     try:
+        params = TourParams(**body.model_dump())
         params.validate()
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
@@ -86,14 +88,18 @@ def get_tour(tour_id: int, db: Session = Depends(get_db)) -> dict:
 
 
 @router.get("/tours/{tour_id}/bundle")
-def bundle(tour_id: int, request: Request, db: Session = Depends(get_db),
+def bundle(tour_id: int, request: Request, partial: bool = False, db: Session = Depends(get_db),
            settings: Settings = Depends(get_settings)) -> dict:
     """Everything the app needs to run the tour offline: download once, then no network.
-    Audio URLs are signed and expire; the app must fetch the MP3s right away."""
+    Audio URLs are signed and expire; the app must fetch the MP3s right away.
+
+    partial=true returns a tour that is still generating, with `audio` and `transcript`
+    null on the stops that are not ready yet (the web app starts walking straight away
+    and picks those up as it reaches them)."""
     tour = db.get(Tour, tour_id)
     if tour is None:
         raise HTTPException(404, "tour not found")
-    if tour.status != "ready":
+    if tour.status != "ready" and not (partial and tour.status == "pending"):
         raise HTTPException(409, f"tour is {tour.status}; poll GET /tours/{tour_id} until it is ready")
     storage = request.app.state.storage
     rows = _stops(db, tour_id)
@@ -101,6 +107,7 @@ def bundle(tour_id: int, request: Request, db: Session = Depends(get_db),
     expires = datetime.now(UTC) + timedelta(seconds=settings.signed_url_ttl_s)
     return {
         "manifest_version": MANIFEST_VERSION,
+        "status": tour.status,
         "tour": {"id": tour.id, "city_id": tour.city_id, "theme": tour.theme, "language": tour.language,
                  "persona": tour.persona, "depth_level": tour.depth_level,
                  "total_duration_ms": tour.total_duration_ms, "total_walk_m": tour.total_walk_m,
@@ -114,15 +121,30 @@ def bundle(tour_id: int, request: Request, db: Session = Depends(get_db),
             "lat": poi.lat,
             "lng": poi.lng,
             "trigger_radius_m": poi.trigger_radius_m,
-            "audio": {"url": storage.signed_url(segment.audio_key), "duration_ms": segment.duration_ms,
-                      "bytes": segment.audio_bytes, "content_type": "audio/mpeg", "id": segment.input_hash},
-            "transcript": script.script_text,
-            "sources": sources.get(script.id, []),
+            "audio": None if segment is None else _audio(storage, segment),
+            "transcript": script.script_text if segment is not None else None,
+            "sources": sources.get(script.id, []) if segment is not None else [],
             "walk_to_next": None if leg is None else {
                 "distance_m": leg.distance_m, "duration_s": leg.duration_s,
                 "polyline": leg.polyline, "polyline_precision": 5, "instructions": leg.instructions},
         } for stop, poi, segment, script, leg in rows],
     }
+
+
+def _audio(storage, segment: Segment) -> dict:
+    return {"url": storage.signed_url(segment.audio_key), "duration_ms": segment.duration_ms,
+            "bytes": segment.audio_bytes, "content_type": "audio/mpeg", "id": segment.input_hash}
+
+
+@router.get("/segments/{segment_id}")
+def segment(segment_id: str, request: Request, db: Session = Depends(get_db)) -> dict:
+    """A fresh signed URL for one finished segment, by its id (the audio input hash).
+    Lets a client keep a stable reference to a recording and re-sign it whenever the
+    old URL has expired."""
+    row = db.scalars(select(Segment).where(Segment.input_hash == segment_id, Segment.status == "ready")).first()
+    if row is None:
+        raise HTTPException(404, "segment not found")
+    return {**_audio(request.app.state.storage, row), "transcript": db.get(Script, row.script_id).script_text}
 
 
 def _sources(db: Session, script_ids: list[int]) -> dict[int, list[dict]]:

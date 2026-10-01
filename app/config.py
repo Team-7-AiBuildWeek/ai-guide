@@ -52,6 +52,10 @@ class Settings:
     # Object storage: Cloudflare R2 in production, MinIO locally. Both speak S3.
     # "local" writes to ./local-audio for laptop runs without Docker (file:// URLs, dev only).
     storage_backend: str = field(default_factory=lambda: _env("STORAGE_BACKEND", "s3"))
+    # Local backend only: where this API is reachable from the browser, and the key
+    # that signs its /files URLs.
+    public_base_url: str = field(default_factory=lambda: _env("PUBLIC_BASE_URL", "http://localhost:8000"))
+    local_url_secret: str = field(default_factory=lambda: _env("LOCAL_URL_SECRET", "dev-only-secret"))
     s3_endpoint_url: str | None = field(default_factory=lambda: _env("S3_ENDPOINT_URL"))
     s3_access_key_id: str | None = field(default_factory=lambda: _env("S3_ACCESS_KEY_ID"))
     s3_secret_access_key: str | None = field(default_factory=lambda: _env("S3_SECRET_ACCESS_KEY"))

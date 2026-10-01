@@ -41,6 +41,20 @@ class TourParams:
     depth_level: str = "full"
     duration_min: int = 60
     start_poi_id: int | None = None
+    # Where the walker is standing. Rounded to ~100 m so neighbours share a tour.
+    start_lat: float | None = None
+    start_lng: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.start_lat is not None and self.start_lng is not None:
+            object.__setattr__(self, "start_lat", round(self.start_lat, 3))
+            object.__setattr__(self, "start_lng", round(self.start_lng, 3))
+        elif self.start_lat is not None or self.start_lng is not None:
+            raise ValueError("start_lat and start_lng go together")
+
+    @property
+    def origin(self) -> tuple[float, float] | None:
+        return (self.start_lat, self.start_lng) if self.start_lat is not None else None
 
     def validate(self) -> None:
         for value, allowed, name in ((self.theme, THEMES, "theme"), (self.language, LANGUAGES, "language"),
@@ -117,7 +131,7 @@ def resolve_tour(session: Session, params: TourParams, providers: Providers, set
     selection = select_stops(session, city_id=params.city_id, theme=params.theme, language=params.language,
                              persona=params.persona, depth_level=params.depth_level,
                              target_minutes=params.duration_min, walking_speed_m_s=settings.walking_speed_m_s,
-                             start_poi_id=params.start_poi_id)
+                             start_poi_id=params.start_poi_id, origin=params.origin)
     if tour is None:
         tour = Tour(city_id=params.city_id, params_hash=params_hash, theme=params.theme, language=params.language,
                     persona=params.persona, depth_level=params.depth_level,

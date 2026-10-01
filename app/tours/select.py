@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from app.config import DEPTHS, THEMES
 from app.models import Poi, Script
+from app.providers.routing import haversine_m
 from app.tours.order import order_stops, path_length
 
 DWELL_S = 30
@@ -48,11 +49,32 @@ def rejected_poi_ids(session: Session, city_id: int, language: str, persona: str
     ))
 
 
+def _plan(pois: list[Poi], origin: tuple[float, float] | None) -> tuple[list[Poi], float]:
+    """Walking order and planned walking metres. With an origin (where the walker is
+    standing), the walk starts from it; the origin itself is not a stop."""
+    points = ([origin] if origin else []) + [(p.lat, p.lng) for p in pois]
+    order = order_stops(points)
+    metres = path_length([points[i] for i in order])
+    if origin:
+        order = [i - 1 for i in order if i != 0]
+    return [pois[i] for i in order], metres
+
+
+def start_radius_m(target_minutes: int, walking_speed_m_s: float) -> float:
+    """How far from the walker a stop may be: a third of the walk's distance, so the
+    route has room to come back, within sensible bounds for an old town."""
+    return min(3500.0, max(600.0, walking_speed_m_s * target_minutes * 60 / 3))
+
+
 def select_stops(session: Session, *, city_id: int, theme: str, language: str, persona: str,
                  depth_level: str, target_minutes: int, walking_speed_m_s: float,
-                 start_poi_id: int | None = None) -> Selection:
+                 start_poi_id: int | None = None,
+                 origin: tuple[float, float] | None = None) -> Selection:
     candidates = eligible_pois(session, city_id, theme,
                                exclude_ids=rejected_poi_ids(session, city_id, language, persona, depth_level))
+    if origin is not None:
+        radius = start_radius_m(target_minutes, walking_speed_m_s)
+        candidates = [p for p in candidates if haversine_m(origin, (p.lat, p.lng)) <= radius]
     if start_poi_id is not None:
         start = session.get(Poi, start_poi_id)
         if start is None or start.city_id != city_id:
@@ -67,12 +89,11 @@ def select_stops(session: Session, *, city_id: int, theme: str, language: str, p
         if len(chosen) >= MAX_STOPS:
             break
         trial = chosen + [poi]
-        points = [(p.lat, p.lng) for p in trial]
-        walk_s = path_length([points[i] for i in order_stops(points)]) / walking_speed_m_s
-        total = per_stop * len(trial) + walk_s
+        _, metres = _plan(trial, origin)
+        total = per_stop * len(trial) + metres / walking_speed_m_s
         if total <= budget_s:
             chosen, planned = trial, total
     if not chosen:
         raise ValueError("no POIs fit this city, theme and time budget")
-    points = [(p.lat, p.lng) for p in chosen]
-    return Selection([chosen[i] for i in order_stops(points)], planned)
+    ordered, _ = _plan(chosen, origin)
+    return Selection(ordered, planned)

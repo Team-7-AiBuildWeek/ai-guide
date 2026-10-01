@@ -94,8 +94,13 @@ export LLM_PROVIDER=fake TTS_PROVIDER=fake ROUTING_PROVIDER=fake STORAGE_BACKEND
 .venv/bin/walk worker                            # queue, in another terminal
 ```
 
-`STORAGE_BACKEND=local` writes MP3s to `./local-audio` and returns `file://` URLs.
-It's for development on one machine only.
+`STORAGE_BACKEND=local` writes MP3s to `./local-audio` and serves them from this API at
+`/files/...` with expiring signed links. It's for development on one machine only.
+
+On macOS with Python 3.13+, if `walk` fails with `No module named 'app'`, macOS has
+marked the install hook as hidden and Python skips hidden `.pth` files. Run
+`chflags nohidden .venv/lib/python3*/site-packages/*.pth`, or use
+`.venv/bin/python -m app.cli` in place of `walk`.
 
 ## Worked example: seed a city, generate a tour, see what it cost
 
@@ -208,6 +213,24 @@ misses stay `pending` until then; the app polls `GET /tours/{id}`.
 | `GET /tours/{id}` | status and stops |
 | `GET /tours/{id}/bundle` | offline manifest: ordered stops, lat/lng, trigger radius, signed MP3 URL, duration, transcript, sources, walking directions. `409` until ready |
 | `GET /admin/costs` | spend by day/model, cache-hit ratio, miss cost per request, content cost per tour. Needs `X-Admin-Token` |
+
+## The web app
+
+`~/Desktop/webapp` uses this backend when its `BACKEND_URL` is set (see its README,
+"Pre-recorded tours"). Everything goes through the web app's own server, so the
+browser never talks to this API. It relies on:
+
+- `GET /meta` and `GET /cities` to decide whether a walker's brief is one this backend serves
+- `POST /tours` with `start_lat` / `start_lng`, so the tour begins at the stops nearest
+  the walker. Starts are rounded to ~100 m, so neighbours share a tour.
+- `GET /tours/{id}/bundle?partial=true`: the tour while it is still generating, with
+  `audio` and `transcript` null on the stops that are not ready
+- `GET /segments/{id}`: a freshly signed URL for one recording, so saved walks outlive
+  the links in them
+
+With `STORAGE_BACKEND=local`, audio is served by this API at `/files/...` behind an
+expiring HMAC signature (set `PUBLIC_BASE_URL` to where the browser can reach the API).
+In production it comes straight from R2.
 
 ## Tests
 

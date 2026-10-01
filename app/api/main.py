@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from app.api import admin, cities, tours
+from app.api import admin, cities, files, tours
 from app.config import get_settings
 from app.db import session_factory
 
@@ -24,6 +24,7 @@ app = FastAPI(title="walk-backend", version="0.1.0", lifespan=lifespan)
 app.include_router(cities.router)
 app.include_router(tours.router)
 app.include_router(admin.router)
+app.include_router(files.router)
 
 
 @app.get("/health")

@@ -3,9 +3,17 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_db
+from app.config import DEPTHS, LANGUAGES, PERSONAS, THEMES
 from app.models import City, Tour, TourStop
 
 router = APIRouter()
+
+
+@router.get("/meta")
+def meta() -> dict:
+    """What this backend can narrate, so clients do not hardcode it."""
+    return {"languages": sorted(LANGUAGES), "personas": sorted(PERSONAS), "depths": sorted(DEPTHS),
+            "themes": sorted(THEMES), "duration_min": {"min": 10, "max": 240}}
 
 
 @router.get("/cities")

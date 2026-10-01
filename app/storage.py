@@ -5,6 +5,9 @@ generated per bundle request, so no credential ever leaves the server and a URL 
 leaks expires on its own.
 """
 
+import hashlib
+import hmac
+import time
 from functools import lru_cache
 from pathlib import Path
 from typing import Protocol
@@ -76,10 +79,15 @@ class MemoryStorage:
 
 
 class LocalStorage:
-    """Laptop runs without Docker. file:// URLs only work on this machine: dev use only."""
+    """Laptop runs without Docker or MinIO. Files live in ./local-audio and are served by
+    the API at /files/<key>, behind the same kind of expiring signature as R2's."""
 
-    def __init__(self, root: str = "local-audio") -> None:
+    def __init__(self, root: str = "local-audio", base_url: str = "http://localhost:8000",
+                 secret: str = "dev-only-secret", ttl: int = 3600) -> None:
         self.root = Path(root).resolve()
+        self.base_url = base_url.rstrip("/")
+        self.secret = secret.encode()
+        self.ttl = ttl
 
     def ensure_bucket(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -92,11 +100,25 @@ class LocalStorage:
     def exists(self, key: str) -> bool:
         return (self.root / key).exists()
 
+    def _signature(self, key: str, expires: int) -> str:
+        return hmac.new(self.secret, f"{key}:{expires}".encode(), hashlib.sha256).hexdigest()
+
     def signed_url(self, key: str) -> str:
-        return (self.root / key).as_uri()
+        expires = int(time.time()) + self.ttl
+        return f"{self.base_url}/files/{key}?expires={expires}&sig={self._signature(key, expires)}"
+
+    def open_signed(self, key: str, expires: int, sig: str) -> Path | None:
+        """The file behind a signed URL, or None if the URL is forged, expired or escapes the root."""
+        if expires < time.time() or not hmac.compare_digest(sig, self._signature(key, expires)):
+            return None
+        path = (self.root / key).resolve()
+        return path if path.is_relative_to(self.root) and path.is_file() else None
 
 
 @lru_cache
 def get_storage() -> Storage:
     settings = get_settings()
-    return LocalStorage() if settings.storage_backend == "local" else S3Storage(settings)
+    if settings.storage_backend == "local":
+        return LocalStorage(base_url=settings.public_base_url, secret=settings.local_url_secret,
+                            ttl=settings.signed_url_ttl_s)
+    return S3Storage(settings)
