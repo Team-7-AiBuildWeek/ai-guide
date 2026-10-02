@@ -51,3 +51,6 @@ next-env.d.ts
 
 # Local-only dev state: Postgres data, Python venv (see backend/README.md)
 /.local/
+
+# iCloud Drive conflict copies ("file 2.ts") — this folder is on a synced Desktop
+* [0-9].*
