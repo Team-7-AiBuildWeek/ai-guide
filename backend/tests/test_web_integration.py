@@ -108,3 +108,23 @@ def test_migrations_from_code_are_idempotent(engine):
 
     upgrade_to_head(TEST_DATABASE_URL)  # already at head: must be a no-op, not an error
     upgrade_to_head(TEST_DATABASE_URL)
+
+
+def test_health_reports_database_storage_and_generation(client, city):
+    assert client.get("/internal/health").status_code == 403
+    report = client.get("/internal/health", headers={"Authorization": "Bearer test-worker"}).json()
+    assert report["database"]["ok"] and report["database"]["cities"] == 1
+    assert report["generation"]["ok"] and report["generation"]["tts"] == "fake-tts"
+    # MemoryStorage URLs are not fetchable, so the storage check reports a failure here;
+    # what matters is that it is reported rather than raised.
+    assert "storage" in report and "ok" in report["storage"]
+
+
+def test_without_generation_keys_the_api_still_serves(client, city):
+    from app.api.main import app as api
+    api.state.providers, api.state.providers_error = None, "RuntimeError: GEMINI_API_KEY is not set"
+    assert client.get("/cities").status_code == 200
+    response = client.post("/tours", json={"city_id": city.id})
+    assert response.status_code == 503 and "GEMINI_API_KEY" in response.json()["detail"]
+    report = client.get("/internal/health", headers={"Authorization": "Bearer test-worker"}).json()
+    assert report["generation"] == {"ok": False, "error": "RuntimeError: GEMINI_API_KEY is not set"}

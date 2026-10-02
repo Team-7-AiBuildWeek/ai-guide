@@ -21,6 +21,14 @@ def get_db(request: Request) -> Iterator[Session]:
         session.close()
 
 
+def get_providers(request: Request):
+    providers = getattr(request.app.state, "providers", None)
+    if providers is None:
+        error = getattr(request.app.state, "providers_error", None) or "providers are not configured"
+        raise HTTPException(status_code=503, detail=f"generation is unavailable: {error}")
+    return providers
+
+
 def get_settings(request: Request) -> Settings:
     return request.app.state.settings
 

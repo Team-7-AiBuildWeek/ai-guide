@@ -183,3 +183,8 @@ export async function kickWorker(rounds = 3): Promise<Record<string, number> | n
     return null;
   }
 }
+
+/** Database, storage and generation, checked for real by the backend. */
+export function backendHealth(): Promise<Record<string, unknown>> {
+  return call("/internal/health", { headers: { authorization: `Bearer ${config.workerSecret}` } }, 20_000);
+}

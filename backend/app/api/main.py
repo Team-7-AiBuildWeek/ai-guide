@@ -19,8 +19,15 @@ async def lifespan(app: FastAPI):
 
             upgrade_to_head(app.state.settings.migration_database_url)
         app.state.sessions = session_factory()
-        app.state.providers = build_providers(app.state.settings)
         app.state.storage = get_storage()
+        # Missing generation keys must not take the whole API down: cities, bundles,
+        # recordings and health checks work without them. Generation answers 503.
+        try:
+            app.state.providers = build_providers(app.state.settings)
+            app.state.providers_error = None
+        except Exception as exc:  # noqa: BLE001 - reported by /internal/health and on use
+            app.state.providers = None
+            app.state.providers_error = f"{type(exc).__name__}: {exc}"
     yield
 
 

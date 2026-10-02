@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_db, get_settings
+from app.api.deps import get_db, get_providers, get_settings
 from app.budget import BudgetExceeded
 from app.config import Settings
 from app.models import City, Poi, PoiFact, Script, ScriptSource, Segment, Tour, TourStop, WalkingLeg
@@ -41,7 +41,7 @@ def request_tour(body: TourRequestBody, request: Request, response: Response,
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
     try:
-        resolution = resolve_tour(db, params, request.app.state.providers, settings)
+        resolution = resolve_tour(db, params, get_providers(request), settings)
     except BudgetExceeded as exc:
         db.rollback()
         raise HTTPException(429, "Custom tour generation is at its spending limit right now. "
