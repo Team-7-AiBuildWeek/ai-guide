@@ -28,6 +28,7 @@ from app.providers import Providers
 from app.tours.resolve import TourParams, _ready_segment, resolve_tour
 
 DEMAND_WINDOW = timedelta(days=30)
+STOP_AFTER_REFUSALS = 25
 PREMADE = dict(language="en", persona="storyteller", depth_level="full", duration_min=60)
 # Until real demand exists, favour the combination most tours use, so a small budget
 # covers many POIs once rather than one POI in every variant. Demand overrides this.
@@ -132,6 +133,8 @@ def prewarm(session: Session, settings: Settings, providers: Providers, *, city_
                 report.skipped_over_budget.append(c)
         return report
 
+    refused_in_a_row = 0
+
     budget = create_budget(session, "prewarm_run", f"prewarm city {city_id} {datetime.now(UTC):%Y-%m-%d %H:%M}", budget_usd)
     funding = Funding(budget.id)
     report = PrewarmReport(budget_id=budget.id, cap_usd=budget_usd)
@@ -169,7 +172,11 @@ def prewarm(session: Session, settings: Settings, providers: Providers, *, city_
                                             priority=50) or Decimal(0)
         except BudgetExceeded:
             report.skipped_over_budget.append(c)
+            refused_in_a_row += 1
+            if refused_in_a_row >= STOP_AFTER_REFUSALS:  # the budget is spent; stop asking
+                break
             continue
+        refused_in_a_row = 0
         if amount:
             report.queued.append(c)
 
