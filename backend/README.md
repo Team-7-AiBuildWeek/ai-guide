@@ -33,7 +33,8 @@ The worker (`walk worker`) turns queued work into audio:
 
 ```
 draft (Gemini Flash, Batch API) -> fact-check against sources (Flash, Batch)
-   -> [fail: one redraft, then reject] -> SSML + lexicon -> Chirp 3: HD -> R2
+   -> [fail: one redraft, then reject] -> Gemini 3.8 Flash TTS (Batch) -> MP3 -> R2
+   (or, with BACKEND_TTS_PROVIDER=chirp: SSML + lexicon -> Chirp 3: HD, synchronous)
 German/Slovak scripts are translated from a ready English one by Flash-Lite (Batch),
 skipping the second draft and fact-check.
 ```
@@ -64,14 +65,23 @@ skipping the second draft and fact-check.
 |---|---|---|
 | Gemini 3.8 / 3.6 Flash, Batch | $0.375 in / $1.875 out per MTok | promotional until 31 Dec 2026, then $0.75 / $3.75 |
 | Gemini 3.5 Flash-Lite, Batch | $0.15 / $1.25 per MTok | |
-| Chirp 3: HD | $30 per 1M characters, first 1M/month free | SSML tags are billed; requests are capped at 5,000 **bytes** |
+| Gemini 3.8 Flash TTS, Batch (default voice) | $0.25 in / $4.50 out per MTok of audio | ~32 audio tokens per second; promotional until 31 Dec 2026, then double |
+| Chirp 3: HD (optional voice) | $30 per 1M characters, first 1M/month free | SSML tags are billed; requests are capped at 5,000 **bytes** |
 
 Prices live in `model_prices` with effective dates (`migrations/sql/0002_seed_prices.sql`),
 so the January price change needs no code. The ledger records list price, so it
 overstates spend inside the Chirp free tier rather than understating it.
 
-Rough cost of one ~4-minute segment: draft ~$0.007 + fact-check ~$0.003 + audio ~$0.105.
-**Audio is about 90% of the bill**, which is why audio is cached separately from scripts.
+Rough cost of one ~4-minute segment: draft ~$0.007 + fact-check ~$0.003 + audio ~$0.03
+with Gemini TTS (~$0.105 with Chirp). Audio is still the largest part of the bill, which
+is why audio is cached separately from scripts.
+
+**Voices.** Gemini TTS is the default: it uses the same API key as the scripts and goes
+through the Batch API like every other Gemini call. It takes plain text, so the
+pronunciation lexicon does not apply to it. `BACKEND_TTS_PROVIDER=chirp` switches to
+Chirp 3: HD, whose SSML `<phoneme>` support pronounces place names exactly from the
+lexicon. A recording's voice and model are part of its identity, so switching re-records
+the audio without paying for the scripts again.
 
 ## Local setup
 
@@ -178,7 +188,7 @@ The bundle the app downloads (`GET /tours/1/bundle`), one stop shown:
 ```sh
 # .env
 BACKEND_LLM_PROVIDER=gemini      GEMINI_API_KEY=...
-BACKEND_TTS_PROVIDER=chirp       GOOGLE_APPLICATION_CREDENTIALS=/path/to/service-account.json
+BACKEND_TTS_PROVIDER=gemini      (same GEMINI_API_KEY; or chirp + GOOGLE_CREDENTIALS_JSON)
 BACKEND_ROUTING_PROVIDER=ors     ORS_API_KEY=...
 WIKIMEDIA_CONTACT="you@example.com"     # Wikimedia requires a contact in the User-Agent
 S3_ENDPOINT_URL=https://<account>.r2.cloudflarestorage.com  S3_ACCESS_KEY_ID=...  S3_SECRET_ACCESS_KEY=...
@@ -261,8 +271,8 @@ Project environment variables (shared by both services):
 | `MIGRATE_ON_START=true` | apply migrations when the API starts; serverless has no deploy hook |
 | `CRON_SECRET` | any long random string |
 | `BACKEND_LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
-| `BACKEND_TTS_PROVIDER=chirp`, `GOOGLE_CREDENTIALS_JSON` | the service-account JSON itself, not a path |
-| `BACKEND_ROUTING_PROVIDER=ors`, `ORS_API_KEY` | |
+| `BACKEND_TTS_PROVIDER=gemini` | uses `GEMINI_API_KEY`. For `chirp`, also `GOOGLE_CREDENTIALS_JSON` (the JSON itself, not a path) |
+| `BACKEND_ROUTING_PROVIDER=ors` + `ORS_API_KEY`, or `straight` | `straight` estimates walking from straight-line distance, no key needed; the web app draws real directions itself |
 | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION=auto` | Cloudflare R2 |
 | `REQUEST_BUDGET_USD`, `DAILY_BUDGET_USD`, `ADMIN_TOKEN` | optional |
 

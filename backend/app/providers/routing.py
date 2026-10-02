@@ -110,3 +110,10 @@ class FakeRoutingProvider:
                    polyline=encode_polyline([start, end]),
                    instructions=[{"text": "Walk to the next stop", "distance_m": distance,
                                   "duration_s": round(distance / self.speed), "street": None}])
+
+
+class StraightLineRoutingProvider(FakeRoutingProvider):
+    """The same estimate, for production use without a routing key. Good enough for
+    planning how many stops fit; the web app draws real walking directions itself."""
+
+    name = "straight-line"

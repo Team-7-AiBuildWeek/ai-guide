@@ -2,7 +2,8 @@
 
   1. submit queued script work as Gemini batches (draft, fact-check, translate)
   2. poll submitted batches and advance each script
-  3. synthesise audio for scripts that are ready
+  3. voice the scripts that are ready: as a Gemini TTS batch (collected by step 2), or
+     one segment at a time for a synchronous voice (Chirp)
   4. mark tours ready once every stop has audio
 
 Spend safety: a batch is reserved and its jobs marked submitted-pending in a committed
@@ -25,6 +26,7 @@ import mutagen.mp3
 from sqlalchemy import func, select, text, update
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.audio import mp3_duration_ms, pcm_from, pcm_to_mp3
 from app.budget import BudgetExceeded, ensure_reserved, release_job
 from app.config import DEPTHS, LANGUAGES, Settings
 from app.ledger import record
@@ -35,6 +37,7 @@ from app.pipeline.work import Funding, claim_segment, enqueue_audio
 from app.pricing import cost
 from app.providers import Providers
 from app.providers.llm import LLMRequest
+from app.providers.tts import TTSInput, TTSRequest, TTSResult
 from app.storage import Storage
 
 log = logging.getLogger("walk.worker")
@@ -151,9 +154,10 @@ class Worker:
                 Job.status == "running", Job.external_batch_id.startswith(PENDING_PREFIX),
                 Job.locked_at < datetime.now(UTC) - older_than,
             ).with_for_update(skip_locked=True)).all()
-            tokens = {j.external_batch_id for j in stuck}
-            for token in tokens:
-                batch_id = self.providers.llm.find_batch(token.removeprefix(PENDING_PREFIX))
+            tokens = {(j.external_batch_id, j.job_type) for j in stuck}
+            for token, job_type in tokens:
+                provider = self.providers.llm if job_type == "script" else self.providers.tts
+                batch_id = provider.find_batch(token.removeprefix(PENDING_PREFIX))
                 for job in (j for j in stuck if j.external_batch_id == token):
                     if batch_id:
                         job.status, job.external_batch_id = "submitted", batch_id
@@ -165,12 +169,14 @@ class Worker:
     # -------------------------------------------------------- 2. poll batches
 
     def poll_script_batches(self) -> int:
+        """Collect every finished batch, scripts and (Gemini) audio alike."""
         advanced = 0
         with self.sessions.begin() as session:
-            batch_ids = session.scalars(
-                select(Job.external_batch_id).where(Job.status == "submitted").distinct()).all()
-        for batch_id in batch_ids:
-            poll = self.providers.llm.poll(batch_id)
+            batches = session.execute(
+                select(Job.external_batch_id, Job.job_type).where(Job.status == "submitted").distinct()).all()
+        for batch_id, job_type in batches:
+            provider = self.providers.llm if job_type == "script" else self.providers.tts
+            poll = provider.poll(batch_id)
             if poll.state == "running":
                 continue
             with self.sessions.begin() as session:
@@ -186,7 +192,10 @@ class Worker:
                     if job is None:
                         continue
                     with session.begin_nested():
-                        self._apply_result(session, job, result, batch_id)
+                        if job_type == "script":
+                            self._apply_result(session, job, result, batch_id)
+                        else:
+                            self._apply_audio_result(session, job, result, batch_id)
                     advanced += 1
                 for job in jobs.values():  # no result came back for these
                     self._retry_or_fail(session, job, "missing from batch output")
@@ -244,11 +253,10 @@ class Worker:
     def _script_ready(self, session: Session, job: Job, script: Script) -> None:
         """Hand the rest of the job's reservation to the audio job that follows."""
         session.flush()
-        segment = claim_segment(session, script, self.settings, self.providers.tts.name,
-                                self.providers.tts.model)
+        segment = claim_segment(session, script, self.settings, self.providers.tts)
         held, job.reserved_usd = job.reserved_usd, Decimal(0)
         funding = Funding(job.budget_id, job.daily_budget_id)
-        audio_job = enqueue_audio(session, segment, funding, self.settings, self.today(),
+        audio_job = enqueue_audio(session, segment, funding, self.settings, self.providers.tts, self.today(),
                                   priority=job.priority, reserved=held)
         if audio_job is None:  # audio already queued or done: give the reservation back
             job.reserved_usd = held
@@ -257,6 +265,10 @@ class Worker:
     # ------------------------------------------------------------ 3. audio
 
     def run_audio_jobs(self, limit: int = 50) -> int:
+        """Batch voices (Gemini) are submitted here and collected by poll_batches; sync
+        voices (Chirp) are synthesised here, one segment at a time."""
+        if self.providers.tts.mode == "batch":
+            return self.submit_audio_batches()
         done = 0
         for _ in range(limit):
             claimed = self._claim_audio_job()
@@ -282,8 +294,8 @@ class Worker:
             if segment.status == "ready":
                 self._finish(session, job, "done")
                 return False
-            chars = len(segment.ssml) - segment.ssml.count("\n")
-            exact = cost(session, tts.pricing_provider, tts.model, "standard", {"character": chars}, self.today())
+            units = tts.worst_case_units(TTSInput(chunks=segment.ssml.split("\n"), lexicon_hash=segment.lexicon_hash))
+            exact = cost(session, tts.pricing_provider, tts.model, tts.tier, units, self.today())
             try:
                 ensure_reserved(session, job, exact)
             except BudgetExceeded as exc:
@@ -308,7 +320,7 @@ class Worker:
         billed = sum(len(c) for c in chunks)
         with self.sessions.begin() as session:  # record spend before anything else can fail
             record(session, job=session.get(Job, job_id), provider=tts.name, pricing_provider=tts.pricing_provider,
-                   model=tts.model, tier="standard", operation="tts",
+                   model=tts.model, tier=tts.tier, operation="tts",
                    units={"character": billed}, on=self.today(), segment_id=segment_id)
         audio = b"".join(parts)
         duration_ms = round(mutagen.mp3.MP3(io.BytesIO(audio)).info.length * 1000)
@@ -319,6 +331,74 @@ class Worker:
             segment.audio_key, segment.audio_bytes, segment.duration_ms = key, len(audio), duration_ms
             segment.billed_chars, segment.status, segment.updated_at = billed, "ready", func.now()
             self._finish(session, session.get(Job, job_id), "done")
+
+    def submit_audio_batches(self) -> int:
+        """Queued audio jobs as one Gemini TTS batch, each reserved at its worst case:
+        its text in, plus the audio-token cap it is sent with."""
+        tts = self.providers.tts
+        with self.sessions.begin() as session:
+            jobs = session.scalars(
+                select(Job).where(Job.job_type == "audio", Job.status == "queued", Job.run_after <= func.now())
+                .order_by(Job.priority.desc(), Job.id).limit(self.batch_size).with_for_update(skip_locked=True)
+            ).all()
+            requests, job_ids = [], []
+            for job in jobs:
+                segment = session.get(Segment, job.payload["segment_id"])
+                if segment.status == "ready":
+                    self._finish(session, job, "done")
+                    continue
+                tts_input = TTSInput(chunks=segment.ssml.split("\n"), lexicon_hash=segment.lexicon_hash)
+                units = tts.worst_case_units(tts_input)
+                worst = cost(session, tts.pricing_provider, tts.model, tts.tier, units, self.today(), round_up=True)
+                try:
+                    ensure_reserved(session, job, worst)
+                except BudgetExceeded as exc:
+                    self._stop_over_budget(session, job, exc)
+                    continue
+                requests.append(TTSRequest(key=str(job.id), text=tts_input.document, voice=segment.voice_id,
+                                           max_output_tokens=units["output_token"]))
+                job_ids.append(job.id)
+            if not requests:
+                return 0
+            token = f"walk-tts-{uuid.uuid4().hex}"
+            for job in jobs:
+                if job.id in job_ids:
+                    job.status, job.locked_by, job.locked_at = "running", WORKER_ID, func.now()
+                    job.started_at, job.attempts = func.now(), job.attempts + 1
+                    job.external_batch_id = PENDING_PREFIX + token
+        try:
+            batch_id = tts.submit(requests, display_name=token)
+        except Exception as exc:
+            log.exception("tts batch submit failed")
+            with self.sessions.begin() as session:
+                for job in session.scalars(select(Job).where(Job.id.in_(job_ids))):
+                    self._retry_or_fail(session, job, f"submit failed: {exc}")
+            return 0
+        with self.sessions.begin() as session:
+            session.execute(update(Job).where(Job.id.in_(job_ids)).values(status="submitted", external_batch_id=batch_id))
+        return len(job_ids)
+
+    def _apply_audio_result(self, session: Session, job: Job, result: TTSResult, batch_id: str) -> None:
+        tts = self.providers.tts
+        segment = session.get(Segment, job.payload["segment_id"])
+        if any(result.billed_units.values()):
+            record(session, job=job, provider=tts.name, pricing_provider=tts.pricing_provider, model=tts.model,
+                   tier=tts.tier, operation="tts", units=result.billed_units, on=self.today(),
+                   segment_id=segment.id, external_request_id=f"{batch_id}#{result.key}")
+        if result.error or not result.audio:
+            self._retry_or_fail(session, job, result.error or "no audio")
+            return
+        try:
+            pcm, rate = pcm_from(result.audio, result.mime_type)
+            mp3 = pcm_to_mp3(pcm, rate)
+        except Exception as exc:  # a malformed response is a failed attempt, not a crashed poll
+            self._retry_or_fail(session, job, f"could not encode audio: {exc}")
+            return
+        key = f"audio/{segment.language}/{segment.input_hash}.mp3"
+        self.storage.put(key, mp3, "audio/mpeg")
+        segment.audio_key, segment.audio_bytes, segment.duration_ms = key, len(mp3), mp3_duration_ms(mp3)
+        segment.status, segment.updated_at = "ready", func.now()
+        self._finish(session, job, "done")
 
     # --------------------------------------------------------------- helpers
 

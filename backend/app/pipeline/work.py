@@ -16,7 +16,7 @@ from app.hashing import audio_hash, script_hash
 from app.models import Job, Poi, Script, Segment
 from app.pipeline import estimate
 from app.pipeline.content import current_facts, lexicon_for
-from app.ssml import build_ssml
+from app.providers.tts import TTSInput, TTSProvider
 
 LIVE_JOB = text("status IN ('queued', 'running', 'submitted')")
 
@@ -76,7 +76,7 @@ def _insert_job(session: Session, job_type: str, dedupe_key: str, payload: dict,
 
 
 def enqueue_script(session: Session, script: Script, poi: Poi, funding: Funding, settings: Settings,
-                   on: date, priority: int = 0) -> Decimal | None:
+                   tts: TTSProvider, on: date, priority: int = 0) -> Decimal | None:
     """Queue generation of a script and the audio after it. Reserves the expected cost of
     the whole chain up front. Returns the amount reserved, or None if the work is
     already queued (whoever queued it first pays). Raises BudgetExceeded."""
@@ -90,41 +90,40 @@ def enqueue_script(session: Session, script: Script, poi: Poi, funding: Funding,
     if job is None:
         return None
     fact_chars = sum(len(f.content) for f in current_facts(session, poi.id))
-    amount = estimate.segment_cost(session, settings, depth_level=script.depth_level, fact_chars=fact_chars,
+    amount = estimate.segment_cost(session, settings, tts, depth_level=script.depth_level, fact_chars=fact_chars,
                                    need_script=True, translate=source is not None, on=on)
     reserve(session, funding.budget_ids, amount)
     job.reserved_usd = amount
     return amount
 
 
-def planned_segment(session: Session, script: Script, settings: Settings, tts_provider: str,
-                    tts_model: str) -> tuple[str, "object"]:
+def planned_segment(session: Session, script: Script, settings: Settings,
+                    tts: TTSProvider) -> tuple[str, TTSInput]:
     """The audio hash a ready script should have under the current voice and lexicon."""
     locale = LANGUAGES[script.language]
-    build = build_ssml(script.script_text, locale, lexicon_for(session, locale))
-    voice_id = settings.voice_id(script.language)
+    tts_input = tts.prepare(script.script_text, locale, lexicon_for(session, locale))
     input_hash = audio_hash(script_input_hash=script.input_hash, script_text=script.script_text,
-                            tts_provider=tts_provider, tts_model=tts_model, voice_id=voice_id,
-                            lexicon_hash=build.lexicon_hash)
-    return input_hash, build
+                            tts_provider=tts.name, tts_model=tts.model,
+                            voice_id=tts.voice_for(script.language, settings.voice_name),
+                            lexicon_hash=tts_input.lexicon_hash)
+    return input_hash, tts_input
 
 
-def claim_segment(session: Session, script: Script, settings: Settings, tts_provider: str,
-                  tts_model: str) -> Segment:
-    input_hash, build = planned_segment(session, script, settings, tts_provider, tts_model)
+def claim_segment(session: Session, script: Script, settings: Settings, tts: TTSProvider) -> Segment:
+    input_hash, tts_input = planned_segment(session, script, settings, tts)
     session.execute(
         insert(Segment).values(
             script_id=script.id, poi_id=script.poi_id, language=script.language, persona=script.persona,
-            depth_level=script.depth_level, tts_provider=tts_provider, tts_model=tts_model,
-            voice_id=settings.voice_id(script.language), lexicon_hash=build.lexicon_hash,
-            ssml=build.document, input_hash=input_hash,
+            depth_level=script.depth_level, tts_provider=tts.name, tts_model=tts.model,
+            voice_id=tts.voice_for(script.language, settings.voice_name), lexicon_hash=tts_input.lexicon_hash,
+            ssml=tts_input.document, input_hash=input_hash,
         ).on_conflict_do_nothing(index_elements=["input_hash"])
     )
     return session.scalars(select(Segment).where(Segment.input_hash == input_hash)).one()
 
 
-def enqueue_audio(session: Session, segment: Segment, funding: Funding, settings: Settings, on: date,
-                  priority: int = 0, reserved: Decimal | None = None) -> Job | None:
+def enqueue_audio(session: Session, segment: Segment, funding: Funding, settings: Settings, tts: TTSProvider,
+                  on: date, priority: int = 0, reserved: Decimal | None = None) -> Job | None:
     """Queue TTS for a segment. `reserved` hands over a reservation already held (from
     the script job); otherwise the expected cost is reserved here."""
     if segment.status == "ready":
@@ -133,7 +132,7 @@ def enqueue_audio(session: Session, segment: Segment, funding: Funding, settings
     if job is None:
         return None
     if reserved is None:
-        reserved = estimate.audio_cost(session, settings, chars=estimate.tts_chars(segment.depth_level), on=on)
+        reserved = estimate.audio_cost(session, tts, depth_level=segment.depth_level, on=on)
         reserve(session, funding.budget_ids, reserved)
     job.reserved_usd = reserved
     return job

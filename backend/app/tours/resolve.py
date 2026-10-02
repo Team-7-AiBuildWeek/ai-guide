@@ -159,18 +159,19 @@ def resolve_tour(session: Session, params: TourParams, providers: Providers, set
             Script.input_hash == expected_script_hash(poi, settings=settings, **dims))).first()
         segment, stale = None, False
         if script is not None and script.status == "ready":
-            segment = _ready_segment(session, planned_segment(session, script, settings, tts.name, tts.model)[0])
+            segment = _ready_segment(session, planned_segment(session, script, settings, tts)[0])
         if segment is None:
             segment = latest_ready_segment(session, poi.id, **dims)
             stale = segment is not None
         if segment is None:  # miss: claim it and pay for it
             script = claim_script(session, poi, settings=settings, **dims)
             if script.status == "ready":
-                new_segment = claim_segment(session, script, settings, tts.name, tts.model)
-                job = enqueue_audio(session, new_segment, funding, settings, on, priority=priority)
+                new_segment = claim_segment(session, script, settings, tts)
+                job = enqueue_audio(session, new_segment, funding, settings, tts, on, priority=priority)
                 reserved += job.reserved_usd if job else Decimal(0)
             else:
-                reserved += enqueue_script(session, script, poi, funding, settings, on, priority=priority) or Decimal(0)
+                reserved += enqueue_script(session, script, poi, funding, settings, tts, on,
+                                           priority=priority) or Decimal(0)
         hits += segment is not None
         session.add(TourStop(tour_id=tour.id, position=position, poi_id=poi.id,
                              script_id=segment.script_id if segment else script.id,

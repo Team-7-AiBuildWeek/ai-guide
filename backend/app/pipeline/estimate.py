@@ -13,15 +13,12 @@ from sqlalchemy.orm import Session
 from app.config import DEPTHS, Settings
 from app.pipeline.prompts import FACT_CHECK_MAX_TOKENS
 from app.pricing import cost
+from app.providers.tts import TTSProvider
 
-CHARS_PER_WORD = 6.5
-SSML_OVERHEAD = 1.08
 THINKING_TOKENS = 800
 PROMPT_OVERHEAD_TOKENS = 500
 
 
-def tts_chars(depth_level: str) -> int:
-    return round(DEPTHS[depth_level].words * CHARS_PER_WORD * SSML_OVERHEAD)
 
 
 def script_cost(session: Session, settings: Settings, *, depth_level: str, fact_chars: int,
@@ -40,13 +37,14 @@ def script_cost(session: Session, settings: Settings, *, depth_level: str, fact_
     return draft + check
 
 
-def audio_cost(session: Session, settings: Settings, *, chars: int, on: date) -> Decimal:
-    return cost(session, "google-cloud-tts", settings.tts_model, "standard", {"character": chars}, on, round_up=True)
+def audio_cost(session: Session, tts: TTSProvider, *, depth_level: str, on: date) -> Decimal:
+    return cost(session, tts.pricing_provider, tts.model, tts.tier,
+                tts.expected_units(DEPTHS[depth_level].words), on, round_up=True)
 
 
-def segment_cost(session: Session, settings: Settings, *, depth_level: str, fact_chars: int,
+def segment_cost(session: Session, settings: Settings, tts: TTSProvider, *, depth_level: str, fact_chars: int,
                  need_script: bool, translate: bool, on: date) -> Decimal:
-    total = audio_cost(session, settings, chars=tts_chars(depth_level), on=on)
+    total = audio_cost(session, tts, depth_level=depth_level, on=on)
     if need_script:
         total += script_cost(session, settings, depth_level=depth_level, fact_chars=fact_chars,
                              translate=translate, on=on)

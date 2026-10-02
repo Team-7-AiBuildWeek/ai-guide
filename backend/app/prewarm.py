@@ -82,13 +82,12 @@ def _missing_cost(session: Session, settings: Settings, providers: Providers, po
     if script is not None and script.status == "rejected":
         return None
     if script is not None and script.status == "ready":
-        if _ready_segment(session, planned_segment(session, script, settings, providers.tts.name,
-                                                   providers.tts.model)[0]):
+        if _ready_segment(session, planned_segment(session, script, settings, providers.tts)[0]):
             return None
-        return estimate.audio_cost(session, settings, chars=estimate.tts_chars(depth_level), on=today)
+        return estimate.audio_cost(session, providers.tts, depth_level=depth_level, on=today)
     fact_chars = sum(len(f.content) for f in current_facts(session, poi.id))
     translate = script is not None and translation_source(session, script) is not None
-    return estimate.segment_cost(session, settings, depth_level=depth_level, fact_chars=fact_chars,
+    return estimate.segment_cost(session, settings, providers.tts, depth_level=depth_level, fact_chars=fact_chars,
                                  need_script=True, translate=translate, on=today)
 
 
@@ -162,11 +161,12 @@ def prewarm(session: Session, settings: Settings, providers: Providers, *, city_
             with session.begin_nested():
                 script = claim_script(session, poi, settings=settings, **dims)
                 if script.status == "ready":
-                    segment = claim_segment(session, script, settings, providers.tts.name, providers.tts.model)
-                    job = enqueue_audio(session, segment, funding, settings, today, priority=50)
+                    segment = claim_segment(session, script, settings, providers.tts)
+                    job = enqueue_audio(session, segment, funding, settings, providers.tts, today, priority=50)
                     amount = job.reserved_usd if job else Decimal(0)
                 else:
-                    amount = enqueue_script(session, script, poi, funding, settings, today, priority=50) or Decimal(0)
+                    amount = enqueue_script(session, script, poi, funding, settings, providers.tts, today,
+                                            priority=50) or Decimal(0)
         except BudgetExceeded:
             report.skipped_over_budget.append(c)
             continue

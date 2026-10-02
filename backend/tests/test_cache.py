@@ -114,7 +114,7 @@ def test_lexicon_edit_rerenders_only_affected_audio(sessions, providers, setting
         changed = []
         for segment in session.scalars(select(Segment)):
             script = session.get(Script, segment.script_id)
-            new_hash, _ = planned_segment(session, script, settings, providers.tts.name, providers.tts.model)
+            new_hash, _ = planned_segment(session, script, settings, providers.tts)
             if new_hash != hashes_before[segment.id]:
                 changed.append(segment.poi_id)
     assert changed == [poi.id]

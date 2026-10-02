@@ -11,6 +11,7 @@ from app.budget import create_budget
 from app.hashing import facts_hash, script_hash
 from app.models import Job, Poi, Script
 from app.pipeline.work import Funding, claim_script, enqueue_script
+from app.providers.tts import FakeTTSProvider
 
 
 def test_hash_is_stable_and_covers_the_cache_key():
@@ -60,7 +61,7 @@ def test_concurrent_requests_for_the_same_miss_create_one_script_one_job_one_res
                 poi = session.get(Poi, poi_id)
                 barrier.wait()
                 script = claim_script(session, poi, "en", "storyteller", "full", settings)
-                enqueue_script(session, script, poi, Funding(budget_id), settings, on=_today())
+                enqueue_script(session, script, poi, Funding(budget_id), settings, FakeTTSProvider(), on=_today())
         except BaseException as exc:  # pragma: no cover - surfaced below
             errors.append(exc)
 

@@ -81,7 +81,9 @@ class Settings:
 
     # Providers: real ones by default; "fake" runs everything offline at zero cost.
     llm_provider: str = field(default_factory=lambda: _env("BACKEND_LLM_PROVIDER", "gemini"))
-    tts_provider: str = field(default_factory=lambda: _env("BACKEND_TTS_PROVIDER", "chirp"))
+    # gemini (default): same key as the scripts, Batch API. chirp: Google Cloud TTS with
+    # SSML <phoneme>, so the pronunciation lexicon applies. fake: offline.
+    tts_provider: str = field(default_factory=lambda: _env("BACKEND_TTS_PROVIDER", "gemini"))
     routing_provider: str = field(default_factory=lambda: _env("BACKEND_ROUTING_PROVIDER", "ors"))
 
     gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
@@ -98,7 +100,8 @@ class Settings:
     # stale until pre-warming replaces them.
     script_version: int = field(default_factory=lambda: int(_env("SCRIPT_VERSION", "1")))
 
-    tts_model: str = field(default_factory=lambda: _env("TTS_MODEL", "chirp3-hd"))
+    # Unset: the provider's own default (gemini-3.8-flash-tts, or chirp3-hd).
+    tts_model: str | None = field(default_factory=lambda: _env("TTS_MODEL"))
     voice_name: str = field(default_factory=lambda: _env("VOICE_NAME", "Charon"))
 
     # Hard caps for on-demand generation (POST /tours). Prewarm takes its cap on the CLI.
@@ -113,9 +116,6 @@ class Settings:
     migrate_on_start: bool = field(default_factory=lambda: _env("MIGRATE_ON_START", "false").lower() == "true")
     walking_speed_m_s: float = 1.2
 
-    def voice_id(self, language: str) -> str:
-        """Chirp 3: HD voice names are <locale>-Chirp3-HD-<voice>."""
-        return f"{LANGUAGES[language]}-Chirp3-HD-{self.voice_name}"
 
 
 def get_settings() -> Settings:
