@@ -112,3 +112,41 @@ def test_worker_stops_work_its_budget_can_no_longer_cover(sessions, providers, s
     with sessions() as session:
         statuses = set(session.scalars(select(Job.status)))
     assert statuses == {"over_budget"}
+
+
+def test_work_waits_for_budget_held_by_other_work_instead_of_giving_up(sessions, providers, settings, worker, city):
+    """A worst-case reservation that settles lower gives money back; the job that could
+    not get budget meanwhile must wait for it, not be dropped."""
+    from app.budget import create_budget
+    from app.pipeline.work import Funding, claim_script, enqueue_script
+    from app.models import Poi
+    from datetime import UTC, datetime
+    with sessions.begin() as session:
+        budget = create_budget(session, "prewarm_run", "tight", Decimal("1"))
+        pois = session.scalars(select(Poi).order_by(Poi.id)).all()[:2]
+        for poi in pois:
+            script = claim_script(session, poi, "en", "storyteller", "short", settings)
+            enqueue_script(session, script, poi, Funding(budget.id), settings, providers.tts, datetime.now(UTC).date())
+        # The first job is in flight and its worst case holds the rest of the cap.
+        session.execute(text("UPDATE budgets SET reserved_usd = cap_usd WHERE id = :id"), {"id": budget.id})
+        first = session.scalars(select(Job).order_by(Job.id)).first()
+        session.execute(text("UPDATE jobs SET reserved_usd = 0 WHERE id <> :id"), {"id": first.id})
+        session.execute(text("UPDATE jobs SET reserved_usd = 1, status = 'submitted', external_batch_id = 'x' "
+                             "WHERE id = :id"), {"id": first.id})
+    worker.submit_script_batches()
+    with sessions() as session:
+        waiting = session.scalars(select(Job).where(Job.error.like("waiting for budget%"))).all()
+        assert waiting and all(j.status == "queued" for j in waiting)
+        assert session.scalar(text("SELECT count(*) FROM jobs WHERE status = 'over_budget'")) == 0
+
+
+def test_work_stops_for_good_when_nothing_else_holds_budget(sessions, providers, settings, worker, city):
+    from app.tours.resolve import TourParams, resolve_tour
+    with sessions.begin() as session:
+        r = resolve_tour(session, TourParams(city_id=city.id, duration_min=20), providers, settings)
+        session.execute(text("UPDATE jobs SET reserved_usd = 0"))
+        session.execute(text("UPDATE budgets SET reserved_usd = 0, cap_usd = 0.000001 WHERE id = :id"),
+                        {"id": r.request.budget_id})
+    worker.drain()
+    with sessions() as session:
+        assert set(session.scalars(select(Job.status))) == {"over_budget"}

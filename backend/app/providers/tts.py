@@ -23,7 +23,7 @@ from typing import Any, Protocol
 from app.ssml import FAKE_SECONDS_PER_CHAR, Pronunciation, SsmlBuild, build_ssml, lexicon_hash, silent_mp3
 
 SPEECH_WORDS_PER_SECOND = 2.4
-SPEECH_CHARS_PER_SECOND = 11.0   # slowest plausible narration: sizes the token cap
+SPEECH_CHARS_PER_SECOND = 12.0   # slow narration (measured ~14-15): sizes the token cap
 GEMINI_AUDIO_TOKENS_PER_SECOND = 32  # measured ~31 on gemini-3.8-flash-tts
 GEMINI_MAX_OUTPUT_TOKENS = 16_000    # ~8 minutes of audio; a stop is at most ~4
 
@@ -166,7 +166,7 @@ class _GeminiPricing:
 
     def max_output_tokens(self, text: str) -> int:
         seconds = len(text) / SPEECH_CHARS_PER_SECOND
-        return min(GEMINI_MAX_OUTPUT_TOKENS, math.ceil(seconds * GEMINI_AUDIO_TOKENS_PER_SECOND * 1.5) + 200)
+        return min(GEMINI_MAX_OUTPUT_TOKENS, math.ceil(seconds * GEMINI_AUDIO_TOKENS_PER_SECOND * 1.3) + 200)
 
     def worst_case_units(self, tts_input: TTSInput) -> dict[str, int]:
         return {"input_token": len(tts_input.document) // 3 + 50,

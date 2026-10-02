@@ -44,6 +44,7 @@ log = logging.getLogger("walk.worker")
 WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
 PENDING_PREFIX = "pending:"
 MAX_DRAFTS = 2
+BUDGET_RETRY_DELAY = timedelta(minutes=2)
 
 
 @dataclass
@@ -421,6 +422,23 @@ class Worker:
             _mark_failed(session, job)
 
     def _stop_over_budget(self, session: Session, job: Job, exc: BudgetExceeded) -> None:
+        """Out of budget for now, or for good?
+
+        Reservations are worst cases and settle lower, so while work on the same budget
+        is in flight (submitted or running), money is likely to come back: wait and
+        retry. Queued jobs don't count: they can't free anything, and two waiting jobs
+        counting each other would wait forever."""
+        held_elsewhere = session.execute(text("""
+            SELECT coalesce(sum(reserved_usd), 0) FROM jobs
+            WHERE id <> :job AND status IN ('running', 'submitted')
+              AND (budget_id = :budget OR daily_budget_id = :budget)
+        """), {"job": job.id, "budget": exc.budget_id}).scalar_one()
+        if held_elsewhere > 0:
+            log.info("job %s waits for budget %s (%s still reserved by other work)", job.id, exc.budget_id, held_elsewhere)
+            self._requeue(job, job.payload)
+            job.error = f"waiting for budget: {exc}"
+            job.run_after = datetime.now(UTC) + BUDGET_RETRY_DELAY
+            return
         log.warning("job %s stopped: %s", job.id, exc)
         self._finish(session, job, "over_budget", str(exc))
 

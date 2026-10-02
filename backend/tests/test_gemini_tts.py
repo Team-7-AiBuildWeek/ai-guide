@@ -70,7 +70,10 @@ def test_prewarm_cap_holds_with_the_batch_voice(sessions, settings, city, gemini
     providers, worker = gemini
     with sessions.begin() as session:
         report = prewarm(session, settings, providers, city_id=city.id, budget_usd=Decimal("0.25"), top_n=8)
-    worker.drain()
+    for _ in range(6):  # jobs waiting for budget retry after a delay; skip the wait
+        worker.drain()
+        with sessions.begin() as session:
+            session.execute(text("UPDATE jobs SET run_after = now() WHERE status = 'queued'"))
     with sessions() as session:
         row = session.execute(text(f"SELECT cap_usd, reserved_usd, spent_usd, overrun_usd FROM budgets "
                                    f"WHERE id = {report.budget_id}")).one()
