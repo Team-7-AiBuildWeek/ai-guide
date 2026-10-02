@@ -122,7 +122,7 @@ class Wikimedia:
         # article to ground the narration, and nothing that is really an area or an event.
         keep = [p for p in places.values()
                 if (p.en_title or p.local_title) and p.name != p.qid and tags_for(p.instances)
-                and not any(word in inst for inst in p.instances for word in EXCLUDE)]
+                and not any(_excluded(inst) for inst in p.instances)]
         return keep[:limit]
 
     def article(self, lang: str, title: str) -> tuple[str, str] | None:
@@ -150,6 +150,14 @@ class Wikimedia:
         except httpx.HTTPStatusError:
             return 0.0
         return statistics.median(i["views"] for i in items) if items else 0.0
+
+
+def _excluded(instance: str) -> bool:
+    """An area or an event, unless it is also a recognised landmark type: "city" must
+    drop a capital city but not a "city gate"."""
+    if any(word in instance for words in TAG_RULES.values() for word in words):
+        return False
+    return any(word in instance for word in EXCLUDE)
 
 
 def tags_for(instances: set[str]) -> list[str]:

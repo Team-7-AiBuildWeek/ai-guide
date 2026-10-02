@@ -89,3 +89,9 @@ def test_hosted_postgres_urls_are_given_the_psycopg_driver():
     assert sqlalchemy_url("postgres://u:p@h/db?sslmode=require") == "postgresql+psycopg://u:p@h/db?sslmode=require"
     assert sqlalchemy_url("postgresql://u@h/db") == "postgresql+psycopg://u@h/db"
     assert sqlalchemy_url("postgresql+psycopg://u@h/db") == "postgresql+psycopg://u@h/db"
+
+
+def test_city_gates_are_kept_but_cities_are_not():
+    from app.ingest.wikimedia import _excluded, tags_for
+    assert not _excluded("city gate") and tags_for({"city gate"})
+    assert _excluded("capital city") and _excluded("hotel")
