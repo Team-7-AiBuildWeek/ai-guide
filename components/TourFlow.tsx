@@ -27,6 +27,7 @@ import { nextTurn, snapToRoute } from "@/lib/tour/navigation";
 import Player from "./flow/Player";
 import MiniPlayer from "./flow/MiniPlayer";
 import LayerSwitcher from "./flow/LayerSwitcher";
+import { prefetchSpeech } from "@/lib/audio/library";
 import { useTourAudio } from "@/lib/audio/useTourAudio";
 import { audioEngine, clearPlayback } from "@/lib/audio/engine";
 import { useLiveLocation } from "@/lib/tour/useLiveLocation";
@@ -298,7 +299,11 @@ export default function TourFlow({
             message?: string;
             data?: StoredTour;
             preview?: TourPreview;
+            opening?: string;
           };
+          // The first stop's first words, written moments ago: start the voice
+          // now, so it is ready by the time the walk begins.
+          if (evt.opening) prefetchSpeech(evt.opening, body.lang);
           setPhase(evt.phase);
           lastPhase = evt.phase;
           if (evt.message) setPhaseMessage(evt.message);

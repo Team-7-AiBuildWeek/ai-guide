@@ -50,6 +50,55 @@ export type StopState = {
   error: string | null;
 };
 
+type Speech = { url: string } | { error: string };
+
+/**
+ * Speech requested before the library for its tour exists.
+ *
+ * While a custom tour is being built, the server sends the first stop's opening
+ * as soon as it is written; it is voiced here straight away, and the library
+ * picks it up when that stop's first piece is wanted — by then it is usually
+ * ready, so the walk starts without the ~12 s synthesis wait. Keyed by language
+ * and exact text: the server cuts the opening with the same chunker the library
+ * uses, so the first piece matches it character for character.
+ */
+const EARLY = new Map<string, Promise<Speech>>();
+const earlyKey = (text: string, lang: string) => `${lang}\u0000${text}`;
+
+function fetchSpeech(text: string, lang: string): Promise<Speech> {
+  return (async () => {
+    try {
+      const res = await fetch("/api/audio", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ text, lang }),
+      });
+      if (!res.ok) {
+        // The route answers failures as JSON, and the provider puts the
+        // useful sentence in there — "daily speech quota is spent", not
+        // "502". Losing it is what made this unexplainable to a walker.
+        let message = `Could not record this stop (${res.status})`;
+        try {
+          const body = (await res.json()) as { error?: string };
+          if (body?.error) message = body.error;
+        } catch {
+          /* not JSON — keep the status */
+        }
+        return { error: message };
+      }
+      return { url: URL.createObjectURL(await res.blob()) };
+    } catch (err) {
+      return { error: err instanceof Error ? err.message : "Could not reach the voice." };
+    }
+  })();
+}
+
+/** Start voicing text the walk will need first. Safe to call more than once. */
+export function prefetchSpeech(text: string, lang: string): void {
+  const key = earlyKey(text, lang);
+  if (!EARLY.has(key)) EARLY.set(key, fetchSpeech(text, lang));
+}
+
 const IDLE: StopState = {
   script: "idle",
   voice: "idle",
@@ -329,35 +378,17 @@ export class AudioLibrary {
     return job;
   }
 
-  private synthesise(text: string): Promise<{ url: string } | { error: string }> {
+  private synthesise(text: string): Promise<Speech> {
+    // Already being voiced since the tour was built: take that, don't queue it again.
+    const key = earlyKey(text, this.lang);
+    const early = EARLY.get(key);
+    if (early) {
+      EARLY.delete(key);
+      return early;
+    }
     // Chained onto the queue so requests are serialised, and the tail is
     // caught so one failure cannot poison every later piece.
-    const job = this.queue.then(async (): Promise<{ url: string } | { error: string }> => {
-      try {
-        const res = await fetch("/api/audio", {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ text, lang: this.lang }),
-        });
-        if (!res.ok) {
-          // The route answers failures as JSON, and the provider puts the
-          // useful sentence in there — "daily speech quota is spent", not
-          // "502". Losing it is what made this unexplainable to a walker.
-          let message = `Could not record this stop (${res.status})`;
-          try {
-            const body = (await res.json()) as { error?: string };
-            if (body?.error) message = body.error;
-          } catch {
-            /* not JSON — keep the status */
-          }
-          return { error: message };
-        }
-        const blob = await res.blob();
-        return { url: URL.createObjectURL(blob) };
-      } catch (err) {
-        return { error: err instanceof Error ? err.message : "Could not reach the voice." };
-      }
-    });
+    const job = this.queue.then(() => fetchSpeech(text, this.lang));
     this.queue = job.catch(() => ({ error: "Could not reach the voice." }) as const);
     return job;
   }

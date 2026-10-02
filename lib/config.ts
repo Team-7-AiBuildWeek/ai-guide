@@ -55,6 +55,14 @@ export const config = {
   openaiModel: process.env.OPENAI_MODEL ?? "gpt-4o",
   openaiTtsModel: process.env.OPENAI_TTS_MODEL ?? "tts-1",
   geminiModel: process.env.GEMINI_MODEL ?? process.env.GOOGLE_MODEL ?? "gemini-3.6-flash",
+  /**
+   * The model that writes each stop's narration. Separate from the one that
+   * chooses the stops because the two trade differently: measured on the same
+   * stop, 3.6 Flash thought for 19 s before writing a word, 3.8 Flash (default
+   * reasoning, same price) for 3 s, and wrote the whole script in 8 s instead of
+   * 22 — with a script just as good. The first stop is the one a walker waits for.
+   */
+  geminiScriptModel: process.env.GEMINI_SCRIPT_MODEL ?? "gemini-3.8-flash",
   geminiTtsModel: process.env.GEMINI_TTS_MODEL ?? "gemini-2.5-flash-preview-tts",
   /** Which prebuilt Gemini voice narrates the tour. Audition them at /dev/tts. */
   geminiVoice: process.env.GEMINI_VOICE ?? "Charon",

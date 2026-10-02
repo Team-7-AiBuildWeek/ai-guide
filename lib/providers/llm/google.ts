@@ -28,6 +28,9 @@ import {
   type ScriptRequest,
 } from "./index";
 
+/** The two fields read from a reply, whether it arrived whole or streamed. */
+type Reply = { text?: string; candidates?: { finishReason?: unknown }[] };
+
 export class GoogleLLMProvider implements LLMProvider {
   readonly name = "google";
 
@@ -36,7 +39,7 @@ export class GoogleLLMProvider implements LLMProvider {
    * fixed here: itineraries and stop scripts are different objects, and a
    * question is not JSON at all.
    */
-  private complete(schema: object | null): CompleteFn {
+  private complete(schema: object | null, model: string = config.geminiModel): CompleteFn {
     const apiKey = requireKey(config.geminiApiKey, "GEMINI_API_KEY", "google");
     const ai = new GoogleGenAI({ apiKey });
 
@@ -47,26 +50,44 @@ export class GoogleLLMProvider implements LLMProvider {
      */
     const isTransient = (e: unknown) => /\b(503|429)\b|UNAVAILABLE|high demand|overloaded/i.test(String(e));
 
-    return async ({ system, user, maxTokens }) => {
-      const call = () =>
-        ai.models.generateContent({
-          model: config.geminiModel,
-          contents: [{ role: "user", parts: [{ text: user }] }],
-          config: {
-            systemInstruction: system,
-            maxOutputTokens: maxTokens,
-            ...(schema
-              ? {
-                  // Constrained decoding: the model can only emit our shape.
-                  // Zod still checks it — a schema hint is not a guarantee.
-                  responseMimeType: "application/json",
-                  responseSchema: schema as never,
-                }
-              : {}),
-          },
-        });
+    return async ({ system, user, maxTokens, onText }) => {
+      const params = {
+        model,
+        contents: [{ role: "user", parts: [{ text: user }] }],
+        config: {
+          systemInstruction: system,
+          maxOutputTokens: maxTokens,
+          ...(schema
+            ? {
+                // Constrained decoding: the model can only emit our shape.
+                // Zod still checks it — a schema hint is not a guarantee.
+                responseMimeType: "application/json",
+                responseSchema: schema as never,
+              }
+            : {}),
+        },
+      };
+      /**
+       * Streamed when the caller wants the text as it arrives — the same request
+       * and the same reasoning, only delivered in pieces. Collapsed back into
+       * one response so everything below treats both paths alike.
+       */
+      const call = async (): Promise<Reply> => {
+        if (!onText) return ai.models.generateContent(params);
+        let soFar = "";
+        let finishReason: unknown;
+        for await (const part of await ai.models.generateContentStream(params)) {
+          finishReason = part.candidates?.[0]?.finishReason ?? finishReason;
+          const piece = part.text;
+          if (piece) {
+            soFar += piece;
+            onText(soFar);
+          }
+        }
+        return { text: soFar, candidates: [{ finishReason }] };
+      };
 
-      let res;
+      let res: Reply | undefined;
       let lastErr: unknown = null;
       for (let attempt = 0; attempt < 3; attempt++) {
         try {
@@ -105,7 +126,7 @@ export class GoogleLLMProvider implements LLMProvider {
   }
 
   async generateStopScript(input: ScriptRequest): Promise<StopScript> {
-    return generateStopScriptVia(this.name, this.complete(STOP_SCRIPT_JSON_SCHEMA), input);
+    return generateStopScriptVia(this.name, this.complete(STOP_SCRIPT_JSON_SCHEMA, config.geminiScriptModel), input);
   }
 
   async answerQuestion(input: AskRequest): Promise<string> {

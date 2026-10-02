@@ -19,6 +19,8 @@ export type ScriptJob = {
   previous?: Stop | null;
   position: number;
   total: number;
+  /** See ScriptRequest.onOpening. Only the caller that starts the write hears it. */
+  onOpening?: (opening: string) => void;
 };
 
 /**
@@ -76,6 +78,7 @@ export function writeStopScript(job: ScriptJob): Promise<StopScript> {
       previous: job.previous ?? null,
       position: job.position,
       total: job.total,
+      onOpening: job.onOpening,
     })
     .then((script) => {
       CACHE.set(key, script);

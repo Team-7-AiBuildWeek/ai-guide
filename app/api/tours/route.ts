@@ -18,7 +18,7 @@ import { kickWorker } from "@/lib/backend/client";
 import { backendPlanFor, backendStopWhenReady } from "@/lib/backend/tours";
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getLLM, getMaps } from "@/lib/providers/factory";
-import type { TourPlan, TourRequest, TourRide } from "@/lib/providers/types";
+import type { StopScript, TourPlan, TourRequest, TourRide } from "@/lib/providers/types";
 import { findRides, routeWithRides } from "@/lib/tour/rides";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 import { orderStops, walkLength } from "@/lib/tour/order";
@@ -53,12 +53,20 @@ type Preview = {
   stops: { name: string; angle: string }[];
 };
 
-function sse(event: {
+type TourEvent = {
   phase: Phase;
   message?: string;
   data?: unknown;
   preview?: Preview;
-}): Uint8Array {
+  /**
+   * The first piece the phone will speak of the first stop, sent the moment it
+   * is written and before the rest of that stop is. The phone starts voicing it
+   * straight away, so it is ready when the walk begins.
+   */
+  opening?: string;
+};
+
+function sse(event: TourEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
 }
 
@@ -95,12 +103,11 @@ export async function POST(request: Request) {
 
   const stream = new ReadableStream({
     async start(controller) {
-      const send = (e: {
-        phase: Phase;
-        message?: string;
-        data?: unknown;
-        preview?: Preview;
-      }) => controller.enqueue(sse(e));
+      let lastPhase: Phase = "stops";
+      const send = (e: TourEvent) => {
+        lastPhase = e.phase;
+        controller.enqueue(sse(e));
+      };
 
       try {
         const llm = getLLM();
@@ -186,6 +193,27 @@ export async function POST(request: Request) {
           }
         }
 
+        /**
+         * The first stop's narration, started now rather than after the route.
+         *
+         * It does not depend on trams or routing, and it is the longest wait in
+         * the whole build (25–28 s measured), so it runs alongside them. Its
+         * opening is passed to the phone the moment it is written.
+         */
+        const firstStop = plan.stops[0];
+        const firstStarted = Date.now();
+        const firstScript: Promise<StopScript | null> | null =
+          firstStop.script || firstStop.backend
+            ? null
+            : writeStopScript({
+                req,
+                stop: firstStop,
+                previous: null,
+                position: 1,
+                total: plan.stops.length,
+                onOpening: (opening) => send({ phase: lastPhase, opening }),
+              }).catch(() => null); // not fatal: the phone asks again for anything missing
+
         const points = [
           { lat: req.start.lat, lng: req.start.lng },
           ...plan.stops.map((s) => ({ lat: s.lat, lng: s.lng })),
@@ -237,37 +265,25 @@ export async function POST(request: Request) {
         // spent 110s here on top of a 68s itinerary, which is past the point
         // where a serverless host cuts the connection and the walker gets no
         // tour at all. Losing the race costs a wait on the headphones screen;
-        // losing the connection costs everything.
-        //
-        // A recorded first stop needs none of that. One still being recorded
-        // gets a short wait — far cheaper than writing and voicing it live — and
-        // is written live only if the recording does not arrive in time.
-        const firstStop = plan.stops[0];
-        if (!firstStop.script && firstStop.backend) {
+        // losing the connection costs everything. The clock started when the
+        // writing did, alongside the routing above.
+        if (firstScript) {
+          send({ phase: "writing", message: "Writing the first stop" });
+          const left = Math.max(0, FIRST_SCRIPT_BUDGET_MS - (Date.now() - firstStarted));
+          const script = await Promise.race([
+            firstScript,
+            new Promise<null>((resolve) => setTimeout(() => resolve(null), left)),
+          ]);
+          if (script) plan.stops[0] = { ...firstStop, ...script };
+          // The losing call is not cancelled on purpose: it finishes into the
+          // script cache, so the client's own request for it is a cache hit.
+        } else if (!firstStop.script && firstStop.backend) {
+          // A recorded first stop still being recorded gets a short wait — far
+          // cheaper than writing and voicing it live — and is written live by
+          // the phone only if the recording does not arrive in time.
           send({ phase: "writing", message: "Collecting the first recording" });
           const ready = await backendStopWhenReady(firstStop.backend, req.lang, FIRST_RECORDING_WAIT_MS);
           if (ready) plan.stops[0] = { ...firstStop, ...ready };
-        }
-        if (!plan.stops[0].script) {
-          send({ phase: "writing", message: "Writing the first stop" });
-          try {
-            const first = plan.stops[0];
-            const script = await Promise.race([
-              writeStopScript({
-                req,
-                stop: first,
-                previous: null,
-                position: 1,
-                total: plan.stops.length,
-              }),
-              new Promise<null>((resolve) => setTimeout(() => resolve(null), FIRST_SCRIPT_BUDGET_MS)),
-            ]);
-            if (script) plan.stops[0] = { ...first, ...script };
-            // The losing call is not cancelled on purpose: it finishes into the
-            // script cache, so the client's own request for it is a cache hit.
-          } catch {
-            // Not fatal: the client asks again for anything it finds missing.
-          }
         }
 
         send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides } });

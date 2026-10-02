@@ -9,6 +9,7 @@ import {
   stopCount,
 } from "@/lib/prompts/tour-plan";
 import { ASK_SYSTEM_PROMPT, buildAskPrompt } from "@/lib/prompts/ask";
+import { chunkScript } from "@/lib/audio/chunk";
 
 /** What the script pass needs to know beyond the stop itself. */
 export type ScriptRequest = {
@@ -17,6 +18,13 @@ export type ScriptRequest = {
   previous: Stop | null;
   position: number;
   total: number;
+  /**
+   * Called once, as soon as the opening of the narration — exactly the first
+   * piece the phone will speak — has been written, while the rest is still
+   * being written. Lets the voice start on it early. Providers that cannot
+   * stream simply never call it.
+   */
+  onOpening?: (opening: string) => void;
 };
 
 export interface LLMProvider {
@@ -38,6 +46,8 @@ export type CompleteFn = (args: {
   system: string;
   user: string;
   maxTokens: number;
+  /** Optional: the text so far, as it streams. Vendors that cannot stream ignore it. */
+  onText?: (soFar: string) => void;
 }) => Promise<string>;
 
 /** Models like to wrap JSON in a ```json fence no matter how firmly you ask. */
@@ -53,6 +63,48 @@ function stripFence(text: string): string {
 }
 
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
+
+/**
+ * The value of a JSON string field from a response that is still arriving.
+ * Returns what has been written of it so far, or null before it has started.
+ */
+export function partialJsonString(raw: string, field: string): string | null {
+  const start = raw.search(new RegExp(`"${field}"\\s*:\\s*"`));
+  if (start === -1) return null;
+  const open = raw.indexOf('"', raw.indexOf(":", start)) + 1;
+  let out = "";
+  for (let i = open; i < raw.length; i++) {
+    const ch = raw[i];
+    if (ch === '"') return out;
+    if (ch !== "\\") {
+      out += ch;
+      continue;
+    }
+    const next = raw[i + 1];
+    if (next === undefined) break; // escape cut off mid-stream
+    if (next === "u") {
+      const hex = raw.slice(i + 2, i + 6);
+      if (hex.length < 4) break;
+      out += String.fromCharCode(parseInt(hex, 16));
+      i += 5;
+      continue;
+    }
+    out += ({ n: "\n", t: "\t", r: "\r", b: "\b", f: "\f" } as Record<string, string>)[next] ?? next;
+    i += 1;
+  }
+  return out;
+}
+
+/**
+ * The first piece the phone will speak, once it can no longer change.
+ *
+ * chunkScript only ever revises its last piece (a short tail is folded into
+ * the one before), so the first piece is final once a second one exists.
+ */
+export function settledOpening(partialScript: string): string | null {
+  const chunks = chunkScript(partialScript);
+  return chunks.length >= 2 ? chunks[0] : null;
+}
 
 class SchemaError extends Error {
   constructor(readonly issues: string[]) {
@@ -151,11 +203,26 @@ export async function generateStopScriptVia(
   const user = buildScriptPrompt(input);
   const floor = scriptFloor(input.req.detail);
 
+  let openingSent = false;
   const attempt = async (extra?: string): Promise<StopScript> => {
+    // Only the first attempt streams its opening: a rewrite opens differently,
+    // and the phone may already be speaking the first one.
+    const onText =
+      input.onOpening && !extra
+        ? (soFar: string) => {
+            if (openingSent) return;
+            const opening = settledOpening(partialJsonString(soFar, "script") ?? "");
+            if (opening) {
+              openingSent = true;
+              input.onOpening?.(opening);
+            }
+          }
+        : undefined;
     const raw = await complete({
       system: SCRIPT_SYSTEM_PROMPT,
       user: extra ? `${user}\n\n${extra}` : user,
       maxTokens: 8000,
+      onText,
     });
     const parsed = StopScriptSchema.safeParse(JSON.parse(stripFence(raw)));
     if (!parsed.success) {
