@@ -150,3 +150,27 @@ def test_work_stops_for_good_when_nothing_else_holds_budget(sessions, providers,
     worker.drain()
     with sessions() as session:
         assert set(session.scalars(select(Job.status))) == {"over_budget"}
+
+
+def test_work_queued_for_its_next_stage_counts_as_still_going(sessions, providers, settings, worker, city):
+    """Between two batch rounds a job is briefly queued again; refusals in that moment
+    must wait for it, not give up."""
+    from app.budget import create_budget
+    from app.pipeline.work import Funding, claim_script, enqueue_script
+    from app.models import Poi
+    from datetime import UTC, datetime
+    with sessions.begin() as session:
+        budget = create_budget(session, "prewarm_run", "tight", Decimal("1"))
+        pois = session.scalars(select(Poi).order_by(Poi.id)).all()[:2]
+        for poi in pois:
+            script = claim_script(session, poi, "en", "storyteller", "short", settings)
+            enqueue_script(session, script, poi, Funding(budget.id), settings, providers.tts, datetime.now(UTC).date())
+        session.execute(text("UPDATE budgets SET reserved_usd = cap_usd WHERE id = :id"), {"id": budget.id})
+        jobs = session.scalars(select(Job).order_by(Job.id)).all()
+        session.execute(text("UPDATE jobs SET reserved_usd = 0 WHERE id = :id"), {"id": jobs[1].id})
+        session.execute(text("UPDATE jobs SET reserved_usd = 1, run_after = now() + interval '1 hour' "
+                             "WHERE id = :id"), {"id": jobs[0].id})  # queued for its next stage, not yet due
+    worker.submit_script_batches()
+    with sessions() as session:
+        refused = session.get(Job, jobs[1].id)
+        assert refused.status == "queued" and refused.error.startswith("waiting for budget")
