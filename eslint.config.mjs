@@ -7,6 +7,10 @@ const eslintConfig = defineConfig([
   ...nextTs,
   // Override default ignores of eslint-config-next.
   globalIgnores([
+    // The iPhone app and the Python backend have their own tooling.
+    "mobile/**",
+    "backend/**",
+    ".local/**",
     // Default ignores of eslint-config-next:
     ".next/**",
     "out/**",

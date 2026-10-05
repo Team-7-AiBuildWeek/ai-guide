@@ -1,0 +1,55 @@
+{
+  "expo": {
+    "name": "Walk",
+    "slug": "ai-guide",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.team7.aiguide",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "Walk uses your location to start each stop's story when you arrive, and to find tours near you."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.team7.aiguide"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-status-bar",
+      [
+        "expo-audio",
+        {
+          "enableBackgroundPlayback": true,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Walk uses your location to start each stop's story when you arrive, and to find tours near you."
+        }
+      ],
+      "expo-asset"
+    ],
+    "scheme": "aiguide",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "apiBaseUrl": "https://ai-guide-phi.vercel.app"
+    }
+  }
+}
