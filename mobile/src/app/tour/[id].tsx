@@ -5,7 +5,9 @@
 
 import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassButton } from "@/components/Glass";
 import { tourBundle } from "@/lib/api";
 import { formatMinutes } from "@/lib/geo";
 import { loadTour, saveTour } from "@/lib/offline";
@@ -19,6 +21,7 @@ export default function TourScreen() {
   const [bundle, setBundle] = useState<Bundle | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+  const insets = useSafeAreaInsets();
 
   useEffect(() => {
     let alive = true;
@@ -69,7 +72,7 @@ export default function TourScreen() {
   return (
     <>
       <Stack.Screen options={{ title: THEME_LABEL[tour.tour.theme] ?? "Tour" }} />
-      <ScrollView contentContainerStyle={styles.page}>
+      <ScrollView contentContainerStyle={[styles.page, { paddingBottom: insets.bottom + 110 }]}>
         <Text style={styles.title}>
           {THEME_LABEL[tour.tour.theme] ?? tour.tour.theme} · {city || (saved?.cityName ?? "")}
         </Text>
@@ -78,17 +81,6 @@ export default function TourScreen() {
           {tour.tour.total_walk_m ? ` · ${(tour.tour.total_walk_m / 1000).toFixed(1)} km walking` : ""}
         </Text>
 
-        {saved ? (
-          <Pressable style={styles.primary} onPress={() => router.push({ pathname: "/walk/[id]", params: { id: String(tourId) } })}>
-            <Text style={styles.primaryText}>Start the walk</Text>
-          </Pressable>
-        ) : (
-          <Pressable style={[styles.primary, progress && styles.disabled]} disabled={!!progress} onPress={download}>
-            <Text style={styles.primaryText}>
-              {progress ? `Downloading ${progress.done} of ${progress.total}…` : `Download for offline · ${megabytes.toFixed(0)} MB`}
-            </Text>
-          </Pressable>
-        )}
         {saved ? <Text style={styles.note}>Saved on this phone: works without signal.</Text> : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
 
@@ -104,6 +96,24 @@ export default function TourScreen() {
           </View>
         ))}
       </ScrollView>
+
+      {/* The screen's one action floats above the list: the navigation layer, in glass. */}
+      <View style={[styles.dock, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
+        {saved ? (
+          <GlassButton
+            prominent
+            label="Start the walk"
+            onPress={() => router.push({ pathname: "/walk/[id]", params: { id: String(tourId) } })}
+          />
+        ) : (
+          <GlassButton
+            prominent
+            disabled={!!progress}
+            label={progress ? `Downloading ${progress.done} of ${progress.total}…` : `Download for offline · ${megabytes.toFixed(0)} MB`}
+            onPress={download}
+          />
+        )}
+      </View>
     </>
   );
 }
@@ -113,9 +123,7 @@ const styles = StyleSheet.create({
   page: { padding: 16, paddingBottom: 48 },
   title: { fontSize: 26, fontWeight: "700", color: colors.ink },
   meta: { fontSize: 15, color: colors.inkMute, marginTop: 4, marginBottom: 16 },
-  primary: { backgroundColor: colors.mint, borderRadius: 14, paddingVertical: 16, alignItems: "center" },
-  disabled: { opacity: 0.6 },
-  primaryText: { color: "#fff", fontSize: 17, fontWeight: "600" },
+  dock: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 16 },
   note: { fontSize: 13, color: colors.inkMute, marginTop: 8 },
   error: { fontSize: 15, color: colors.danger, marginTop: 12 },
   heading: { fontSize: 20, fontWeight: "700", color: colors.ink, marginTop: 24, marginBottom: 8 },

@@ -5,7 +5,7 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.team7.aiguide",
@@ -42,7 +42,8 @@
           "locationWhenInUsePermission": "Walk uses your location to start each stop's story when you arrive, and to find tours near you."
         }
       ],
-      "expo-asset"
+      "expo-asset",
+      "expo-font"
     ],
     "scheme": "aiguide",
     "experiments": {

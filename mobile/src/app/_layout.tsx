@@ -16,6 +16,16 @@ export default function RootLayout() {
         <Stack.Screen name="index" options={{ title: "Walk" }} />
         <Stack.Screen name="tour/[id]" options={{ title: "Tour" }} />
         <Stack.Screen name="walk/[id]" options={{ title: "Walking", headerBackTitle: "Tour" }} />
+        {/* A partial-height sheet: iOS 26 draws it in Liquid Glass. No custom background. */}
+        <Stack.Screen
+          name="walk/text"
+          options={{
+            title: "Read along",
+            presentation: "formSheet",
+            sheetAllowedDetents: [0.5, 1],
+            sheetGrabberVisible: true,
+          }}
+        />
       </Stack>
     </>
   );

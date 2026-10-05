@@ -1,10 +1,12 @@
 /**
  * The walk itself, entirely from files on the phone.
  *
- * The map shows the stops and the walking legs between them. Each stop's story
- * starts on its own when the walker comes within its trigger radius; they can
- * also play any stop by hand. Narration keeps playing with the screen locked,
- * and shows on the lock screen.
+ * The map is the content and fills the screen. The navigation bar and the
+ * player float above it as Liquid Glass (the navigation layer); the narration
+ * text opens in its own sheet, where it stays solid, because glass is never for
+ * content. Each stop's story starts on its own when the walker comes within its
+ * trigger radius; they can also play any stop by hand. Narration keeps playing
+ * with the screen locked, and shows on the lock screen.
  *
  * Arrival is watched only while the app is open. Starting a stop with the phone
  * locked in a pocket needs background location, which needs the app's own build
@@ -13,10 +15,13 @@
 
 import { setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import * as Location from "expo-location";
-import { Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
+import { SymbolView } from "expo-symbols";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline } from "react-native-maps";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassButton, GlassGroup, GlassSurface, useGlass } from "@/components/Glass";
 import { decodePolyline, metersBetween, type LatLng } from "@/lib/geo";
 import { loadTour } from "@/lib/offline";
 import { colors, THEME_LABEL } from "@/lib/theme";
@@ -35,9 +40,10 @@ export default function WalkScreen() {
   const [current, setCurrent] = useState(0);
   const [played, setPlayed] = useState<Set<number>>(new Set());
   const [here, setHere] = useState<LatLng | null>(null);
-  const [showText, setShowText] = useState(false);
   const [loaded, setLoaded] = useState<number | null>(null);
   const player = useAudioPlayer(null);
+  const glass = useGlass();
+  const insets = useSafeAreaInsets();
   const status = useAudioPlayerStatus(player);
 
   useEffect(() => {
@@ -104,12 +110,15 @@ export default function WalkScreen() {
   const nextStop = tour.stops[current + 1];
   const distanceToStop = here ? Math.round(metersBetween(here, { latitude: stop.lat, longitude: stop.lng })) : null;
   const isLoaded = loaded === current;
+  const total = status.duration || (stop.audio?.duration_ms ?? 0) / 1000;
+  const progress = isLoaded && total > 0 ? Math.min(1, status.currentTime / total) : 0;
 
   return (
-    <>
-      <Stack.Screen options={{ title: `Stop ${current + 1} of ${tour.stops.length}` }} />
+    <View style={styles.screen}>
+      {/* Over the map the bar is glass; without glass it stays an ordinary opaque bar. */}
+      <Stack.Screen options={{ title: `Stop ${current + 1} of ${tour.stops.length}`, headerTransparent: glass }} />
       <MapView
-        style={styles.map}
+        style={StyleSheet.absoluteFill}
         showsUserLocation
         initialRegion={{ latitude: tour.stops[0].lat, longitude: tour.stops[0].lng, latitudeDelta: 0.012, longitudeDelta: 0.012 }}
       >
@@ -125,59 +134,104 @@ export default function WalkScreen() {
         ))}
       </MapView>
 
-      <ScrollView style={styles.sheet} contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-        <Text style={styles.stopName}>{stop.name}</Text>
-        {stop.local_name && stop.local_name !== stop.name ? <Text style={styles.local}>{stop.local_name}</Text> : null}
-        <Text style={styles.meta}>
-          {distanceToStop !== null ? `${distanceToStop} m away · ` : ""}
-          {played.has(current) ? "playing from here" : "starts when you arrive"}
-        </Text>
+      <View style={[styles.dock, { paddingBottom: insets.bottom + 12 }]} pointerEvents="box-none">
+        <GlassGroup spacing={10} style={styles.group}>
+          {/* The player: a floating control, like the system's now-playing bar. */}
+          <GlassSurface style={styles.player}>
+            <Text style={styles.stopName} numberOfLines={1}>{stop.name}</Text>
+            <Text style={styles.meta} numberOfLines={1}>
+              {distanceToStop !== null ? `${distanceToStop} m away · ` : ""}
+              {played.has(current) ? "playing from here" : "starts when you arrive"}
+            </Text>
+            <View style={styles.track}>
+              <View style={[styles.trackFill, { width: `${progress * 100}%` }]} />
+            </View>
+            <Text style={styles.time}>{isLoaded ? `${clock(status.currentTime)} / ${clock(total)}` : clock(total)}</Text>
+            <View style={styles.controls}>
+              <IconButton
+                symbol={{ ios: "backward.end.fill", android: "skip_previous", web: "skip_previous", glyph: "⏮" }}
+                label="Previous stop"
+                disabled={current === 0}
+                onPress={() => play(current - 1)}
+              />
+              <IconButton
+                symbol={status.playing
+                  ? { ios: "pause.fill", android: "pause", web: "pause", glyph: "❚❚" }
+                  : { ios: "play.fill", android: "play_arrow", web: "play_arrow", glyph: "▶" }}
+                label={status.playing ? "Pause" : isLoaded ? "Resume" : "Play now"}
+                large
+                onPress={() => (status.playing ? player.pause() : play(current))}
+              />
+              <IconButton
+                symbol={{ ios: "forward.end.fill", android: "skip_next", web: "skip_next", glyph: "⏭" }}
+                label="Next stop"
+                disabled={!nextStop}
+                onPress={() => play(current + 1)}
+              />
+            </View>
+          </GlassSurface>
 
-        <View style={styles.controls}>
-          <Pressable style={styles.secondary} disabled={current === 0} onPress={() => play(current - 1)}>
-            <Text style={[styles.secondaryText, current === 0 && styles.dim]}>◀︎ Back</Text>
-          </Pressable>
-          <Pressable style={styles.play} onPress={() => (status.playing ? player.pause() : play(current))}>
-            <Text style={styles.playText}>{status.playing ? "Pause" : isLoaded ? "Resume" : "Play now"}</Text>
-          </Pressable>
-          <Pressable style={styles.secondary} disabled={!nextStop} onPress={() => play(current + 1)}>
-            <Text style={[styles.secondaryText, !nextStop && styles.dim]}>Next ▶︎</Text>
-          </Pressable>
-        </View>
-        {isLoaded ? (
-          <Text style={styles.time}>{clock(status.currentTime)} / {clock(status.duration || (stop.audio?.duration_ms ?? 0) / 1000)}</Text>
-        ) : null}
+          <View style={styles.row}>
+            {stop.walk_to_next && nextStop ? (
+              <GlassSurface style={styles.chip}>
+                <Text style={styles.chipText} numberOfLines={1}>
+                  Next: {nextStop.name} · {Math.max(1, Math.round(stop.walk_to_next.duration_s / 60))} min
+                </Text>
+              </GlassSurface>
+            ) : <View style={{ flex: 1 }} />}
+            <GlassButton
+              label="Read along"
+              onPress={() => router.push({ pathname: "/walk/text", params: { id: String(tour.tour.id), stop: String(current) } })}
+            />
+          </View>
+        </GlassGroup>
+      </View>
+    </View>
+  );
+}
 
-        {stop.walk_to_next && nextStop ? (
-          <Text style={styles.next}>
-            Next: {nextStop.name} · {stop.walk_to_next.distance_m} m, about {Math.max(1, Math.round(stop.walk_to_next.duration_s / 60))} min walk
-          </Text>
-        ) : null}
+/** An SF Symbol (iOS), a Material symbol (Android, web), and a text glyph if neither renders. */
+type Symbol = { ios: string; android: string; web: string; glyph: string };
 
-        <Pressable onPress={() => setShowText((v) => !v)}>
-          <Text style={styles.link}>{showText ? "Hide the text" : "Read along"}</Text>
-        </Pressable>
-        {showText && stop.transcript ? <Text style={styles.transcript}>{stop.transcript}</Text> : null}
-      </ScrollView>
-    </>
+function IconButton({ symbol, label, onPress, disabled, large }: {
+  symbol: Symbol; label: string; onPress: () => void; disabled?: boolean; large?: boolean;
+}) {
+  const size = large ? 34 : 24;
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      hitSlop={12}
+      style={({ pressed }) => [styles.icon, large && styles.iconLarge, pressed && { transform: [{ scale: 0.92 }] }]}
+    >
+      <SymbolView
+        name={{ ios: symbol.ios, android: symbol.android, web: symbol.web } as never}
+        size={size}
+        tintColor={disabled ? colors.inkMute : large ? "#fff" : colors.mint}
+        fallback={<Text style={{ fontSize: size * 0.7, color: large ? "#fff" : colors.mint }}>{symbol.glyph}</Text>}
+      />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: { flex: 1 },
   center: { flex: 1, alignItems: "center", justifyContent: "center" },
-  map: { height: "45%" },
-  sheet: { flex: 1, backgroundColor: colors.paper },
-  stopName: { fontSize: 24, fontWeight: "700", color: colors.ink },
-  local: { fontSize: 16, color: colors.inkMute },
-  meta: { fontSize: 14, color: colors.inkMute, marginTop: 4 },
-  controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 16, gap: 8 },
-  play: { flex: 1, backgroundColor: colors.mint, borderRadius: 14, paddingVertical: 14, alignItems: "center" },
-  playText: { color: "#fff", fontSize: 17, fontWeight: "600" },
-  secondary: { paddingVertical: 14, paddingHorizontal: 12 },
-  secondaryText: { color: colors.mint, fontSize: 16, fontWeight: "600" },
-  dim: { opacity: 0.35 },
-  time: { textAlign: "center", color: colors.inkMute, marginTop: 8, fontVariant: ["tabular-nums"] },
-  next: { fontSize: 15, color: colors.ink, marginTop: 16 },
-  link: { color: colors.mint, fontSize: 15, fontWeight: "600", marginTop: 16 },
-  transcript: { fontSize: 16, lineHeight: 24, color: colors.ink, marginTop: 8 },
+  dock: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 12 },
+  group: { gap: 10 },
+  player: { borderRadius: 28, padding: 16 },
+  stopName: { fontSize: 20, fontWeight: "700", color: colors.ink },
+  meta: { fontSize: 14, color: colors.inkMute, marginTop: 2 },
+  track: { height: 4, borderRadius: 2, backgroundColor: "rgba(0,0,0,0.12)", marginTop: 12, overflow: "hidden" },
+  trackFill: { height: 4, backgroundColor: colors.mint },
+  time: { fontSize: 12, color: colors.inkMute, marginTop: 4, fontVariant: ["tabular-nums"] },
+  controls: { flexDirection: "row", alignItems: "center", justifyContent: "space-evenly", marginTop: 8 },
+  icon: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  iconLarge: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.mint },
+  row: { flexDirection: "row", alignItems: "center", gap: 10 },
+  chip: { flex: 1, borderRadius: 999, paddingVertical: 14, paddingHorizontal: 16 },
+  chipText: { fontSize: 15, color: colors.ink },
 });
