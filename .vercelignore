@@ -4,5 +4,5 @@ backend/.pg
 backend/local-audio
 backend/**/__pycache__
 deploy/netlify.env
-.local
-mobile
+/.local
+/mobile
