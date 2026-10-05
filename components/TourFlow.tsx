@@ -762,7 +762,7 @@ export default function TourFlow({
             <Link
               href="/profile"
               aria-label="My profile"
-              className="pointer-events-auto inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border border-[color:var(--line)] bg-[color:var(--surface)] shadow-[var(--shadow-card)]"
+              className="glass pointer-events-auto inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border"
             >
               <Image src="/icons/icon-192.png" alt="" width={48} height={48} priority />
             </Link>
@@ -776,7 +776,7 @@ export default function TourFlow({
           and the way out. */}
       {sheetHidden ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-center justify-between gap-3 panel-dark px-4 py-3">
+          <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-center justify-between gap-3 panel-dark panel--glass px-4 py-3">
             {/* Once the pin is down the instruction is finished, and leaving
                 it up reads as though the tap did not register. */}
             <p className="min-w-0 font-[family-name:var(--font-display)] font-semibold">
@@ -808,7 +808,7 @@ export default function TourFlow({
               <button
                 type="button"
                 onClick={goBack}
-                className="btn btn--quiet px-4"
+                className="btn btn--glass px-4"
                 aria-label={directionsOpen ? "Close directions" : "Leave the tour"}
               >
                 ←
@@ -828,7 +828,7 @@ export default function TourFlow({
                 <button
                   type="button"
                   onClick={() => setDirectionsOpen((o) => !o)}
-                  className="btn btn--dark px-4"
+                  className="btn btn--glass-dark px-4"
                   aria-label="Walking directions"
                   aria-expanded={directionsOpen}
                 >
@@ -880,7 +880,7 @@ export default function TourFlow({
         <div className="pointer-events-none absolute inset-x-0 top-36 z-20 px-4">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
             {justArrived ? (
-              <div className="panel-dark w-full px-4 py-3">
+              <div className="panel-dark panel--glass w-full px-4 py-3">
                 <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
                   You&apos;ve arrived
                 </p>
@@ -912,7 +912,7 @@ export default function TourFlow({
       {/* Location trouble is reported once, above the sheet, not per screen. */}
       {status.kind === "error" && stage === "start" ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="pointer-events-auto mx-auto w-full max-w-lg panel-dark px-4 py-3">
+          <div className="pointer-events-auto mx-auto w-full max-w-lg panel-dark panel--glass px-4 py-3">
             <p className="font-[family-name:var(--font-display)] font-semibold">{status.message}</p>
             {status.hint ? (
               <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--on-dark-mute)]">

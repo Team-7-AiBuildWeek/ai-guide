@@ -85,7 +85,7 @@ export default function TurnCard({
       aria-expanded={open}
       // Spoken form for anyone not looking at the arrow.
       aria-label={`${LABEL[kind]}${meters >= 10 ? ` in ${distance}` : " now"}${street ? `, ${street}` : ""}. Open directions.`}
-      className="panel-dark flex w-[92px] shrink-0 flex-col items-center gap-1 px-2 py-3 active:opacity-85"
+      className="panel-dark panel--glass flex w-[92px] shrink-0 flex-col items-center gap-1 px-2 py-3 active:opacity-85"
     >
       <span className="text-[color:var(--mint)]">
         <Arrow kind={kind} />

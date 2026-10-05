@@ -384,6 +384,9 @@ export default function BottomSheet({
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",
         "bg-[color:var(--surface)] shadow-[var(--shadow-lift)]",
+        // Collapsed it is a control strip floating on the map: frosted. Raised to
+        // read, it is a page of text: solid (see .sheet--glass in globals.css).
+        height === "collapsed" ? "sheet--glass" : "",
         // A spring, not a linear slide — it should feel like it was thrown up.
         "transition-[height] duration-[420ms] ease-[cubic-bezier(0.22,1.2,0.36,1)]",
         height === "full" ? "h-[100dvh] rounded-t-none" : "",

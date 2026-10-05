@@ -29,7 +29,7 @@ export default function LayerSwitcher({
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-label="Change the map layer"
-        className="btn btn--quiet btn--icon"
+        className="btn btn--glass btn--icon"
       >
         {/* Stacked sheets. */}
         <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
@@ -53,7 +53,7 @@ export default function LayerSwitcher({
           so an inner corner of 20 − 6 sits concentric inside it. At the old 3px
           the selected block looked square against the panel's curve. */}
       {open ? (
-        <ul className="panel-dark overflow-hidden p-1.5">
+        <ul className="panel-dark panel--glass overflow-hidden p-1.5">
           {styles.map((s) => (
             <li key={s.id}>
               <button
