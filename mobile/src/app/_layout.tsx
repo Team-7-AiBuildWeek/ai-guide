@@ -1,31 +1,34 @@
+import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import {
+  SpaceGrotesk_500Medium,
+  SpaceGrotesk_600SemiBold,
+  SpaceGrotesk_700Bold,
+} from "@expo-google-fonts/space-grotesk";
+import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { View } from "react-native";
 import { colors } from "@/lib/theme";
 
+/** The website's pairing: Space Grotesk for display, Inter for reading. */
 export default function RootLayout() {
+  const [loaded] = useFonts({
+    SpaceGrotesk_500Medium,
+    SpaceGrotesk_600SemiBold,
+    SpaceGrotesk_700Bold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+  });
+  if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.canvas }} />;
+
   return (
     <>
       <StatusBar style="dark" />
-      <Stack
-        screenOptions={{
-          headerTintColor: colors.mint,
-          headerTitleStyle: { color: colors.ink },
-          contentStyle: { backgroundColor: colors.paper },
-        }}
-      >
-        <Stack.Screen name="index" options={{ title: "Walk" }} />
-        <Stack.Screen name="tour/[id]" options={{ title: "Tour" }} />
-        <Stack.Screen name="walk/[id]" options={{ title: "Walking", headerBackTitle: "Tour" }} />
-        {/* A partial-height sheet: iOS 26 draws it in Liquid Glass. No custom background. */}
-        <Stack.Screen
-          name="walk/text"
-          options={{
-            title: "Read along",
-            presentation: "formSheet",
-            sheetAllowedDetents: [0.5, 1],
-            sheetGrabberVisible: true,
-          }}
-        />
+      {/* Edge to edge, like the website's installed app: every screen draws its own top. */}
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="profile" />
       </Stack>
     </>
   );

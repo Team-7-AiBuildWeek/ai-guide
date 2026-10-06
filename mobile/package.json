@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/space-grotesk": "^0.4.1",
     "eslint-config-expo": "~57.0.2",
     "expo": "~57.0.26",
     "expo-asset": "~57.0.18",
@@ -11,16 +13,19 @@
     "expo-file-system": "~57.0.7",
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.4",
+    "expo-keep-awake": "~57.0.2",
     "expo-linking": "~57.0.11",
     "expo-location": "~57.0.20",
     "expo-router": "~57.0.24",
+    "expo-speech": "~57.0.3",
     "expo-status-bar": "~57.0.1",
     "expo-symbols": "~57.0.3",
     "react": "19.2.3",
     "react-native": "0.86.3",
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0"
+    "react-native-screens": "~4.26.0",
+    "undefined": "/Users/jurkokolesar/.claude/jobs/f0f7174c/tmp/npm-cache"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

@@ -1,37 +1,71 @@
-export type LatLng = { latitude: number; longitude: number };
+/**
+ * Distances and turn-by-turn, from the website's lib/tour/route.ts and
+ * lib/tour/navigation.ts.
+ */
 
-export function metersBetween(a: LatLng, b: LatLng): number {
-  const r = (d: number) => (d * Math.PI) / 180;
-  const h = Math.sin(r(b.latitude - a.latitude) / 2) ** 2 +
-    Math.cos(r(a.latitude)) * Math.cos(r(b.latitude)) * Math.sin(r(b.longitude - a.longitude) / 2) ** 2;
-  return 2 * 6_371_000 * Math.asin(Math.sqrt(h));
+import type { LatLng, Maneuver, RouteFeature } from "./types";
+
+export function distanceMeters(a: LatLng, b: LatLng): number {
+  const R = 6371000;
+  const toRad = (d: number) => (d * Math.PI) / 180;
+  const dLat = toRad(b.lat - a.lat);
+  const dLng = toRad(b.lng - a.lng);
+  const h = Math.sin(dLat / 2) ** 2 + Math.sin(dLng / 2) ** 2 * Math.cos(toRad(a.lat)) * Math.cos(toRad(b.lat));
+  return 2 * R * Math.asin(Math.sqrt(h));
 }
 
-/** Google's encoded polyline format, as walk_to_next.polyline carries it. */
-export function decodePolyline(encoded: string, precision = 5): LatLng[] {
-  const factor = 10 ** precision;
-  const points: LatLng[] = [];
-  let index = 0, lat = 0, lng = 0;
-  while (index < encoded.length) {
-    const deltas: number[] = [];
-    for (let k = 0; k < 2; k++) {
-      let shift = 0, result = 0, byte: number;
-      do {
-        byte = encoded.charCodeAt(index++) - 63;
-        result |= (byte & 0x1f) << shift;
-        shift += 5;
-      } while (byte >= 0x20);
-      deltas.push(result & 1 ? ~(result >> 1) : result >> 1);
-    }
-    lat += deltas[0];
-    lng += deltas[1];
-    points.push({ latitude: lat / factor, longitude: lng / factor });
+function interpolate(a: LatLng, b: LatLng, t: number): LatLng {
+  return { lat: a.lat + (b.lat - a.lat) * t, lng: a.lng + (b.lng - a.lng) * t };
+}
+
+/** The route's line as points, in walking order. */
+export function routePoints(route: RouteFeature | null | undefined): LatLng[] {
+  const geom = route?.geometry;
+  if (!geom || geom.type !== "LineString" || !Array.isArray(geom.coordinates)) return [];
+  return (geom.coordinates as [number, number][]).map(([lng, lat]) => ({ lat, lng }));
+}
+
+type RoutePosition = { index: number; t: number; point: LatLng; offRoute: number };
+
+function projectOnRoute(line: LatLng[], at: LatLng): RoutePosition {
+  let best: RoutePosition = { index: 0, t: 0, point: line[0], offRoute: Infinity };
+  const kx = Math.cos((at.lat * Math.PI) / 180);
+  for (let i = 0; i < line.length - 1; i++) {
+    const a = line[i];
+    const b = line[i + 1];
+    const abx = (b.lng - a.lng) * kx;
+    const aby = b.lat - a.lat;
+    const apx = (at.lng - a.lng) * kx;
+    const apy = at.lat - a.lat;
+    const lenSq = abx * abx + aby * aby;
+    const t = lenSq > 0 ? Math.max(0, Math.min(1, (apx * abx + apy * aby) / lenSq)) : 0;
+    const point = interpolate(a, b, t);
+    const offRoute = distanceMeters(at, point);
+    if (offRoute < best.offRoute) best = { index: i, t, point, offRoute };
   }
-  return points;
+  return best;
 }
 
-export function formatMinutes(ms: number | null | undefined): string {
-  if (!ms) return "";
-  const m = Math.round(ms / 60_000);
-  return m >= 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m} min`;
+export type NextTurn = { maneuver: Maneuver; meters: number };
+
+/** The next turn ahead of the walker along the route, and how far it is. */
+export function nextTurn(line: LatLng[], maneuvers: Maneuver[] | undefined, at: LatLng | null): NextTurn | null {
+  if (!maneuvers?.length || !at || line.length < 2) return null;
+  const here = projectOnRoute(line, at);
+  const passed = here.t > 0 ? here.index + 1 : here.index;
+  const upcoming = maneuvers.find((m) => m.beginShapeIndex >= passed);
+  if (!upcoming) return null;
+  const target = Math.min(upcoming.beginShapeIndex, line.length - 1);
+  let meters = distanceMeters(here.point, line[Math.min(here.index + 1, target)]);
+  for (let i = here.index + 1; i < target; i++) meters += distanceMeters(line[i], line[i + 1]);
+  return { maneuver: upcoming, meters };
 }
+
+export function formatDistance(meters: number): string {
+  if (meters < 10) return "now";
+  if (meters < 1000) return `${Math.round(meters / 5) * 5} m`;
+  return `${(meters / 1000).toFixed(1)} km`;
+}
+
+/** Past this, a fix is a guess about which street you are on (lib/tour/fixQuality.ts). */
+export const TRUSTED_M = 30;

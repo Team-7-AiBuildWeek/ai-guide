@@ -1,36 +1,116 @@
-/** The offline bundle, as the web app's /api/mobile/tours/[id] returns it. */
+/**
+ * The website's tour types (lib/providers/types.ts, lib/tour/flow.ts), as the
+ * app receives them from the same /api routes.
+ */
 
-export type Leg = {
-  distance_m: number;
-  duration_s: number;
-  polyline: string;
-  polyline_precision: number;
-  instructions: { text: string; distance_m: number; duration_s: number; street: string | null }[];
-};
+export type LatLng = { lat: number; lng: number };
 
-export type BundleStop = {
-  position: number;
-  poi_id: number;
+export type Place = { id: string; name: string; address: string; lat: number; lng: number };
+
+export type City = { name: string; label: string; lat: number; lng: number };
+
+export type Duration = 30 | 45 | 60 | 90 | 120 | 180 | 240;
+export type Detail = "highlights" | "story" | "everything";
+export type Pace = "relaxed" | "steady" | "cover-ground";
+export type Interest =
+  | "history"
+  | "architecture"
+  | "food"
+  | "art"
+  | "hidden"
+  | "nature"
+  | "music"
+  | "literature"
+  | "sacred"
+  | "royal"
+  | "legends"
+  | "conflict";
+
+export type Stop = {
+  id: string;
   name: string;
-  local_name: string | null;
+  localName?: string;
   lat: number;
   lng: number;
-  trigger_radius_m: number;
-  audio: { url: string; duration_ms: number; bytes: number; content_type: string; id: string } | null;
-  transcript: string | null;
-  sources: { url: string; license: string }[];
-  walk_to_next: Leg | null;
+  angle: string;
+  walkingCueToHere?: string;
+  script?: string;
+  audio?: { src: string; durationMs: number };
+  backend?: { tourId: number; position: number };
 };
 
-export type Bundle = {
-  manifest_version: number;
-  status: string;
-  tour: { id: number; city_id: number; theme: string; language: string; total_duration_ms: number | null; total_walk_m: number | null };
-  stops: BundleStop[];
+export type TourPlan = { title: string; summary: string; stops: Stop[] };
+
+export type TourRequest = {
+  freeText?: string;
+  city?: City;
+  durationMinutes: Duration;
+  detail: Detail;
+  pace: Pace;
+  interests: Interest[];
+  start: LatLng & { label?: string };
+  end?: LatLng & { label?: string };
+  lang: string;
 };
 
-export type NearbyTour = { id: number; theme: string; language: string; stops: number; minutes: number; walkMeters: number | null };
-export type Nearby = { city: { id: number; name: string } | null; tours: NearbyTour[] };
+export type ManeuverKind = "straight" | "left" | "right" | "uturn" | "arrive";
 
-/** A tour saved on the phone: the bundle, with each stop's audio as a local file. */
-export type SavedTour = Bundle & { cityName: string; savedAt: string; stops: (BundleStop & { localAudio: string })[] };
+export type Maneuver = {
+  kind: ManeuverKind;
+  meters: number;
+  instruction: string;
+  street?: string;
+  beginShapeIndex: number;
+};
+
+export type TourRide = {
+  from: number;
+  to: number;
+  mode: "tram" | "bus" | "trolleybus" | "subway" | "light_rail";
+  ref: string;
+  headsign?: string;
+  board: { name: string; lat: number; lng: number };
+  alight: { name: string; lat: number; lng: number };
+  stops: number;
+  minutes: number;
+};
+
+/** A GeoJSON LineString feature, which is all the route ever is. */
+export type RouteFeature = {
+  type: "Feature";
+  geometry: { type: string; coordinates: unknown };
+  properties?: Record<string, unknown>;
+};
+
+export type StoredTour = {
+  plan: TourPlan;
+  req?: TourRequest;
+  route: RouteFeature | null;
+  meters: number;
+  seconds: number;
+  maneuvers?: Maneuver[];
+  rides?: TourRide[];
+};
+
+export type TourPreview = { title: string; summary: string; stops: { name: string; angle: string }[] };
+
+export type Point = LatLng & { label?: string };
+
+export type Draft = {
+  freeText: string;
+  city: City | null;
+  durationMinutes: Duration;
+  detail: Detail;
+  pace: Pace;
+  interests: Interest[];
+  start: Point | null;
+  end: Point | null;
+  lang: string;
+};
+
+export type Stage = "start" | "brief" | "points" | "generating" | "headphones" | "tour";
+
+export type StopPhoto = { url: string; width: number; height: number; title: string; page: string };
+
+/** A location reading: where, and how sure. */
+export type Fix = LatLng & { accuracy: number };
