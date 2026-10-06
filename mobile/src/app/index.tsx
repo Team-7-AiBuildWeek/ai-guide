@@ -9,7 +9,7 @@
 
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Location from "expo-location";
-import { router, useFocusEffect } from "expo-router";
+import { Redirect, router, useFocusEffect } from "expo-router";
 import * as Speech from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
@@ -38,6 +38,7 @@ import {
   tourMinutes,
 } from "@/lib/flow";
 import { distanceMeters, nextTurn, routePoints, TRUSTED_M } from "@/lib/geo";
+import { welcomed } from "@/lib/auth";
 import { rememberWalk, takeRebuild } from "@/lib/history";
 import { normaliseLang, speechLocale } from "@/lib/languages";
 import { prefetchSpeech, useNarration } from "@/lib/narration";
@@ -85,7 +86,13 @@ function useLiveLocation(): { fix: Fix | null; denied: boolean } {
   return { fix, denied };
 }
 
-export default function Flow() {
+/** The welcome screen comes first, once; after that the app opens on the map. */
+export default function Home() {
+  const [seen] = useState(welcomed);
+  return seen ? <Flow /> : <Redirect href="/welcome" />;
+}
+
+function Flow() {
   const insets = useSafeAreaInsets();
   // Whatever the last session left behind, read once as the screen is made.
   const [restored] = useState(() => {

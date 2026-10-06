@@ -41,9 +41,10 @@ export default function PrivacyPage() {
         <p className="u-eyebrow">Last updated {UPDATED}</p>
         <p>
           Walk builds audio walking tours on the website and in the iPhone app. This page says what
-          it does with your information. The short version: there are no accounts, no tracking and
-          no advertising. To build a tour, your starting point and what you asked for are sent to the
-          services that write and voice it. Your walks are kept on your own device.
+          it does with your information. The short version: no tracking and no advertising, and an
+          account is optional. To build a tour, your starting point and what you asked for are sent
+          to the services that write and voice it. Your walks are kept on your own device, and, if
+          you sign in, with your account so your other devices have them too.
         </p>
       </div>
 
@@ -72,6 +73,12 @@ export default function PrivacyPage() {
             the start and end points you pick, and the places you search for.
           </li>
           <li>
+            <strong className="text-[color:var(--ink)]">Your email address, if you sign in.</strong>{" "}
+            Signing in is optional and uses a one-time code sent to your email; there is no
+            password. With an account, your past walks are kept with it so the website and the
+            iPhone app show the same ones.
+          </li>
+          <li>
             <strong className="text-[color:var(--ink)]">Questions you ask during a walk.</strong>{" "}
             Sent with the stop you are at and your current position, so the answer is about what is in
             front of you.
@@ -92,6 +99,10 @@ export default function PrivacyPage() {
             the stories, answers your questions, and voices the narration. It receives your request,
             including anything you typed, your start and end points, and, for a question, the question
             and your position.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">Clerk.</strong> Runs sign-in if you create an
+            account: it holds your email address, sends the sign-in codes, and keeps you signed in.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Stadia Maps.</strong> Map tiles on the
@@ -116,8 +127,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Hosting.</strong> The website and its servers
-            run on Vercel; tour data for prepared tours is kept in a Neon database, and prepared
-            narration in Cloudflare R2 storage.
+            run on Vercel; the walks kept with accounts and the data for prepared tours are in a
+            Neon database, and prepared narration in Cloudflare R2 storage.
           </li>
         </ul>
         <p>
@@ -135,6 +146,14 @@ export default function PrivacyPage() {
             started), and in the app the narration already played, so it replays without signal.
             They stay until you delete them: one by one on the profile page, or all at once by
             clearing the website&apos;s data in your browser or deleting the app.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">With your account.</strong> If you sign in,
+            your last 30 walks (the same record your device keeps, including what you asked for and
+            where each started) are kept with your account, and Clerk keeps your email address. They
+            stay until you delete them: a walk deleted on the profile page is deleted from your
+            account too, and &ldquo;Delete account&rdquo; on the profile page deletes the account and
+            everything kept with it, on the website and in the app.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">On Walk&apos;s servers, briefly.</strong>{" "}
@@ -159,18 +178,18 @@ export default function PrivacyPage() {
 
       <Section title="What Walk does not do">
         <p>
-          No accounts or sign-in. No cookies. No analytics, advertising or tracking of any kind. No
-          selling or renting of your data. Fonts are part of the site and the app, not fetched from
-          a third party.
+          No analytics, advertising or tracking of any kind. No selling or renting of your data. The
+          only cookies are the ones that keep you signed in, and only once you sign in. Fonts are
+          part of the site and the app, not fetched from a third party.
         </p>
       </Section>
 
       <Section title="Your rights">
         <p>
           Under the GDPR you can ask to see the data Walk holds about you, have it corrected or
-          deleted, restrict or object to its use, and receive it in a portable form. Because Walk
-          has no accounts, almost everything is on your own device, where you can delete it
-          yourself. For anything else, write to{" "}
+          deleted, restrict or object to its use, and receive it in a portable form. Most of it is
+          on your own device, where you can delete it yourself, and an account can be deleted from
+          the profile page at any time. For anything else, write to{" "}
           <a href={`mailto:${CONTACT}`} className="font-medium text-[color:var(--mint-ink)] underline underline-offset-4">
             {CONTACT}
           </a>

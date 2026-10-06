@@ -4,10 +4,13 @@ import {
   SpaceGrotesk_600SemiBold,
   SpaceGrotesk_700Bold,
 } from "@expo-google-fonts/space-grotesk";
+import { ClerkProvider } from "@clerk/expo";
+import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { View } from "react-native";
+import { CLERK_PUBLISHABLE_KEY } from "@/lib/accounts";
 import { colors } from "@/lib/theme";
 
 /** The website's pairing: Space Grotesk for display, Inter for reading. */
@@ -22,14 +25,23 @@ export default function RootLayout() {
   });
   if (!loaded) return <View style={{ flex: 1, backgroundColor: colors.canvas }} />;
 
-  return (
+  const app = (
     <>
       <StatusBar style="dark" />
       {/* Edge to edge, like the website's installed app: every screen draws its own top. */}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
         <Stack.Screen name="index" />
+        <Stack.Screen name="welcome" options={{ animation: "fade" }} />
         <Stack.Screen name="profile" />
       </Stack>
     </>
+  );
+  // Accounts are optional: without Clerk's key the app runs exactly as before.
+  return CLERK_PUBLISHABLE_KEY ? (
+    <ClerkProvider publishableKey={CLERK_PUBLISHABLE_KEY} tokenCache={tokenCache}>
+      {app}
+    </ClerkProvider>
+  ) : (
+    app
   );
 }

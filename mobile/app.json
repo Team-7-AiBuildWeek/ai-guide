@@ -50,7 +50,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "apiBaseUrl": "https://ai-guide-phi.vercel.app"
+      "apiBaseUrl": "https://ai-guide-phi.vercel.app",
+      "clerkPublishableKey": "pk_test_bm9ibGUtbW9vc2UtNjUyMS5jbGVyay5hY2NvdW50cy5kZXYk"
     }
   }
 }

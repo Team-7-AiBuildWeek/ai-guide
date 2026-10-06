@@ -12,6 +12,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { welcomed } from "@/lib/accounts/client";
 import Image from "next/image";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
@@ -79,6 +81,7 @@ export default function TourFlow({
   initialSimulate: boolean;
 }) {
   const t = useT();
+  const router = useRouter();
   const [stage, setStage] = useState<Stage>("start");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [tour, setTour] = useState<StoredTour | null>(null);
@@ -173,6 +176,11 @@ export default function TourFlow({
     // state without a hydration mismatch. Deferred a tick so it never writes
     // state during the mount commit.
     queueMicrotask(() => {
+      // The welcome screen comes first, once.
+      if (!welcomed() && !loadTour()) {
+        router.replace("/welcome");
+        return;
+      }
       const d = loadDraft();
       // Nothing saved: open in the browser's own language when it is one of
       // ours, so most walkers never have to find the picker at all.
@@ -203,7 +211,7 @@ export default function TourFlow({
         setStage("tour");
       }
     });
-  }, []);
+  }, [router]);
 
   const patchDraft = useCallback((patch: Partial<Draft>) => {
     setDraft((d) => {

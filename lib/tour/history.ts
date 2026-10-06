@@ -122,6 +122,18 @@ export function rememberWalk(tour: StoredTour): void {
   save([record, ...loadWalks()]);
 }
 
+/**
+ * Walks kept for this account on another device, folded into this one's list.
+ * Matched by the moment each was built, newest first, the usual thirty.
+ */
+export function mergeWalks(remote: WalkRecord[]): WalkRecord[] {
+  const byAt = new Map<number, WalkRecord>();
+  for (const w of [...loadWalks(), ...remote]) if (Number.isFinite(w?.at) && !byAt.has(w.at)) byAt.set(w.at, w);
+  const merged = [...byAt.values()].sort((a, b) => b.at - a.at);
+  save(merged);
+  return merged.slice(0, KEEP);
+}
+
 export function forgetWalk(at: number): WalkRecord[] {
   const left = loadWalks().filter((w) => w.at !== at);
   save(left);

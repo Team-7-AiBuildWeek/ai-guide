@@ -11,6 +11,8 @@
  */
 
 import Link from "next/link";
+import Account from "./Account";
+import { accountsEnabled, forgetWalkEverywhere } from "@/lib/accounts/client";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
@@ -210,6 +212,8 @@ export default function Profile() {
         <Stat label={t("profile.distance")} value={formatDistance(walked)} />
       </section>
 
+      {accountsEnabled ? <Account onWalks={setWalks} /> : null}
+
       <section>
         <h2 className="text-[length:var(--text-h3)]">{t("profile.settings")}</h2>
         <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
@@ -260,7 +264,14 @@ export default function Profile() {
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {walks.map((w) => (
-              <Walk key={w.at} walk={w} onForget={() => setWalks(forgetWalk(w.at))} />
+              <Walk
+                key={w.at}
+                walk={w}
+                onForget={() => {
+                  setWalks(forgetWalk(w.at));
+                  if (accountsEnabled) void forgetWalkEverywhere(w.at);
+                }}
+              />
             ))}
           </ul>
         )}

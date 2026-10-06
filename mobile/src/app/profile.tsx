@@ -1,10 +1,12 @@
 /** "My profile": the website's Profile — totals, settings, and every walk built here. */
 
 import { router } from "expo-router";
-import { useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Account from "@/components/Account";
 import { Btn, Eyebrow, LanguageSelect, TextLink } from "@/components/ui";
+import { accountsEnabled } from "@/lib/accounts";
 import { BASE } from "@/lib/api";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/flow";
 import { canWalkAgain, forgetWalk, formatKm, formatWhen, loadWalks, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
@@ -80,6 +82,10 @@ export default function Profile() {
   const insets = useSafeAreaInsets();
   const [walks, setWalks] = useState(loadWalks);
   const [lang, setLang] = useState(() => loadDraft()?.lang ?? EMPTY_DRAFT.lang);
+  const forgetRemote = useRef<((at: number) => void) | null>(null);
+  const bindForget = useCallback((f: ((at: number) => void) | null) => {
+    forgetRemote.current = f;
+  }, []);
   const walked = walks.reduce((m, w) => m + w.meters, 0);
   const stops = walks.reduce((n, w) => n + w.stopNames.length, 0);
 
@@ -98,6 +104,8 @@ export default function Profile() {
         <Stat label={t("profile.stops")} value={String(stops)} />
         <Stat label={t("profile.distance")} value={formatKm(walked)} />
       </View>
+
+      {accountsEnabled ? <Account onWalks={setWalks} bindForget={bindForget} /> : null}
 
       <View>
         <Text style={type.h3}>Settings</Text>
@@ -119,7 +127,16 @@ export default function Profile() {
         {walks.length === 0 ? (
           <Text style={type.body}>{t("profile.empty")}</Text>
         ) : (
-          walks.map((w) => <Walk key={w.at} walk={w} onForget={() => setWalks(forgetWalk(w.at))} />)
+          walks.map((w) => (
+            <Walk
+              key={w.at}
+              walk={w}
+              onForget={() => {
+                setWalks(forgetWalk(w.at));
+                forgetRemote.current?.(w.at);
+              }}
+            />
+          ))
         )}
       </View>
       {walks.length === 0 ? <TextLink label={t("landing.build")} onPress={() => router.back()} /> : null}
