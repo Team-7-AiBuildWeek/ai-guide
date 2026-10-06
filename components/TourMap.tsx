@@ -125,6 +125,24 @@ function pinMarkerEl(kind: "start" | "end"): HTMLElement {
   return el;
 }
 
+/**
+ * One of our sources, or nothing when the map cannot say.
+ *
+ * Between a map being made and its style arriving — and after it has been
+ * torn down — MapLibre has no style to ask, and asking throws ("this.style is
+ * null"). Safari met it coming from the welcome screen: the location fix
+ * arrived before the style did, and the whole page went down with it. A
+ * source that is not there yet is simply skipped; the load handler fills it in.
+ */
+function sourceOf(map: MapLibreMap, id: string): GeoJSONSource | undefined {
+  if (!(map as unknown as { style?: unknown }).style) return undefined;
+  try {
+    return map.getSource(id) as GeoJSONSource | undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 export default function TourMap({
   styleUrl,
   center,
@@ -232,7 +250,7 @@ export default function TourMap({
     // has to be callable again — not just once on first load.
     const addOurLayers = () => {
       styleReady.current = true;
-      if (map.getSource(ROUTE)) return;
+      if (sourceOf(map, ROUTE)) return;
 
       map.addSource(ROUTE, {
         type: "geojson",
@@ -385,7 +403,7 @@ export default function TourMap({
       gpsMarker.current.setLngLat([at.lng, at.lat]);
     }
 
-    (map.getSource(ACCURACY) as GeoJSONSource | undefined)?.setData(
+    sourceOf(map, ACCURACY)?.setData(
       accuracyPolygon(fix.lat, fix.lng, fix.accuracy),
     );
 
@@ -445,7 +463,7 @@ export default function TourMap({
     routeRef.current = route;
     if (!map) return;
     const apply = () =>
-      (map.getSource(ROUTE) as GeoJSONSource | undefined)?.setData(
+      sourceOf(map, ROUTE)?.setData(
         route ?? { type: "FeatureCollection", features: [] },
       );
     if (styleReady.current) apply();
@@ -481,7 +499,7 @@ export default function TourMap({
     ridesRef.current = rideShapes;
     if (!map) return;
     const apply = () =>
-      (map.getSource(RIDES) as GeoJSONSource | undefined)?.setData(rideShapes);
+      sourceOf(map, RIDES)?.setData(rideShapes);
     if (styleReady.current) apply();
     else map.once("load", apply);
   }, [rideShapes]);
