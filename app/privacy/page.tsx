@@ -116,9 +116,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Wikipedia and Wikimedia.</strong> Photos of
-            the stops. It receives the stop&apos;s name and position, never yours. In the iPhone app
-            the photo itself is loaded straight from Wikimedia, which sees your device&apos;s internet
-            address.
+            the stops. It receives the stop&apos;s name and position, never yours. The photo itself is
+            loaded straight from Wikimedia, which sees your device&apos;s internet address.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Apple.</strong> In the iPhone app, the map is
