@@ -6,3 +6,4 @@ backend/**/__pycache__
 deploy/netlify.env
 /.local
 /mobile
+/node_modules.nosync

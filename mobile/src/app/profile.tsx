@@ -2,9 +2,10 @@
 
 import { router } from "expo-router";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Btn, Eyebrow, LanguageSelect, TextLink } from "@/components/ui";
+import { BASE } from "@/lib/api";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/flow";
 import { canWalkAgain, forgetWalk, formatKm, formatWhen, loadWalks, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
 import { LANGUAGES } from "@/lib/languages";
@@ -122,6 +123,7 @@ export default function Profile() {
         )}
       </View>
       {walks.length === 0 ? <TextLink label={t("landing.build")} onPress={() => router.back()} /> : null}
+      <TextLink muted label="Privacy" onPress={() => void Linking.openURL(`${BASE}/privacy`)} />
     </ScrollView>
   );
 }

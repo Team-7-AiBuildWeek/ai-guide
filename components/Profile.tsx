@@ -273,6 +273,12 @@ export default function Profile() {
       <Link href="/" className="btn btn--primary btn--lg w-full">
         {t("profile.save")}
       </Link>
+      <Link
+        href="/privacy"
+        className="min-h-[44px] self-center text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
+      >
+        Privacy
+      </Link>
     </main>
   );
 }

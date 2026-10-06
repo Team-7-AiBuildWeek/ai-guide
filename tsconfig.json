@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+    "preserveSymlinks": true,
     "target": "ES2017",
     "lib": ["dom", "dom.iterable", "esnext"],
     "allowJs": true,
@@ -30,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "mobile", "backend", ".local"]
+  "exclude": ["node_modules", "node_modules.nosync", "mobile", "backend", ".local"]
 }
