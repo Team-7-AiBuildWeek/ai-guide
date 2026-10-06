@@ -174,6 +174,7 @@ export default function GeneratingStep({
   error,
   onCancel,
   onRetry,
+  onContinue,
 }: {
   phase: string;
   message: string | null;
@@ -181,9 +182,16 @@ export default function GeneratingStep({
   error: string | null;
   onCancel: () => void;
   onRetry: () => void;
+  /**
+   * Present once the tour is built. The itinerary stays where it is, every
+   * step ticks over, and the walker moves on when they have read it — the
+   * screen used to jump away the moment the tour arrived, taking the list of
+   * stops with it just as it was being read.
+   */
+  onContinue?: () => void;
 }) {
   const t = useT();
-  const activeIndex = PHASE_LABELS.findIndex((p) => p.covers.includes(phase));
+  const activeIndex = onContinue ? PHASE_LABELS.length : PHASE_LABELS.findIndex((p) => p.covers.includes(phase));
 
   if (error) {
     return (
@@ -268,13 +276,19 @@ export default function GeneratingStep({
         {PHASE_LABELS[activeIndex]?.label ?? "Working"}
       </p>
 
-      <button
-        type="button"
-        onClick={onCancel}
-        className="min-h-[44px] text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
-      >
-        {t("gen.cancel")}
-      </button>
+      {onContinue ? (
+        <button type="button" onClick={onContinue} className="btn btn--primary btn--lg w-full">
+          Continue to tour
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={onCancel}
+          className="min-h-[44px] text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
+        >
+          {t("gen.cancel")}
+        </button>
+      )}
     </div>
   );
 }

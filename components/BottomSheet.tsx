@@ -93,6 +93,28 @@ export default function BottomSheet({
 }) {
   const panelRef = useRef<HTMLDivElement>(null);
   const sheetRef = useRef<HTMLElement>(null);
+
+  /**
+   * How much of the screen the keyboard is covering.
+   *
+   * iPhone Safari lays the keyboard over the page rather than shrinking it, so
+   * a field in the collapsed card — the city search on the first screen — sat
+   * underneath it. The visual viewport is what is left above the keyboard; the
+   * card is lifted by the difference. Only the collapsed card needs it: the
+   * taller sheets scroll their own fields into view.
+   */
+  const [keyboard, setKeyboard] = useState(0);
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const measure = () => setKeyboard(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
+    vv.addEventListener("resize", measure);
+    vv.addEventListener("scroll", measure);
+    return () => {
+      vv.removeEventListener("resize", measure);
+      vv.removeEventListener("scroll", measure);
+    };
+  }, []);
   const drag = useRef<Drag | null>(null);
   const settle = useRef<number | null>(null);
   /**
@@ -380,6 +402,7 @@ export default function BottomSheet({
     <section
       ref={sheetRef}
       aria-label={title ?? "Tour options"}
+      style={height === "collapsed" && keyboard > 0 ? { bottom: keyboard } : undefined}
       className={[
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",

@@ -4,8 +4,10 @@
  * The first screen: what Walk is, and a way in — the same screen as the iPhone
  * app's (mobile/src/app/welcome.tsx).
  *
- * Laid out like Luma's welcome: things orbiting a mark, a two-line promise, one
- * button. "Get started" lifts a sheet with an email and a six-digit code.
+ * Laid out like Luma's welcome — things orbiting a mark, a two-line promise, one
+ * button — in the site's own language: the plain canvas, white surfaces with a
+ * hairline, mint as the one fill, and the same sheet that slides over the map.
+ * "Get started" lifts it: an email and a six-digit code.
  * Signing in is never required; the sheet always offers the way past it.
  */
 
@@ -18,16 +20,16 @@ import { loadWalks } from "@/lib/tour/history";
 type Orbiter = { icon: string; bg: string; size: number; angle: number };
 
 const INNER: Orbiter[] = [
-  { icon: "🏛", bg: "#ffe0cc", size: 64, angle: 200 },
-  { icon: "🎧", bg: "#c9f2dc", size: 60, angle: 330 },
-  { icon: "📍", bg: "#e4dafc", size: 58, angle: 80 },
+  { icon: "🏛", bg: "var(--surface)", size: 64, angle: 200 },
+  { icon: "🎧", bg: "var(--mint-wash)", size: 60, angle: 330 },
+  { icon: "📍", bg: "var(--surface)", size: 58, angle: 80 },
 ];
 const OUTER: Orbiter[] = [
-  { icon: "🏰", bg: "#ffeaa8", size: 70, angle: 15 },
-  { icon: "🎨", bg: "#ffd3e2", size: 62, angle: 95 },
-  { icon: "🗺", bg: "#d4e8ff", size: 66, angle: 160 },
-  { icon: "☕", bg: "#d8f3cc", size: 58, angle: 235 },
-  { icon: "🎵", bg: "#ece0ff", size: 60, angle: 300 },
+  { icon: "🏰", bg: "var(--mint-wash)", size: 70, angle: 15 },
+  { icon: "🎨", bg: "var(--surface)", size: 62, angle: 95 },
+  { icon: "🗺", bg: "var(--surface)", size: 66, angle: 160 },
+  { icon: "☕", bg: "var(--mint-wash)", size: 58, angle: 235 },
+  { icon: "🎵", bg: "var(--surface)", size: 60, angle: 300 },
 ];
 
 function Ring({ r, items, reverse }: { r: number; items: Orbiter[]; reverse?: boolean }) {
@@ -81,7 +83,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
           void check(code);
         }}
       >
-        <h2 className="text-[length:var(--text-h2)]">Check your email</h2>
+        <h2 className="text-[length:var(--text-h3)]">Check your email</h2>
         <p>
           We sent a 6-digit code to <strong className="text-[color:var(--ink)]">{auth.email}</strong>.
         </p>
@@ -131,19 +133,14 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
       }}
     >
       <div className="mb-2 flex items-start justify-between">
-        <span className="grid h-16 w-16 place-items-center rounded-full bg-[color:var(--canvas)]">
+        <span className="grid h-14 w-14 place-items-center rounded-full bg-[color:var(--mint-wash)]">
           <Image src="/icons/icon-512.png" alt="" width={40} height={40} className="rounded-[10px]" />
         </span>
-        <button
-          type="button"
-          onClick={onClose}
-          aria-label="Close"
-          className="grid h-9 w-9 place-items-center rounded-full bg-[color:var(--canvas)] text-[color:var(--ink-mute)]"
-        >
+        <button type="button" onClick={onClose} aria-label="Close" className="btn btn--quiet shrink-0 px-4">
           ✕
         </button>
       </div>
-      <h2 className="text-[length:var(--text-h2)]">Get started</h2>
+      <h2 className="text-[length:var(--text-h3)]">Get started</h2>
       <p>Keep your walks and pick them up on any device — this browser or the iPhone app.</p>
       <input
         type="email"
@@ -158,7 +155,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
       <button type="submit" disabled={auth.busy || !email.includes("@")} className="btn btn--primary btn--lg w-full">
         {auth.busy ? "Sending…" : "Continue with email"}
       </button>
-      <button type="button" onClick={onDone} className="min-h-[44px] self-center text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4">
+      <button type="button" onClick={onDone} className="min-h-[44px] self-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4">
         Continue without an account
       </button>
       {/* Clerk's bot check renders here when it needs to. */}
@@ -191,14 +188,14 @@ export default function Welcome({ openSheet = false }: { openSheet?: boolean }) 
         <p className="welcome-wordmark">
           walk<span aria-hidden="true" />
         </p>
-        <h1 className="welcome-headline">
+        <h1>
           Audio tours anywhere
-          <span className="welcome-gradient">Start walking</span>
+          <span className="block text-[color:var(--mint-ink)]">Start walking</span>
         </h1>
         <button
           type="button"
           onClick={() => (accountsEnabled ? setOpen(true) : finish())}
-          className="btn btn--dark btn--lg mt-8 w-full"
+          className="btn btn--primary btn--lg mt-8 w-full"
         >
           Get started
         </button>
@@ -206,6 +203,7 @@ export default function Welcome({ openSheet = false }: { openSheet?: boolean }) 
 
       {accountsEnabled ? (
         <div className="welcome-sheet" role="dialog" aria-modal="true" aria-label="Get started" aria-hidden={!open} inert={!open}>
+          <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
           <SignInSheet onDone={finish} onClose={() => setOpen(false)} />
         </div>
       ) : null}

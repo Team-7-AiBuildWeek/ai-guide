@@ -2,13 +2,13 @@
  * The first screen: what Walk is, and a way in.
  *
  * Laid out like Luma's welcome — things orbiting a mark, a two-line promise, one
- * button — with Walk's own things in orbit. "Get started" lifts a sheet over
- * the orbit: an email, a six-digit code, and the walker is signed in. Signing in
- * is never required; the sheet always offers the way past it.
+ * button — but drawn in the app's own language: the plain canvas, white
+ * surfaces with a hairline, mint as the one fill, ink text, and the same sheet
+ * that slides over the map. "Get started" lifts it: an email, a six-digit code,
+ * and the walker is signed in. Signing in is never required; the sheet always
+ * offers the way past it.
  */
 
-import MaskedView from "@react-native-masked-view/masked-view";
-import { LinearGradient } from "expo-linear-gradient";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -18,7 +18,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -28,22 +27,22 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Btn, Field, TextLink } from "@/components/ui";
 import { accountsEnabled } from "@/lib/accounts";
 import { markWelcomed, useEmailCode } from "@/lib/auth";
-import { colors, fonts, shadow, size, type } from "@/lib/theme";
+import { colors, fonts, radius, shadow, size, type } from "@/lib/theme";
 
 type Orbiter = { icon: string; bg: string; size: number; angle: number };
 
 /** Two rings of what a walk is made of, turning slowly in opposite directions. */
 const INNER: Orbiter[] = [
-  { icon: "🏛", bg: "#ffe0cc", size: 64, angle: 200 },
-  { icon: "🎧", bg: "#c9f2dc", size: 60, angle: 330 },
-  { icon: "📍", bg: "#e4dafc", size: 58, angle: 80 },
+  { icon: "🏛", bg: colors.surface, size: 64, angle: 200 },
+  { icon: "🎧", bg: colors.mintWash, size: 60, angle: 330 },
+  { icon: "📍", bg: colors.surface, size: 58, angle: 80 },
 ];
 const OUTER: Orbiter[] = [
-  { icon: "🏰", bg: "#ffeaa8", size: 70, angle: 15 },
-  { icon: "🎨", bg: "#ffd3e2", size: 62, angle: 95 },
-  { icon: "🗺", bg: "#d4e8ff", size: 66, angle: 160 },
-  { icon: "☕", bg: "#d8f3cc", size: 58, angle: 235 },
-  { icon: "🎵", bg: "#ece0ff", size: 60, angle: 300 },
+  { icon: "🏰", bg: colors.mintWash, size: 70, angle: 15 },
+  { icon: "🎨", bg: colors.surface, size: 62, angle: 95 },
+  { icon: "🗺", bg: colors.surface, size: 66, angle: 160 },
+  { icon: "☕", bg: colors.mintWash, size: 58, angle: 235 },
+  { icon: "🎵", bg: colors.surface, size: 60, angle: 300 },
 ];
 
 function Ring({
@@ -87,16 +86,6 @@ function Ring({
   );
 }
 
-function GradientText({ children }: { children: string }) {
-  return (
-    <MaskedView maskElement={<Text style={[styles.headline, { backgroundColor: "transparent" }]}>{children}</Text>}>
-      <LinearGradient colors={[colors.mintInk, "#22a39a", colors.transit]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }}>
-        <Text style={[styles.headline, { opacity: 0 }]}>{children}</Text>
-      </LinearGradient>
-    </MaskedView>
-  );
-}
-
 function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
   const auth = useEmailCode();
   const [email, setEmail] = useState("");
@@ -105,7 +94,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
   if (auth.step === "code") {
     return (
       <View style={{ gap: 12 }}>
-        <Text style={type.h2}>Check your email</Text>
+        <Text style={type.h3}>Check your email</Text>
         <Text style={type.body}>
           We sent a 6-digit code to <Text style={{ fontFamily: fonts.bodySemi, color: colors.ink }}>{auth.email}</Text>.
         </Text>
@@ -152,11 +141,9 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
         <View style={styles.badge}>
           <Image source={require("../../assets/logo.png")} style={styles.badgeLogo} />
         </View>
-        <Pressable onPress={onClose} accessibilityRole="button" accessibilityLabel="Close" hitSlop={8} style={styles.close}>
-          <Text style={styles.closeText}>✕</Text>
-        </Pressable>
+        <Btn label="✕" onPress={onClose} accessibilityLabel="Close" />
       </View>
-      <Text style={type.h2}>Get started</Text>
+      <Text style={type.h3}>Get started</Text>
       <Text style={type.body}>Keep your walks and pick them up on any device — this iPhone or the website.</Text>
       <Field
         value={email}
@@ -180,7 +167,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
         disabled={auth.busy || !email.includes("@")}
         onPress={() => void auth.send(email)}
       />
-      <TextLink label="Continue without an account" muted onPress={onDone} />
+      <TextLink label="Continue without an account" onPress={onDone} />
     </View>
   );
 }
@@ -219,13 +206,6 @@ export default function Welcome() {
 
   return (
     <View style={styles.screen}>
-      <LinearGradient
-        colors={["#e3f6ec", "#eef1fb", "#fdf1ea", colors.canvas]}
-        locations={[0, 0.35, 0.65, 1]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.6, y: 1 }}
-        style={StyleSheet.absoluteFill}
-      />
 
       <Animated.View style={[styles.orbit, { top: height * 0.36, transform: [{ translateY: orbitY }] }]} pointerEvents="none">
         <View style={[styles.ringLine, { width: unit * 1.3, height: unit * 1.3, borderRadius: unit * 0.65 }]} />
@@ -242,14 +222,15 @@ export default function Welcome() {
           <View style={styles.wordmarkDot} />
         </View>
         <Text style={styles.headline}>Audio tours anywhere</Text>
-        <GradientText>Start walking</GradientText>
-        <Btn variant="dark" large label="Get started" onPress={() => (accountsEnabled ? setOpen(true) : finish())} style={styles.cta} />
+        <Text style={[styles.headline, { color: colors.mintInk }]}>Start walking</Text>
+        <Btn variant="primary" large label="Get started" onPress={() => (accountsEnabled ? setOpen(true) : finish())} style={styles.cta} />
       </Animated.View>
 
       {accountsEnabled ? (
         <Animated.View style={[styles.sheetWrap, { transform: [{ translateY: sheetY }] }]} pointerEvents={open ? "auto" : "none"}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <View style={[styles.sheet, { marginBottom: Math.max(12, insets.bottom) }]}>
+            <View style={[styles.sheet, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
+              <View style={styles.grabber} />
               <SignInSheet onDone={finish} onClose={() => setOpen(false)} />
             </View>
           </KeyboardAvoidingView>
@@ -262,44 +243,41 @@ export default function Welcome() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas, overflow: "hidden" },
   orbit: { position: "absolute", left: 0, right: 0, alignItems: "center", justifyContent: "center", height: 0 },
-  ring: { position: "absolute", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.9)" },
-  ringLine: { position: "absolute", borderWidth: 1.5, borderColor: "rgba(255,255,255,0.7)" },
-  core: { alignItems: "center", justifyContent: "center", backgroundColor: "rgba(255,255,255,0.35)" },
+  ring: { position: "absolute", borderWidth: 1, borderColor: colors.line },
+  ringLine: { position: "absolute", borderWidth: 1, borderColor: colors.line },
+  core: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, ...shadow.card },
   mark: { width: 64, height: 64, borderRadius: 16 },
   orbiter: {
     position: "absolute",
     alignItems: "center",
     justifyContent: "center",
-    borderWidth: 3,
-    borderColor: "rgba(255,255,255,0.85)",
+    borderWidth: 1,
+    borderColor: colors.line,
     ...shadow.card,
   },
   bottom: { position: "absolute", left: 0, right: 0, bottom: 0, paddingHorizontal: 24, alignItems: "center" },
   wordmark: { flexDirection: "row", alignItems: "flex-start", marginBottom: 12 },
   wordmarkText: { fontFamily: fonts.displayMedium, fontSize: 30, color: colors.inkMute, letterSpacing: -0.6 },
   wordmarkDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.mint, marginLeft: 2, marginTop: 6 },
-  headline: {
-    fontFamily: fonts.display,
-    fontSize: 36,
-    lineHeight: 42,
-    letterSpacing: -0.8,
-    color: colors.ink,
-    textAlign: "center",
-  },
+  headline: { ...type.h1, textAlign: "center" },
   cta: { alignSelf: "stretch", marginTop: 32 },
   sheetWrap: { position: "absolute", left: 0, right: 0, bottom: 0 },
+  /** The map's sheet: rounded on top, a hairline, the lifted shadow. */
   sheet: {
-    marginHorizontal: 12,
     backgroundColor: colors.surface,
-    borderRadius: 36,
-    padding: 24,
+    borderTopLeftRadius: radius.panel,
+    borderTopRightRadius: radius.panel,
+    borderWidth: 1,
+    borderBottomWidth: 0,
+    borderColor: colors.line,
+    paddingHorizontal: 16,
+    paddingTop: 0,
     ...shadow.lift,
   },
+  grabber: { alignSelf: "center", width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong, marginVertical: 12 },
   sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
-  badge: { width: 64, height: 64, borderRadius: 32, backgroundColor: colors.canvas, alignItems: "center", justifyContent: "center" },
+  badge: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.mintWash, alignItems: "center", justifyContent: "center" },
   badgeLogo: { width: 40, height: 40, borderRadius: 10 },
-  close: { width: 36, height: 36, borderRadius: 18, backgroundColor: colors.canvas, alignItems: "center", justifyContent: "center" },
-  closeText: { fontSize: 15, color: colors.inkMute },
   code: { minHeight: 60, fontFamily: fonts.display, fontSize: 28, letterSpacing: 10, textAlign: "center" },
   error: { fontFamily: fonts.body, fontSize: size.caption, color: colors.danger },
   links: { flexDirection: "row", justifyContent: "space-between" },

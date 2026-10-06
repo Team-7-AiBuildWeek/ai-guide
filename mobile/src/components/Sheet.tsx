@@ -135,7 +135,13 @@ export default function Sheet({
 
   if (mode === "collapsed") {
     return (
-      <View style={styles.dock} pointerEvents="box-none">
+      // Rises with the keyboard, so a search typed into the card (choosing a
+      // city on the first screen) stays above it.
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.dock}
+        pointerEvents="box-none"
+      >
         <GlassSurface style={styles.collapsed}>
           <View
             {...responder.panHandlers}
@@ -149,7 +155,7 @@ export default function Sheet({
             <View style={styles.collapsedBody}>{collapsedContent}</View>
           </View>
         </GlassSurface>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 

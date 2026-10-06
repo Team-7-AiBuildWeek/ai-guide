@@ -110,6 +110,8 @@ function Flow() {
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState<TourPreview | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  /** Built, with the itinerary still on screen until "Continue to tour". */
+  const [ready, setReady] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(restored.index);
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
@@ -176,6 +178,7 @@ function Flow() {
     async (again?: { req: TourRequest; plan: TourPlan }) => {
       if (!again && !draft.start) return;
       setStage("generating");
+      setReady(false);
       setPhase("stops");
       setPhaseMessage(null);
       setGenError(null);
@@ -215,7 +218,12 @@ function Flow() {
         rememberWalk(built);
         arrived.current.clear();
         setCurrentIndex(0);
-        setStage("headphones");
+        // Stay on the itinerary: the walker reads the stops, then continues.
+        setPreview(
+          (p) =>
+            p ?? { title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) },
+        );
+        setReady(true);
       } catch (err) {
         if (controller.signal.aborted) {
           if (controller.signal.reason !== "cancelled") setGenError("Generation took too long and was stopped.");
@@ -284,7 +292,7 @@ function Flow() {
     index: currentIndex,
     onAdvance: advance,
     active: stage === "tour",
-    warm: stage === "headphones",
+    warm: stage === "headphones" || (stage === "generating" && ready),
     album: draft.city?.name,
   });
 
@@ -619,6 +627,7 @@ function Flow() {
                 setStage("points");
               }}
               onRetry={() => void generate()}
+              onContinue={ready && tour ? () => setStage("headphones") : undefined}
             />
           ) : stage === "headphones" && tour ? (
             <Headphones

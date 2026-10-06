@@ -103,6 +103,8 @@ export default function TourFlow({
   /** The itinerary, as soon as it exists — see GeneratingStep. */
   const [preview, setPreview] = useState<TourPreview | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  /** The tour is built and the itinerary is on screen, waiting for "Continue to tour". */
+  const [ready, setReady] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [askOpen, setAskOpen] = useState(false);
   const [directionsOpen, setDirectionsOpen] = useState(false);
@@ -237,6 +239,7 @@ export default function TourFlow({
   const generate = useCallback(async (again?: { req: TourRequest; plan: TourPlan }) => {
     if (!again && !draft.start) return;
     setStage("generating");
+    setReady(false);
     setPhase("stops");
     setPhaseMessage(null);
     setGenError(null);
@@ -334,7 +337,9 @@ export default function TourFlow({
             // made, not the one they completed.
             rememberWalk(built);
             setCurrentIndex(0);
-            setStage("headphones");
+            // Stay on the itinerary: the walker reads the stops, then continues.
+            setPreview((p) => p ?? { title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+            setReady(true);
           }
         }
       }
@@ -498,7 +503,7 @@ export default function TourFlow({
     // The headphones screen is a tap and a paragraph of reading — long enough
     // to make the first stop in, and it is the last thing standing between the
     // walker and the first word.
-    warm: stage === "headphones",
+    warm: stage === "headphones" || (stage === "generating" && ready),
   });
 
   /**
@@ -1083,6 +1088,7 @@ export default function TourFlow({
                 setStage("points");
               }}
               onRetry={generate}
+              onContinue={ready && tour ? () => setStage("headphones") : undefined}
             />
           ) : stage === "headphones" && tour ? (
             <HeadphonesStep

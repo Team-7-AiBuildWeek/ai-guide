@@ -90,6 +90,7 @@ export default function Generating({
   error,
   onCancel,
   onRetry,
+  onContinue,
 }: {
   phase: string;
   message: string | null;
@@ -97,8 +98,10 @@ export default function Generating({
   error: string | null;
   onCancel: () => void;
   onRetry: () => void;
+  /** Present once the tour is built: the stops stay on screen until the walker moves on. */
+  onContinue?: () => void;
 }) {
-  const active = PHASES.findIndex((p) => p.covers.includes(phase));
+  const active = onContinue ? PHASES.length : PHASES.findIndex((p) => p.covers.includes(phase));
 
   if (error) {
     return (
@@ -158,7 +161,11 @@ export default function Generating({
         })}
       </View>
 
-      <TextLink label={t("gen.cancel")} onPress={onCancel} />
+      {onContinue ? (
+        <Btn variant="primary" large label="Continue to tour" onPress={onContinue} />
+      ) : (
+        <TextLink label={t("gen.cancel")} onPress={onCancel} />
+      )}
     </View>
   );
 }
