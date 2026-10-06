@@ -18,6 +18,7 @@ export async function POST(request: Request) {
         stack: clip(body.stack, 1500),
         path: clip(body.path, 200),
         agent: clip(body.agent, 300),
+        where: clip(body.where, 50),
       }),
     );
   } catch {
