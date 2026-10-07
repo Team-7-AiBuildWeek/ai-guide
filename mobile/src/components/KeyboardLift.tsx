@@ -34,5 +34,11 @@ export default function KeyboardLift({ style, children }: { style?: StyleProp<Vi
     return () => subs.forEach((s) => s.remove());
   }, [lift, insets.bottom]);
 
-  return <Animated.View style={[style, { transform: [{ translateY: Animated.multiply(lift, -1) }] }]}>{children}</Animated.View>;
+  // box-none: the wrapper itself never takes a touch, so a closed sheet
+  // inside it does not sit over the buttons behind it.
+  return (
+    <Animated.View pointerEvents="box-none" style={[style, { transform: [{ translateY: Animated.multiply(lift, -1) }] }]}>
+      {children}
+    </Animated.View>
+  );
 }

@@ -20,6 +20,8 @@ function glassSupported(): boolean {
 export function useGlass(): boolean {
   const [reduceTransparency, setReduceTransparency] = useState(false);
   useEffect(() => {
+    // An iOS setting; the browser preview has neither it nor the glass.
+    if (Platform.OS !== "ios") return;
     void AccessibilityInfo.isReduceTransparencyEnabled().then(setReduceTransparency);
     const sub = AccessibilityInfo.addEventListener("reduceTransparencyChanged", setReduceTransparency);
     return () => sub.remove();
