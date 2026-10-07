@@ -11,10 +11,13 @@
  * Signing in is never required; the sheet always offers the way past it.
  */
 
+import { useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { accountsEnabled, markWelcomed, syncWalks, useEmailCode } from "@/lib/accounts/client";
+import GetToKnowYou from "./GetToKnowYou";
+import { applyPrefs, profileOf } from "@/lib/accounts/profile";
 import { loadWalks } from "@/lib/tour/history";
 
 type Orbiter = { icon: string; bg: string; size: number; angle: number };
@@ -64,15 +67,26 @@ function Ring({ r, items, reverse }: { r: number; items: Orbiter[]; reverse?: bo
 
 function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
   const auth = useEmailCode();
+  const clerk = useClerk();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  /** Signed in, and new: the two get-to-know-you questions before the map. */
+  const [gettingToKnow, setGettingToKnow] = useState(false);
 
   const check = async (value: string) => {
-    if (await auth.verify(value)) {
-      await syncWalks(loadWalks());
+    if (!(await auth.verify(value))) return;
+    await syncWalks(loadWalks());
+    const profile = profileOf(clerk.user);
+    if (profile.onboarded) {
+      // Back on a new device: take what they told us last time and go.
+      applyPrefs(profile.prefs);
       onDone();
+    } else {
+      setGettingToKnow(true);
     }
   };
+
+  if (gettingToKnow) return <GetToKnowYou onDone={onDone} />;
 
   if (auth.step === "code") {
     return (

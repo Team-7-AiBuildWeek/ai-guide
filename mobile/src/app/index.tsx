@@ -38,6 +38,8 @@ import {
   tourMinutes,
 } from "@/lib/flow";
 import { distanceMeters, nextTurn, routePoints, TRUSTED_M } from "@/lib/geo";
+import Greeting from "@/components/Greeting";
+import { accountsEnabled } from "@/lib/accounts";
 import { welcomed } from "@/lib/auth";
 import { rememberWalk, takeRebuild } from "@/lib/history";
 import { normaliseLang, speechLocale } from "@/lib/languages";
@@ -582,6 +584,7 @@ function Flow() {
               </View>
             ) : (
               <View>
+                {accountsEnabled ? <Greeting /> : null}
                 <Text style={type.h3}>
                   {draft.city ? t("landing.walkCity", { city: draft.city.name }) : t("landing.walkAnywhere")}
                 </Text>

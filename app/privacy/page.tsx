@@ -75,8 +75,9 @@ export default function PrivacyPage() {
           <li>
             <strong className="text-[color:var(--ink)]">Your email address, if you sign in.</strong>{" "}
             Signing in is optional and uses a one-time code sent to your email; there is no
-            password. With an account, your past walks are kept with it so the website and the
-            iPhone app show the same ones.
+            password. When you sign up you can also tell Walk what to call you and what you like to
+            see (interests, length, detail, pace); both are optional. With an account, these and your
+            past walks are kept with it so the website and the iPhone app start from the same place.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Questions you ask during a walk.</strong>{" "}
@@ -102,7 +103,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Clerk.</strong> Runs sign-in if you create an
-            account: it holds your email address, sends the sign-in codes, and keeps you signed in.
+            account: it holds your email address (and, if you gave them, your name and preferences), sends the sign-in codes, and keeps you signed in.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Stadia Maps.</strong> Map tiles on the

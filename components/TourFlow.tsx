@@ -13,7 +13,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { welcomed } from "@/lib/accounts/client";
+import { accountsEnabled, welcomed } from "@/lib/accounts/client";
+import Greeting from "./Greeting";
 import Image from "next/image";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
@@ -1019,6 +1020,7 @@ export default function TourFlow({
               </>
             ) : (
               <>
+                {accountsEnabled ? <Greeting /> : null}
                 <h1 className="text-[length:var(--text-h3)]">
                   {draft.city
                     ? t("landing.walkCity", { city: draft.city.name })

@@ -9,6 +9,7 @@
  * offers the way past it.
  */
 
+import { useClerk } from "@clerk/expo";
 import { router, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
@@ -24,9 +25,11 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import GetToKnowYou from "@/components/GetToKnowYou";
 import { Btn, Field, TextLink } from "@/components/ui";
 import { accountsEnabled } from "@/lib/accounts";
 import { markWelcomed, useEmailCode } from "@/lib/auth";
+import { applyPrefs, profileOf } from "@/lib/profile";
 import { colors, fonts, radius, shadow, size, type } from "@/lib/theme";
 
 type Orbiter = { icon: string; bg: string; size: number; angle: number };
@@ -88,8 +91,25 @@ function Ring({
 
 function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => void }) {
   const auth = useEmailCode();
+  const clerk = useClerk();
+  /** Signed in, and new: the two get-to-know-you questions before the map. */
+  const [gettingToKnow, setGettingToKnow] = useState(false);
+
+  const check = async (value: string) => {
+    if (!(await auth.verify(value))) return;
+    const profile = profileOf(clerk.user);
+    if (profile.onboarded) {
+      // Back on a new phone: take what they told us last time and go.
+      applyPrefs(profile.prefs);
+      onDone();
+    } else {
+      setGettingToKnow(true);
+    }
+  };
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+
+  if (gettingToKnow) return <GetToKnowYou onDone={onDone} />;
 
   if (auth.step === "code") {
     return (
@@ -102,7 +122,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
           value={code}
           onChangeText={(c) => {
             setCode(c);
-            if (c.replace(/\D/g, "").length === 6) void auth.verify(c).then((ok) => ok && onDone());
+            if (c.replace(/\D/g, "").length === 6) void check(c);
           }}
           placeholder="000000"
           keyboardType="number-pad"
@@ -119,7 +139,7 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
           large
           label={auth.busy ? "Checking…" : "Continue"}
           disabled={auth.busy || code.replace(/\D/g, "").length < 6}
-          onPress={() => void auth.verify(code).then((ok) => ok && onDone())}
+          onPress={() => void check(code)}
         />
         <View style={styles.links}>
           <TextLink label="Send a new code" onPress={() => void auth.resend()} />
