@@ -43,7 +43,16 @@
         }
       ],
       "expo-asset",
-      "expo-font"
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#1f1f1f"
+        }
+      ]
     ],
     "scheme": "aiguide",
     "experiments": {
