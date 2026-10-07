@@ -694,6 +694,11 @@ pre {
 .welcome--open .welcome-sheet {
   transform: none;
 }
+/* The same sheet, opened over another page (Sign in on the Account tab). */
+.welcome-sheet--shown {
+  position: fixed;
+  transform: none;
+}
 @media (prefers-reduced-motion: reduce) {
   .welcome-ring,
   .welcome-orbiter {

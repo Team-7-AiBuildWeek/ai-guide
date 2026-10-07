@@ -10,8 +10,8 @@
  */
 
 import { useClerk, useUser } from "@clerk/nextjs";
-import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
+import SignInSheet from "./SignInSheet";
 import { deleteAccount, forgetWelcome, syncWalks } from "@/lib/accounts/client";
 import { loadWalks, type WalkRecord } from "@/lib/tour/history";
 
@@ -24,6 +24,7 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
     return signOut({ redirectUrl: "/welcome" });
   };
   const [confirming, setConfirming] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -44,9 +45,19 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
         <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
           Sign in to keep your walks on this browser and the iPhone app alike. Everything else works without it.
         </p>
-        <Link href="/welcome?sheet=1" className="btn btn--primary w-full">
+        <button type="button" onClick={() => setSigningIn(true)} className="btn btn--primary w-full">
           Sign in with email
-        </Link>
+        </button>
+        {signingIn ? (
+          <>
+            {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here. */}
+            <div aria-hidden="true" className="fixed inset-0 z-50 bg-black/30" onClick={() => setSigningIn(false)} />
+            <div className="welcome-sheet welcome-sheet--shown z-50" role="dialog" aria-modal="true" aria-label="Sign in">
+              <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
+              <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
+            </div>
+          </>
+        ) : null}
       </section>
     );
   }

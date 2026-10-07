@@ -9,7 +9,9 @@
 import { useAuth, useUser } from "@clerk/expo";
 import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import SignInSheet, { sheetChrome } from "@/components/SignInSheet";
 import { Btn, Eyebrow, TextLink } from "@/components/ui";
 import { deleteAccount, syncWalks } from "@/lib/accounts";
 import { forgetWelcome } from "@/lib/auth";
@@ -26,6 +28,8 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
     router.replace("/welcome");
   };
   const [confirming, setConfirming] = useState(false);
+  const [signingIn, setSigningIn] = useState(false);
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +50,17 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
         <Text style={type.caption}>
           Sign in to keep your walks on this iPhone and the website alike. Everything else works without it.
         </Text>
-        <Btn variant="primary" label="Sign in with email" onPress={() => router.push({ pathname: "/welcome", params: { sheet: "1" } })} />
+        <Btn variant="primary" label="Sign in with email" onPress={() => setSigningIn(true)} />
+        {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here. */}
+        <Modal visible={signingIn} transparent animationType="slide" onRequestClose={() => setSigningIn(false)}>
+          <Pressable style={styles.backdrop} onPress={() => setSigningIn(false)} accessibilityLabel="Close" />
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+            <View style={[sheetChrome.panel, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
+              <View style={sheetChrome.grabber} />
+              <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
+            </View>
+          </KeyboardAvoidingView>
+        </Modal>
       </View>
     );
   }
@@ -95,6 +109,7 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
 }
 
 const styles = StyleSheet.create({
+  backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.3)" },
   card: { ...surface.card, gap: 12 },
   email: { marginTop: 4, fontFamily: fonts.display, fontSize: size.body, color: colors.ink },
   confirm: { backgroundColor: "#fef2f2", borderRadius: radius.control, padding: 12 },
