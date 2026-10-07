@@ -24,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import KeyboardLift from "@/components/KeyboardLift";
 import PanelReveal from "@/components/PanelReveal";
 import SignInSheet, { sheetChrome } from "@/components/SignInSheet";
 import { Btn } from "@/components/ui";
@@ -147,14 +148,14 @@ export default function Welcome() {
       </Animated.View>
 
       {accountsEnabled ? (
-        <PanelReveal open={open} style={styles.sheetWrap}>
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardLift style={styles.sheetWrap}>
+        <PanelReveal open={open}>
             <View style={[sheetChrome.panel, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
               <View style={sheetChrome.grabber} />
               <SignInSheet onDone={finish} onSkip={finish} onClose={() => setOpen(false)} />
             </View>
-          </KeyboardAvoidingView>
         </PanelReveal>
+        </KeyboardLift>
       ) : null}
     </View>
   );

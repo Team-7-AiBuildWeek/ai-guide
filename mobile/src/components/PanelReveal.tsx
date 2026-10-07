@@ -24,7 +24,9 @@ export default function PanelReveal({
   children: ReactNode;
 }) {
   const still = useReduceMotion();
-  const [shown] = useState(() => new Animated.Value(open ? 1 : 0));
+  // Always starts hidden: a panel that mounts already open (a sheet in a fresh
+  // modal, "You've arrived") should still be seen arriving.
+  const [shown] = useState(() => new Animated.Value(0));
   const [height, setHeight] = useState(0);
 
   useEffect(() => {
