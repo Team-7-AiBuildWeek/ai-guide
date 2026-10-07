@@ -40,7 +40,10 @@ export default function Sheet({
   footer,
   collapsedContent,
   children,
+  flush,
 }: {
+  /** Sitting on a tab bar: no room left for the home indicator. */
+  flush?: boolean;
   height: SheetHeight;
   onHeightChange?: (h: SheetHeight) => void;
   title?: string;
@@ -149,7 +152,7 @@ export default function Sheet({
               setCollapsedPx(e.nativeEvent.layout.height);
               anim.setValue(e.nativeEvent.layout.height);
             }}
-            style={{ paddingBottom: Math.max(16, insets.bottom) }}
+            style={{ paddingBottom: flush ? 16 : Math.max(16, insets.bottom) }}
           >
             {bar}
             <View style={styles.collapsedBody}>{collapsedContent}</View>

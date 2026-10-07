@@ -35,9 +35,8 @@ export default function RootLayout() {
     <>
       {/* Edge to edge, like the website's installed app: every screen draws its own top. */}
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.canvas } }}>
-        <Stack.Screen name="index" />
+        <Stack.Screen name="(tabs)" />
         <Stack.Screen name="welcome" options={{ animation: "fade" }} />
-        <Stack.Screen name="profile" />
       </Stack>
     </>
   );

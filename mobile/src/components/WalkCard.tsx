@@ -1,15 +1,10 @@
-/** "My profile": the website's Profile — totals, settings, and every walk built here. */
+/** One past walk, folded: what it was, and opened: its stops, walk it again, delete it. */
 
 import { router } from "expo-router";
-import { useCallback, useRef, useState } from "react";
-import { Linking, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Account from "@/components/Account";
-import { Btn, Eyebrow, LanguageSelect, TextLink } from "@/components/ui";
-import { accountsEnabled } from "@/lib/accounts";
-import { BASE } from "@/lib/api";
-import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/flow";
-import { canWalkAgain, forgetWalk, formatKm, formatWhen, loadWalks, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
+import { useState } from "react";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Btn, Eyebrow, LanguageSelect } from "@/components/ui";
+import { canWalkAgain, formatKm, formatWhen, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
 import { LANGUAGES } from "@/lib/languages";
 import { t } from "@/lib/strings";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
@@ -23,7 +18,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
+export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   const [open, setOpen] = useState(false);
   const [againLang, setAgainLang] = useState(walk.lang);
   const language = LANGUAGES.find((l) => l.code === walk.lang)?.english ?? walk.lang;
@@ -32,7 +27,8 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
     const plan = planFor(walk);
     if (!walk.req || !plan) return;
     saveRebuild({ req: { ...walk.req, lang: againLang }, plan });
-    router.back();
+    // Explore picks this up when it comes into view and builds it.
+    router.navigate("/");
   };
 
   return (
@@ -78,75 +74,7 @@ function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   );
 }
 
-export default function Profile() {
-  const insets = useSafeAreaInsets();
-  const [walks, setWalks] = useState(loadWalks);
-  const [lang, setLang] = useState(() => loadDraft()?.lang ?? EMPTY_DRAFT.lang);
-  const forgetRemote = useRef<((at: number) => void) | null>(null);
-  const bindForget = useCallback((f: ((at: number) => void) | null) => {
-    forgetRemote.current = f;
-  }, []);
-  const walked = walks.reduce((m, w) => m + w.meters, 0);
-  const stops = walks.reduce((n, w) => n + w.stopNames.length, 0);
-
-  return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.canvas }}
-      contentContainerStyle={{ padding: 16, paddingTop: Math.max(16, insets.top), paddingBottom: insets.bottom + 32, gap: 24 }}
-    >
-      <View style={styles.header}>
-        <Btn label="←" onPress={() => router.back()} accessibilityLabel="Back to the map" textStyle={{ fontSize: 20 }} />
-        <Text style={type.h2}>{t("profile.title")}</Text>
-      </View>
-
-      <View style={[styles.card, styles.stats]}>
-        <Stat label={t("profile.built")} value={String(walks.length)} />
-        <Stat label={t("profile.stops")} value={String(stops)} />
-        <Stat label={t("profile.distance")} value={formatKm(walked)} />
-      </View>
-
-      {accountsEnabled ? <Account onWalks={setWalks} bindForget={bindForget} /> : null}
-
-      <View>
-        <Text style={type.h3}>Settings</Text>
-        <Text style={[type.caption, { marginTop: 4, marginBottom: 12 }]}>
-          These carry over to every new walk. Each one can still be changed while building a tour.
-        </Text>
-        <LanguageSelect
-          label={t("brief.language")}
-          value={lang}
-          onChange={(next) => {
-            setLang(next);
-            saveDraft({ ...(loadDraft() ?? EMPTY_DRAFT), lang: next });
-          }}
-        />
-      </View>
-
-      <View style={{ gap: 12 }}>
-        <Text style={type.h3}>{t("profile.past")}</Text>
-        {walks.length === 0 ? (
-          <Text style={type.body}>{t("profile.empty")}</Text>
-        ) : (
-          walks.map((w) => (
-            <Walk
-              key={w.at}
-              walk={w}
-              onForget={() => {
-                setWalks(forgetWalk(w.at));
-                forgetRemote.current?.(w.at);
-              }}
-            />
-          ))
-        )}
-      </View>
-      {walks.length === 0 ? <TextLink label={t("landing.build")} onPress={() => router.back()} /> : null}
-      <TextLink muted label="Privacy" onPress={() => void Linking.openURL(`${BASE}/privacy`)} />
-    </ScrollView>
-  );
-}
-
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
   card: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
   walkHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },

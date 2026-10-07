@@ -69,7 +69,10 @@ export default function BottomSheet({
   children,
   footer,
   collapsedContent,
+  lift = 0,
 }: {
+  /** Pixels to sit above the bottom edge, for a tab bar underneath. */
+  lift?: number;
   height: SheetHeight;
   /** Where a drag left it. Omit to keep the sheet fixed to `height`. */
   onHeightChange?: (h: SheetHeight) => void;
@@ -402,7 +405,13 @@ export default function BottomSheet({
     <section
       ref={sheetRef}
       aria-label={title ?? "Tour options"}
-      style={height === "collapsed" && keyboard > 0 ? { bottom: keyboard } : undefined}
+      style={
+        height === "collapsed" && keyboard > 0
+          ? { bottom: keyboard }
+          : height === "collapsed" && lift > 0
+            ? { bottom: lift }
+            : undefined
+      }
       className={[
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",

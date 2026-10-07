@@ -12,7 +12,8 @@
 
 import Link from "next/link";
 import Account from "./Account";
-import { accountsEnabled, forgetWalkEverywhere } from "@/lib/accounts/client";
+import TabBar, { TAB_BAR_PX } from "./TabBar";
+import { accountsEnabled } from "@/lib/accounts/client";
 import { useCallback, useState, useSyncExternalStore } from "react";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
@@ -21,8 +22,6 @@ import {
   canWalkAgain,
   formatDistance,
   formatWhen,
-  forgetAllWalks,
-  forgetWalk,
   loadWalks,
   planFor,
   type WalkRecord,
@@ -41,7 +40,7 @@ function Stat({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
+export function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   const t = useT();
   const [open, setOpen] = useState(false);
   const minutes = Math.max(1, Math.round(walk.seconds / 60));
@@ -197,12 +196,12 @@ export default function Profile() {
   const stops = walks.reduce((n, w) => n + w.stopNames.length, 0);
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 py-6">
-      <header className="flex items-center gap-3">
-        <Link href="/" className="btn btn--quiet shrink-0 px-4" aria-label="Back to the map">
-          ←
-        </Link>
-        <h1 className="text-[length:var(--text-h2)]">{t("profile.title")}</h1>
+    <main
+      className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 pt-[max(1.5rem,env(safe-area-inset-top))]"
+      style={{ paddingBottom: TAB_BAR_PX + 32 }}
+    >
+      <header>
+        <h1 className="text-[length:var(--text-h2)]">Account</h1>
       </header>
 
       {/* The three numbers worth having: what all of this adds up to. */}
@@ -238,58 +237,18 @@ export default function Profile() {
           </select>
         </div>
 
+        <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+          Saved as you change it.
+        </p>
       </section>
 
-      <section>
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[length:var(--text-h3)]">{t("profile.past")}</h2>
-          {walks.length > 0 ? (
-            <button
-              type="button"
-              onClick={() => {
-                forgetAllWalks();
-                setWalks([]);
-              }}
-              className="min-h-[44px] text-[length:var(--text-caption)] font-semibold text-[color:var(--ink-mute)] underline underline-offset-4"
-            >
-              {t("profile.clearAll")}
-            </button>
-          ) : null}
-        </div>
-
-        {walks.length === 0 ? (
-          <p className="mt-3 text-[color:var(--ink-soft)]">
-            {loaded ? t("profile.empty") : "…"}
-          </p>
-        ) : (
-          <ul className="mt-3 flex flex-col gap-3">
-            {walks.map((w) => (
-              <Walk
-                key={w.at}
-                walk={w}
-                onForget={() => {
-                  setWalks(forgetWalk(w.at));
-                  if (accountsEnabled) void forgetWalkEverywhere(w.at);
-                }}
-              />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* Every setting here is already saved — it is written the moment it is
-          touched, and there is no server to send it to. This says so and takes
-          you back, because a settings page with no save button reads as one
-          that has not saved. */}
-      <Link href="/" className="btn btn--primary btn--lg w-full">
-        {t("profile.save")}
-      </Link>
       <Link
         href="/privacy"
         className="min-h-[44px] self-center text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
       >
         Privacy
       </Link>
+      <TabBar />
     </main>
   );
 }

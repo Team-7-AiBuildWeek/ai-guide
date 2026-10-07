@@ -11,11 +11,10 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { accountsEnabled, welcomed } from "@/lib/accounts/client";
 import Greeting from "./Greeting";
-import Image from "next/image";
+import TabBar, { TAB_BAR_PX } from "./TabBar";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
@@ -51,6 +50,7 @@ import {
   takeRebuild,
   type Draft,
   type Stage,
+  takeResume,
   type StoredTour,
 } from "@/lib/tour/flow";
 import type { City, MapStyle, TourPlan, TourRequest } from "@/lib/providers/types";
@@ -208,10 +208,12 @@ export default function TourFlow({
         return;
       }
 
+      // A saved walk opens paused, one tap from carrying on — unless that tap
+      // was "Carry on walking" on the Tours tab.
       const t = loadTour();
       if (t) {
         setTour(t);
-        setStage("tour");
+        if (takeResume()) setStage("tour");
       }
     });
   }, [router]);
@@ -710,6 +712,8 @@ export default function TourFlow({
   }, []);
 
   // ----------------------------------------------------------------- view --
+  /** Explore's tab bar: on the first screen only; building and walking take the whole screen. */
+  const showTabs = stage === "start" && picking === null;
   // While dropping a pin the sheet must get out of the way of the map.
   const sheetHidden = picking !== null && stage === "points";
 
@@ -752,7 +756,7 @@ export default function TourFlow({
         // what is left of it. Read from where the sheet actually is, not from
         // where this screen would put it — the walker can drag it now.
         bottomInset={
-          sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI : INSET_PLAYER
+          sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI + (showTabs ? TAB_BAR_PX : 0) : INSET_PLAYER
         }
         follow={stage !== "tour" && !cityPinned}
         fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
@@ -766,23 +770,6 @@ export default function TourFlow({
         styleId={styleId}
       />
 
-      {/* The app's own mark, top left, and the way into the profile.
-          Only where the corner is free: on the walk that corner is the way
-          out of the tour, and two round buttons in one corner is how you
-          leave a tour when you meant to check your walks. */}
-      {stage === "start" && !sheetHidden ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-          <div className="mx-auto w-full max-w-lg">
-            <Link
-              href="/profile"
-              aria-label="My profile"
-              className="glass pointer-events-auto inline-flex h-12 w-12 items-center justify-center overflow-hidden rounded-full border"
-            >
-              <Image src="/icons/icon-192.png" alt="" width={48} height={48} priority />
-            </Link>
-          </div>
-        </div>
-      ) : null}
 
       {/* Dropping a pin takes the sheet away so the map is reachable, which
           also takes away everything that said what to do. This is the only
@@ -943,6 +930,8 @@ export default function TourFlow({
       {sheetHidden ? null : (
         <BottomSheet
           height={sheetHeight}
+          // Sits on the tab bar rather than under it.
+          lift={showTabs ? TAB_BAR_PX : 0}
           // Only the walk resizes. The landing screen's whole content is the
           // collapsed row, so pulling it open showed an empty panel; the forms
           // are already the whole screen, and dragging one down would uncover
@@ -1171,6 +1160,8 @@ export default function TourFlow({
           ) : null}
         </BottomSheet>
       )}
+
+      {showTabs ? <TabBar /> : null}
     </div>
   );
 }

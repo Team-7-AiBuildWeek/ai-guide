@@ -9,10 +9,10 @@
 
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Location from "expo-location";
-import { Redirect, router, useFocusEffect } from "expo-router";
+import { Redirect, useFocusEffect } from "expo-router";
 import * as Speech from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { GlassSurface } from "@/components/Glass";
 import Sheet, { type SheetHeight } from "@/components/Sheet";
@@ -42,6 +42,7 @@ import Greeting from "@/components/Greeting";
 import { accountsEnabled } from "@/lib/accounts";
 import { welcomed } from "@/lib/auth";
 import { rememberWalk, takeRebuild } from "@/lib/history";
+import { setTabBarHidden, takeResume } from "@/lib/tabbar";
 import { normaliseLang, speechLocale } from "@/lib/languages";
 import { prefetchSpeech, useNarration } from "@/lib/narration";
 import { t } from "@/lib/strings";
@@ -102,7 +103,8 @@ function Flow() {
     const draft = loadDraft() ?? { ...EMPTY_DRAFT, lang: normaliseLang(Intl.DateTimeFormat().resolvedOptions().locale) };
     return { saved, draft, index: saved ? Math.min(loadProgress(), saved.plan.stops.length - 1) : 0 };
   });
-  const [stage, setStage] = useState<Stage>(restored.saved ? "tour" : "start");
+  // A saved walk opens paused on Explore, one tap from carrying on.
+  const [stage, setStage] = useState<Stage>("start");
   const [draft, setDraft] = useState<Draft>(restored.draft);
   const [tour, setTour] = useState<StoredTour | null>(restored.saved);
   const [picking, setPicking] = useState<"start" | "end" | null>(null);
@@ -152,9 +154,11 @@ function Flow() {
     [],
   );
 
-  // A walk asked for again from the profile wins over the one in progress.
+  // A walk asked for again from Tours wins over the one in progress; "Carry on
+  // walking" there opens the walk.
   useFocusEffect(
     useCallback(() => {
+      if (takeResume() && loadTour()) setStage("tour");
       const again = takeRebuild();
       if (again) {
         setDraft((prev) => ({ ...prev, lang: again.req.lang }));
@@ -393,6 +397,12 @@ function Flow() {
   }, [audio]);
 
   // ---------------------------------------------------------------- view --
+  // The tab bar is for the first screen; building and walking take the whole screen.
+  const showTabs = stage === "start" && picking === null;
+  useEffect(() => {
+    setTabBarHidden(!showTabs);
+  }, [showTabs]);
+  useEffect(() => () => setTabBarHidden(false), []);
   const sheetHidden = picking !== null && stage === "points";
   const pins = useMemo(() => {
     const out: { kind: "start" | "end"; point: NonNullable<Draft["start"]> }[] = [];
@@ -432,17 +442,6 @@ function Flow() {
         lookAt={cityPinned && stage !== "tour" ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label } : null}
         fitKey={stage === "tour" ? tour?.plan.title ?? null : null}
       />
-
-      {/* The app's mark, top left, and the way into the profile. */}
-      {stage === "start" && !sheetHidden ? (
-        <View style={[styles.topBar, { top }]} pointerEvents="box-none">
-          <Pressable onPress={() => router.push("/profile")} accessibilityRole="button" accessibilityLabel="My profile">
-            <GlassSurface style={styles.logoButton}>
-              <Image source={require("../../assets/logo.png")} style={styles.logo} />
-            </GlassSurface>
-          </Pressable>
-        </View>
-      ) : null}
 
       {/* Dropping a pin: the instruction and the way out. */}
       {sheetHidden ? (
@@ -533,6 +532,8 @@ function Flow() {
       {sheetHidden ? null : (
         <Sheet
           height={sheetHeight}
+          // On the tab bar, the home indicator is the bar's to clear, not the sheet's.
+          flush={showTabs}
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
           title={
             stage === "brief"
@@ -672,8 +673,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   topBar: { position: "absolute", left: 16, right: 16 },
   walkBar: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
-  logoButton: { width: 48, height: 48, borderRadius: 24, overflow: "hidden", alignItems: "center", justifyContent: "center" },
-  logo: { width: 48, height: 48 },
   banner: {
     borderRadius: 22,
     paddingHorizontal: 16,
