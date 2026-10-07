@@ -7,12 +7,12 @@
 import { useUser } from "@clerk/expo";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Btn, Eyebrow, Field, Pill, Segmented, Stepper, TextLink } from "@/components/ui";
-import { DETAILS, DURATIONS, INTERESTS, PACES } from "@/lib/flow";
+import { Btn, Eyebrow, Field, Pill, Segmented, TextLink } from "@/components/ui";
+import { DETAILS, INTERESTS } from "@/lib/flow";
 import { applyPrefs, defaultPrefs, profileOf, type Prefs } from "@/lib/profile";
 import { t } from "@/lib/strings";
 import { colors, size, type } from "@/lib/theme";
-import type { Detail, Interest, Pace } from "@/lib/types";
+import type { Detail, Interest } from "@/lib/types";
 
 function Progress({ step }: { step: 1 | 2 }) {
   return (
@@ -36,7 +36,6 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
   const patch = (p: Partial<Prefs>) => setPrefs((x) => ({ ...x, ...p }));
   const toggle = (i: Interest) =>
     patch({ interests: prefs.interests.includes(i) ? prefs.interests.filter((x) => x !== i) : [...prefs.interests, i] });
-  const durationIndex = DURATIONS.indexOf(prefs.durationMinutes);
 
   const finish = async () => {
     setSaving(true);
@@ -100,27 +99,11 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
             />
           ))}
         </View>
-        <Stepper
-          label={t("brief.howLong")}
-          value={t(`duration.${prefs.durationMinutes}`)}
-          atMin={durationIndex <= 0}
-          atMax={durationIndex >= DURATIONS.length - 1}
-          onStep={(d) => {
-            const next = DURATIONS[Math.min(DURATIONS.length - 1, Math.max(0, durationIndex + d))];
-            if (next) patch({ durationMinutes: next });
-          }}
-        />
         <Segmented
           label={t("brief.detail")}
           options={DETAILS.map((d) => ({ value: d, label: t(`detail.${d}`) }))}
           value={prefs.detail}
           onChange={(v) => patch({ detail: v as Detail })}
-        />
-        <Segmented
-          label={t("brief.pace")}
-          options={PACES.map((p) => ({ value: p, label: t(`pace.${p}`) }))}
-          value={prefs.pace}
-          onChange={(v) => patch({ pace: v as Pace })}
         />
       </ScrollView>
       {error ? <Text style={styles.error}>{error}</Text> : null}

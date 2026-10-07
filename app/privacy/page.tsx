@@ -76,7 +76,7 @@ export default function PrivacyPage() {
             <strong className="text-[color:var(--ink)]">Your email address, if you sign in.</strong>{" "}
             Signing in is optional and uses a one-time code sent to your email; there is no
             password. When you sign up you can also tell Walk what to call you and what you like to
-            see (interests, length, detail, pace); both are optional. With an account, these and your
+            see (interests and how much detail); both are optional. With an account, these and your
             past walks are kept with it so the website and the iPhone app start from the same place.
           </li>
           <li>

@@ -3,7 +3,7 @@
 /**
  * "Get to know you": the two short questions after a new walker confirms their
  * email. What to call them, and a small version of the tour settings — the
- * things they like, how long, how much detail, how fast. Both go on their
+ * things they like and how much detail. (Length and pace are asked per tour.) Both go on their
  * account and become where every new tour starts. Same screens as the iPhone
  * app (mobile/src/components/GetToKnowYou.tsx).
  */
@@ -11,11 +11,10 @@
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
 import Segmented from "./flow/Segmented";
-import Stepper from "./flow/Stepper";
 import { applyPrefs, defaultPrefs, profileOf, type Prefs } from "@/lib/accounts/profile";
 import { useT } from "@/lib/i18n/ui";
-import { DETAILS, DURATIONS, INTERESTS, PACES } from "@/lib/tour/flow";
-import type { Detail, Interest, Pace } from "@/lib/providers/types";
+import { DETAILS, INTERESTS } from "@/lib/tour/flow";
+import type { Detail, Interest } from "@/lib/providers/types";
 
 function Progress({ step }: { step: 1 | 2 }) {
   return (
@@ -44,7 +43,6 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
   const patch = (p: Partial<Prefs>) => setPrefs((x) => ({ ...x, ...p }));
   const toggle = (i: Interest) =>
     patch({ interests: prefs.interests.includes(i) ? prefs.interests.filter((x) => x !== i) : [...prefs.interests, i] });
-  const durationIndex = DURATIONS.findIndex((d) => d.value === prefs.durationMinutes);
 
   const finish = async () => {
     setSaving(true);
@@ -119,27 +117,11 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
             </button>
           ))}
         </div>
-        <Stepper
-          label={t("brief.howLong")}
-          value={t(`duration.${prefs.durationMinutes}`)}
-          atMin={durationIndex <= 0}
-          atMax={durationIndex >= DURATIONS.length - 1}
-          onStep={(d) => {
-            const next = DURATIONS[Math.min(DURATIONS.length - 1, Math.max(0, durationIndex + d))];
-            if (next) patch({ durationMinutes: next.value });
-          }}
-        />
         <Segmented
           label={t("brief.detail")}
           options={DETAILS.map((d) => ({ value: d.value, label: t(`detail.${d.value}`) }))}
           value={prefs.detail}
           onChange={(v) => patch({ detail: v as Detail })}
-        />
-        <Segmented
-          label={t("brief.pace")}
-          options={PACES.map((p) => ({ value: p.value, label: t(`pace.${p.value}`) }))}
-          value={prefs.pace}
-          onChange={(v) => patch({ pace: v as Pace })}
         />
       </div>
       {error ? <p className="text-[length:var(--text-caption)] text-[color:var(--danger)]">{error}</p> : null}
