@@ -91,6 +91,7 @@ export default function Generating({
   onCancel,
   onRetry,
   onContinue,
+  because,
 }: {
   phase: string;
   message: string | null;
@@ -100,6 +101,8 @@ export default function Generating({
   onRetry: () => void;
   /** Present once the tour is built: the stops stay on screen until the walker moves on. */
   onContinue?: () => void;
+  /** The walker's own choices, named back to them while the tour is built. */
+  because?: string;
 }) {
   const active = onContinue ? PHASES.length : PHASES.findIndex((p) => p.covers.includes(phase));
 
@@ -118,6 +121,9 @@ export default function Generating({
 
   return (
     <View style={{ gap: 20, paddingTop: preview ? 0 : 24 }}>
+      {because ? (
+        <Text style={[styles.because, { marginBottom: -8 }]}>{t("gen.because", { picks: because })}</Text>
+      ) : null}
       {preview ? (
         <Intro preview={preview} />
       ) : (
@@ -173,6 +179,13 @@ export default function Generating({
 const NODE = 34;
 
 const styles = StyleSheet.create({
+  because: {
+    fontFamily: fonts.display,
+    fontSize: size.caption,
+    letterSpacing: 0.9,
+    textTransform: "uppercase",
+    color: colors.mintInk,
+  },
   item: { position: "relative", paddingLeft: 50, paddingBottom: 28, minHeight: NODE },
   line: { position: "absolute", left: NODE / 2 - 1, top: NODE + 2, bottom: 0, width: 2, backgroundColor: colors.mint },
   lineWorking: { opacity: 0.45 },

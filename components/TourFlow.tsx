@@ -229,6 +229,15 @@ export default function TourFlow({
     if (patch.lang) announceUiLang(patch.lang);
   }, []);
 
+  /** What the wait is spent building, in the walker's own choices — asking
+   *  only feels worth it when the answers visibly shape the result. */
+  const builtAround = [
+    draft.interests.length > 0 ? draft.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
+    t(`duration.${draft.durationMinutes}`),
+  ]
+    .filter(Boolean)
+    .join(" · ");
+
   // ------------------------------------------------------------- generate --
   /**
    * Build a tour and walk to it.
@@ -972,7 +981,7 @@ export default function TourFlow({
           }
           footer={
             stage === "brief" ? (
-              <BriefFooter onChange={patchDraft} onContinue={() => setStage("points")} />
+              <BriefFooter draft={draft} onChange={patchDraft} onContinue={() => setStage("points")} />
             ) : stage === "points" ? (
               <PointsFooter draft={draft} onContinue={generate} />
             ) : undefined
@@ -1093,6 +1102,7 @@ export default function TourFlow({
               }}
               onRetry={generate}
               onContinue={ready && tour ? () => setStage("headphones") : undefined}
+              because={builtAround}
             />
           ) : stage === "headphones" && tour ? (
             <HeadphonesStep

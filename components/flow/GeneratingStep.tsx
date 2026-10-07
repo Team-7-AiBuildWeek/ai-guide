@@ -175,6 +175,7 @@ export default function GeneratingStep({
   onCancel,
   onRetry,
   onContinue,
+  because,
 }: {
   phase: string;
   message: string | null;
@@ -189,6 +190,8 @@ export default function GeneratingStep({
    * stops with it just as it was being read.
    */
   onContinue?: () => void;
+  /** The walker's own choices, named back to them while the tour is built. */
+  because?: string;
 }) {
   const t = useT();
   const activeIndex = onContinue ? PHASE_LABELS.length : PHASE_LABELS.findIndex((p) => p.covers.includes(phase));
@@ -217,6 +220,9 @@ export default function GeneratingStep({
        dozen stops that grows out of the middle of the screen pushes its own
        first line off the top. */
     <div className={`flex h-full flex-col gap-5 ${preview ? "justify-start" : "justify-center"}`}>
+      {because ? (
+        <p className="u-eyebrow -mb-2" style={{ color: "var(--mint-ink)" }}>{t("gen.because", { picks: because })}</p>
+      ) : null}
       {preview ? (
         <Intro preview={preview} />
       ) : (

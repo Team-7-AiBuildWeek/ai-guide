@@ -23,6 +23,22 @@ export const DURATIONS: Duration[] = [30, 45, 60, 90, 120, 180, 240];
 export const DETAILS: Detail[] = ["highlights", "story", "everything"];
 export const PACES: Pace[] = ["relaxed", "steady", "cover-ground"];
 
+/**
+ * The walk's shape from its three settings — the website's lib/tour/shape.ts,
+ * the same numbers the planner uses, so the estimate on "Build my tour" is the
+ * walk that gets planned.
+ */
+export const SCRIPT_MINUTES: Record<Detail, number> = { highlights: 4, story: 4.5, everything: 5 };
+export const WALK_MINUTES: Record<Pace, number> = { relaxed: 4, steady: 6, "cover-ground": 9 };
+const KM_PER_HOUR: Record<Pace, number> = { relaxed: 3.5, steady: 4.5, "cover-ground": 5 };
+
+export function tourShape(d: Pick<Draft, "durationMinutes" | "detail" | "pace">) {
+  const stops = Math.max(3, Math.round(d.durationMinutes / (SCRIPT_MINUTES[d.detail] + WALK_MINUTES[d.pace])));
+  const walking = Math.max(0, d.durationMinutes - Math.round(stops * SCRIPT_MINUTES[d.detail]));
+  const km = Math.max(0.5, Math.round((walking / 60) * KM_PER_HOUR[d.pace] * 2) / 2);
+  return { stops, km };
+}
+
 export const INTERESTS: { value: Interest; icon: string }[] = [
   { value: "history", icon: "🏛" },
   { value: "architecture", icon: "🏗" },

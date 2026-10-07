@@ -585,7 +585,7 @@ export default function Flow() {
           }
           footer={
             stage === "brief" ? (
-              <BriefFooter onChange={patchDraft} onContinue={() => setStage("points")} />
+              <BriefFooter draft={draft} onChange={patchDraft} onContinue={() => setStage("points")} />
             ) : stage === "points" ? (
               <PointsFooter draft={draft} onContinue={() => void generate()} />
             ) : undefined
@@ -660,6 +660,12 @@ export default function Flow() {
               }}
               onRetry={() => void generate()}
               onContinue={ready && tour ? () => setStage("headphones") : undefined}
+              because={[
+                draft.interests.length > 0 ? draft.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
+                t(`duration.${draft.durationMinutes}`),
+              ]
+                .filter(Boolean)
+                .join(" · ")}
             />
           ) : stage === "headphones" && tour ? (
             <Headphones

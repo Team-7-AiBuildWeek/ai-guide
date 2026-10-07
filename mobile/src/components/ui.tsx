@@ -1,5 +1,5 @@
 /**
- * The website's primitives (.btn, .pill, Segmented, Stepper, inputs), drawn
+ * The website's primitives (.btn, .pill, Segmented, inputs), drawn
  * natively. Mint fill means press this; everything else is a white button with
  * a line around it. Every control clears 44pt.
  */
@@ -171,44 +171,6 @@ export function Segmented<T extends string>({
   );
 }
 
-export function Stepper({
-  label,
-  value,
-  atMin,
-  atMax,
-  onStep,
-}: {
-  label: string;
-  value: string;
-  atMin: boolean;
-  atMax: boolean;
-  onStep: (d: -1 | 1) => void;
-}) {
-  const step = (d: -1 | 1, disabled: boolean, glyph: string) => (
-    <Pressable
-      onPress={() => onStep(d)}
-      disabled={disabled}
-      accessibilityRole="button"
-      accessibilityLabel={`${d < 0 ? "Less" : "More"} ${label.toLowerCase()}`}
-      style={({ pressed }) => [styles.stepBtn, disabled && styles.stepBtnOff, pressed && styles.pressed]}
-    >
-      <Text style={[styles.stepGlyph, disabled && { color: colors.lineStrong }]}>{glyph}</Text>
-    </Pressable>
-  );
-  return (
-    <View>
-      <Eyebrow>{label}</Eyebrow>
-      <View style={[styles.track, styles.stepTrack]}>
-        {step(-1, atMin, "−")}
-        <Text numberOfLines={1} style={styles.stepValue}>
-          {value}
-        </Text>
-        {step(1, atMax, "+")}
-      </View>
-    </View>
-  );
-}
-
 export const Field = forwardRef<TextInput, TextInputProps>(function Field({ style, ...props }, ref) {
   return (
     <TextInput
@@ -265,7 +227,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    minHeight: 38,
+    minHeight: 44,
     paddingVertical: 6,
     paddingHorizontal: 14,
     borderWidth: 1,
@@ -292,21 +254,6 @@ const styles = StyleSheet.create({
   segmentOn: { backgroundColor: colors.mint },
   segmentText: { fontFamily: fonts.displayMedium, fontSize: size.caption, color: colors.inkSoft },
   segmentTextOn: { fontFamily: fonts.display, color: colors.ink },
-
-  stepTrack: { alignItems: "center", justifyContent: "space-between" },
-  stepBtn: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.lineStrong,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stepBtnOff: { borderColor: colors.line, backgroundColor: "transparent" },
-  stepGlyph: { fontFamily: fonts.display, fontSize: size.lead, color: colors.ink, lineHeight: size.lead * 1.1 },
-  stepValue: { flex: 1, textAlign: "center", fontFamily: fonts.display, fontSize: size.lead, color: colors.ink },
 
   field: {
     minHeight: 44,

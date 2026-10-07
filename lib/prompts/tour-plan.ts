@@ -18,6 +18,7 @@
 
 import { languageName } from "@/lib/i18n/languages";
 import type { Detail, Stop, TourRequest } from "@/lib/providers/types";
+import { SCRIPT_MINUTES, stopCount, tourShape } from "@/lib/tour/shape";
 import { RATE_LIMIT_MODE, TESTING_SCRIPT_MINUTES } from "@/lib/tour/testing";
 
 /**
@@ -29,18 +30,11 @@ import { RATE_LIMIT_MODE, TESTING_SCRIPT_MINUTES } from "@/lib/tour/testing";
  */
 const WORDS_PER_MINUTE = 145;
 
-/** Every stop is four to five minutes now; detail decides what fills them. */
-const SCRIPT_MINUTES: Record<Detail, number> = {
-  highlights: 4,
-  story: 4.5,
-  everything: 5,
-};
-
 /**
  * What a stop is actually written to — two minutes while the rate-limit brake
  * is on, the real length otherwise. See lib/tour/testing.ts.
  *
- * `stopCount` below deliberately does NOT use this: shortening the narration
+ * `stopCount` (lib/tour/shape.ts) deliberately does NOT use this: shortening the narration
  * would otherwise add stops to fill the same hour, which is the opposite of
  * what the brake is for.
  */
@@ -94,32 +88,9 @@ const INTEREST_WORDS: Record<TourRequest["interests"][number], string> = {
   conflict: "wars, occupations and the darker past, told plainly and without relish",
 };
 
-/** Minutes of walking between one stop and the next, by pace. */
-const WALK_MINUTES: Record<TourRequest["pace"], number> = {
-  relaxed: 4,
-  steady: 6,
-  "cover-ground": 9,
-};
-
-/**
- * How many stops actually fit in the time asked for.
- *
- * The old version was a flat "stops per hour" that ignored how long anyone
- * stands at a stop, so an afternoon returned the same six stops as an hour.
- * A stop costs its narration plus the walk to the next one, and that is the
- * whole calculation.
- */
-export function stopCount(req: TourRequest): number {
-  const perStop = SCRIPT_MINUTES[req.detail] + WALK_MINUTES[req.pace];
-  return Math.max(3, Math.round(req.durationMinutes / perStop));
-}
-
-/** The shape of the time budget, for the prompt and for the UI. */
-export function tourShape(req: TourRequest) {
-  const stops = stopCount(req);
-  const listening = Math.round(stops * SCRIPT_MINUTES[req.detail]);
-  return { stops, listening, walking: Math.max(0, req.durationMinutes - listening) };
-}
+// How many stops, and how long each, live in lib/tour/shape.ts — shared with
+// the screen that shows the estimate. Re-exported for the callers here.
+export { stopCount, tourShape };
 
 // --------------------------------------------------------------- itinerary --
 
