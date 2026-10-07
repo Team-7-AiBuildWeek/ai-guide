@@ -3,6 +3,7 @@
 import { SymbolView } from "expo-symbols";
 import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import GlowButton from "@/components/GlowButton";
 import { Btn, Eyebrow, Field, TextLink } from "@/components/ui";
 import { searchCities, searchPlaces } from "@/lib/api";
 import { inCity } from "@/lib/geo";
@@ -205,14 +206,8 @@ export function PointsFooter({ draft, onContinue }: { draft: Draft; onContinue: 
       <Text style={[type.caption, { textAlign: "center", minHeight: 22 }]}>
         {draft.start ? (draft.end ? t("points.bothSet") : t("points.loop")) : t("points.needStart")}
       </Text>
-      <Btn
-        variant="primary"
-        large
-        label={t("points.create")}
-        disabled={!draft.start}
-        onPress={onContinue}
-        textStyle={{ fontFamily: fonts.display }}
-      />
+      {/* The press that sets the AI to work: the glow button. */}
+      <GlowButton label={t("points.create")} disabled={!draft.start} onPress={onContinue} />
     </View>
   );
 }

@@ -6,14 +6,11 @@
  * are on the Tours tab.
  */
 
-import Link from "next/link";
-import Account from "./Account";
+import AccountMenu from "./AccountMenu";
 import { ABOVE_TAB_BAR } from "./TabBar";
-import { accountsEnabled } from "@/lib/accounts/client";
 import { useState } from "react";
 import Stat from "./Stat";
 import { useLoadOnce } from "@/lib/useLoadOnce";
-import { LANGUAGES } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/tour/flow";
 import { formatDistance, loadWalks, type WalkRecord } from "@/lib/tour/history";
@@ -58,43 +55,7 @@ export default function Profile() {
         <Stat label={t("profile.distance")} value={formatDistance(walked)} />
       </section>
 
-      {accountsEnabled ? <Account onWalks={setWalks} /> : null}
-
-      <section>
-        <h2 className="text-[length:var(--text-h3)]">{t("profile.settings")}</h2>
-        <p className="mt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          {t("profile.settingsHint")}
-        </p>
-
-        <div className="mt-3 flex items-center justify-between gap-3">
-          <label htmlFor="profile-lang" className="u-eyebrow">
-            {t("brief.language")}
-          </label>
-          <select
-            id="profile-lang"
-            value={lang}
-            onChange={(e) => setDefaultLang(e.target.value)}
-            className="min-h-[44px] max-w-[60%] rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[length:var(--text-body)] text-[color:var(--ink)]"
-          >
-            {LANGUAGES.map((l) => (
-              <option key={l.code} value={l.code}>
-                {l.endonym === l.english ? l.endonym : `${l.endonym} — ${l.english}`}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-          Saved as you change it.
-        </p>
-      </section>
-
-      <Link
-        href="/privacy"
-        className="min-h-[44px] self-center text-[length:var(--text-caption)] font-medium text-[color:var(--ink-mute)] underline underline-offset-4"
-      >
-        Privacy
-      </Link>
+      <AccountMenu lang={lang} onLang={setDefaultLang} onWalks={setWalks} />
     </main>
   );
 }

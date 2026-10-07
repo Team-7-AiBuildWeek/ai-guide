@@ -22,6 +22,7 @@ import type { Fix } from "@/lib/tour/useLiveLocation";
 import { distanceMeters } from "@/lib/tour/route";
 import { useT } from "@/lib/i18n/ui";
 import CityPicker from "./CityPicker";
+import { GlowButton } from "@/components/ui/glow-button";
 
 type Target = "start" | "end";
 
@@ -197,14 +198,8 @@ export function PointsFooter({
             : t("points.loop")
           : t("points.needStart")}
       </p>
-      <button
-        type="button"
-        onClick={onContinue}
-        disabled={!draft.start}
-        className="btn btn--primary btn--lg w-full font-semibold"
-      >
-        {t("points.create")}
-      </button>
+      {/* The press that sets the AI to work: the glow button. */}
+      <GlowButton label={t("points.create")} onClick={onContinue} disabled={!draft.start} className="w-full" />
     </div>
   );
 }

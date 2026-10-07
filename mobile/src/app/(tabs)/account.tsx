@@ -1,12 +1,10 @@
-/** The Account tab: totals, the account, settings, and the privacy page. Walks are on the Tours tab. */
+/** The Account tab: what all the walks add up to, and the menu (account, language, support). Walks are on the Tours tab. */
 
 import { useState } from "react";
-import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Account from "@/components/Account";
-import { LanguageSelect, Stat, TextLink } from "@/components/ui";
-import { accountsEnabled } from "@/lib/accounts";
-import { BASE } from "@/lib/api";
+import AccountMenu from "@/components/AccountMenu";
+import { Stat } from "@/components/ui";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/flow";
 import { formatKm, loadWalks } from "@/lib/history";
 import { t } from "@/lib/strings";
@@ -32,24 +30,14 @@ export default function AccountTab() {
         <Stat label={t("profile.distance")} value={formatKm(walked)} />
       </View>
 
-      {accountsEnabled ? <Account onWalks={setWalks} /> : null}
-
-      <View>
-        <Text style={type.h3}>Settings</Text>
-        <Text style={[type.caption, { marginTop: 4, marginBottom: 12 }]}>
-          These carry over to every new walk. Each one can still be changed while building a tour.
-        </Text>
-        <LanguageSelect
-          label={t("brief.language")}
-          value={lang}
-          onChange={(next) => {
-            setLang(next);
-            saveDraft({ ...(loadDraft() ?? EMPTY_DRAFT), lang: next });
-          }}
-        />
-      </View>
-
-      <TextLink muted label="Privacy" onPress={() => void Linking.openURL(`${BASE}/privacy`)} />
+      <AccountMenu
+        lang={lang}
+        onLang={(next) => {
+          setLang(next);
+          saveDraft({ ...(loadDraft() ?? EMPTY_DRAFT), lang: next });
+        }}
+        onWalks={setWalks}
+      />
     </ScrollView>
   );
 }

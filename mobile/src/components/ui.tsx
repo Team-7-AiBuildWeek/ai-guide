@@ -324,17 +324,20 @@ const styles = StyleSheet.create({
 });
 
 /** The website's language <select>: a row with a label, opening iOS's own picker. */
+/** iOS's own list of the narration languages. */
+export function pickLanguage(title: string, onPick: (code: string) => void) {
+  if (Platform.OS !== "ios") return;
+  ActionSheetIOS.showActionSheetWithOptions(
+    { title, options: [...LANGUAGES.map(languageLabel), "Cancel"], cancelButtonIndex: LANGUAGES.length },
+    (i) => {
+      if (i < LANGUAGES.length) onPick(LANGUAGES[i].code);
+    },
+  );
+}
+
 export function LanguageSelect({ value, onChange, label }: { value: string; onChange: (code: string) => void; label: string }) {
   const current = LANGUAGES.find((l) => l.code === value) ?? LANGUAGES[0];
-  const open = () => {
-    if (Platform.OS !== "ios") return;
-    ActionSheetIOS.showActionSheetWithOptions(
-      { title: label, options: [...LANGUAGES.map(languageLabel), "Cancel"], cancelButtonIndex: LANGUAGES.length },
-      (i) => {
-        if (i < LANGUAGES.length) onChange(LANGUAGES[i].code);
-      },
-    );
-  };
+  const open = () => pickLanguage(label, onChange);
   return (
     <View style={selectStyles.langRow}>
       <Eyebrow>{label}</Eyebrow>

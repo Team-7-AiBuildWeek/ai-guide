@@ -942,3 +942,96 @@ body[data-immersive] .tabbar {
     transition: none !important;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The glow button (components/ui/glow-button.tsx) — for the one press that
+   sets the AI to work. The site's primary (mint fill, ink text, pill) with a
+   glow that turns slowly around its edge and a soft mint halo, so it reads as
+   "this makes something" rather than "this goes to the next screen". Pressed,
+   it squeezes for 200ms. Still for anyone who asked for less motion.
+   ------------------------------------------------------------------------ */
+@property --glow-angle {
+  syntax: "<angle>";
+  initial-value: 0deg;
+  inherits: false;
+}
+.glow-btn {
+  position: relative;
+  isolation: isolate;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  padding: 0.875rem 1.25rem;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--text-body);
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 0 0 0 rgb(94 218 155 / 0), 0 8px 28px -8px rgb(94 218 155 / 0.75);
+  transition: transform 200ms var(--tabs-ease, ease), box-shadow 200ms ease;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* Layers inside the button (it isolates them): the turning ring at the back,
+   2px wider than the button; the mint fill over it, so only the ring's edge
+   shows; the label on top. The halo is the button's own shadow. */
+.glow-btn::before {
+  content: "";
+  position: absolute;
+  inset: -2px;
+  z-index: -2;
+  border-radius: inherit;
+  background: conic-gradient(
+    from var(--glow-angle),
+    var(--mint),
+    #b8f5d6,
+    var(--mint-ink),
+    var(--mint),
+    #b8f5d6,
+    var(--mint)
+  );
+  animation: glow-turn 3s linear infinite;
+}
+.glow-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  border-radius: inherit;
+  background: var(--mint);
+}
+.glow-btn:hover {
+  box-shadow: 0 0 0 4px rgb(94 218 155 / 0.18), 0 10px 32px -8px rgb(94 218 155 / 0.85);
+}
+.glow-btn[data-state="clicked"] {
+  transform: scale(0.96);
+}
+.glow-btn:disabled {
+  color: var(--ink-mute);
+  box-shadow: none;
+  cursor: not-allowed;
+}
+.glow-btn:disabled::before {
+  display: none;
+}
+.glow-btn:disabled::after {
+  background: var(--line);
+}
+@keyframes glow-turn {
+  to {
+    --glow-angle: 360deg;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .glow-btn::before {
+    animation: none;
+  }
+  .glow-btn {
+    transition: none;
+  }
+}
