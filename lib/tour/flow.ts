@@ -107,19 +107,19 @@ export const PACES: { value: Pace }[] = [
  * has to work in every city on the map: the sacred icon is the generic
  * place-of-worship symbol, not a church, because this is not a European app.
  */
-export const INTERESTS: { value: Interest; icon: string }[] = [
-  { value: "history", icon: "🏛" },
-  { value: "architecture", icon: "🏗" },
-  { value: "food", icon: "🍽" },
-  { value: "art", icon: "🎨" },
-  { value: "hidden", icon: "🔎" },
-  { value: "nature", icon: "🌳" },
-  { value: "music", icon: "🎵" },
-  { value: "literature", icon: "📖" },
-  { value: "sacred", icon: "🛐" },
-  { value: "royal", icon: "👑" },
-  { value: "legends", icon: "🐉" },
-  { value: "conflict", icon: "🎖" },
+export const INTERESTS: { value: Interest; icon: string; tint: string }[] = [
+  { value: "history", icon: "🏛", tint: "#f6efe4" },
+  { value: "architecture", icon: "🏗", tint: "#edf1f7" },
+  { value: "food", icon: "🍽", tint: "#fdeee6" },
+  { value: "art", icon: "🎨", tint: "#f8ecf5" },
+  { value: "hidden", icon: "🔎", tint: "#ecf3ef" },
+  { value: "nature", icon: "🌳", tint: "#e6f5e9" },
+  { value: "music", icon: "🎵", tint: "#efeefb" },
+  { value: "literature", icon: "📖", tint: "#f4f0e6" },
+  { value: "sacred", icon: "🛐", tint: "#f2eef9" },
+  { value: "royal", icon: "👑", tint: "#fbf3dc" },
+  { value: "legends", icon: "🐉", tint: "#e7f2f7" },
+  { value: "conflict", icon: "🎖", tint: "#f1eeee" },
 ];
 
 // ------------------------------------------------------------- persistence

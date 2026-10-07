@@ -35,6 +35,7 @@ export const de: Partial<Record<UiKey, string>> = {
   "brief.interestsCount": "{n} gewählt",
   "brief.interestsNone": "Nichts gewählt — Sie bekommen eine ausgewogene Mischung.",
   "brief.estimate": "{stops} Stopps · ≈ {km} km",
+  "sketch.stops": "Stopps auf Ihrem Weg",
   "brief.step": "Schritt 1 von 2",
   "duration.30": "30 Minuten",
   "duration.45": "45 Minuten",

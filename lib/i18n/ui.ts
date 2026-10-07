@@ -54,6 +54,7 @@ const EN = {
   "brief.title": "Build my tour",
   "brief.language": "Language",
   "brief.step": "Step 1 of 2",
+  "sketch.stops": "stops on your walk",
   "brief.estimate": "{stops} stops · ≈ {km} km",
   "brief.howLong": "How long",
   "brief.interests": "What interests you? Pick a few",

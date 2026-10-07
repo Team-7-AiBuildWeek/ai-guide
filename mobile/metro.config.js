@@ -6,7 +6,7 @@ const { getDefaultConfig } = require("expo/metro-config");
 const config = getDefaultConfig(__dirname);
 
 config.resolver.blockList = [
-  /node_modules\.icloud-duplicate\.nosync\/.*/,
+  /node_modules\.(icloud-duplicate|old)\.nosync\/.*/,
   /node_modules [0-9]+\/.*/,
   /.* [0-9]+\.(tsx?|jsx?|json)$/,
 ];

@@ -7,6 +7,7 @@
 import { forwardRef, type ReactNode } from "react";
 import {
   ActionSheetIOS,
+  Animated,
   Platform,
   Pressable,
   StyleSheet,
@@ -20,6 +21,7 @@ import {
 } from "react-native";
 import { GlassSurface } from "./Glass";
 import { LANGUAGES, languageLabel } from "@/lib/languages";
+import { tick, usePop } from "@/lib/motion";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
 
 type Variant = "primary" | "quiet" | "dark" | "glass" | "glassDark";
@@ -108,16 +110,22 @@ export function Btn({
 
 /** A choice you can take or leave, in a row of its like. Chosen is mint. */
 export function Pill({ label, icon, on, onPress }: { label: string; icon?: string; on: boolean; onPress: () => void }) {
+  const pop = usePop(on);
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityState={{ selected: on }}
-      style={({ pressed }) => [styles.pill, on && styles.pillOn, pressed && styles.pressed]}
-    >
-      {icon ? <Text style={styles.pillIcon}>{icon}</Text> : null}
-      <Text style={[styles.pillText, on && styles.pillTextOn]}>{label}</Text>
-    </Pressable>
+    <Animated.View style={{ transform: [{ scale: pop }] }}>
+      <Pressable
+        onPress={() => {
+          tick();
+          onPress();
+        }}
+        accessibilityRole="button"
+        accessibilityState={{ selected: on }}
+        style={({ pressed }) => [styles.pill, on && styles.pillOn, pressed && styles.pressed]}
+      >
+        {icon ? <Text style={styles.pillIcon}>{icon}</Text> : null}
+        <Text style={[styles.pillText, on && styles.pillTextOn]}>{label}</Text>
+      </Pressable>
+    </Animated.View>
   );
 }
 
@@ -155,7 +163,10 @@ export function Segmented<T extends string>({
           return (
             <Pressable
               key={o.value}
-              onPress={() => onChange(o.value)}
+              onPress={() => {
+                if (!on) tick();
+                onChange(o.value);
+              }}
               accessibilityRole="radio"
               accessibilityState={{ checked: on }}
               style={({ pressed }) => [styles.segment, on && styles.segmentOn, pressed && styles.pressed]}

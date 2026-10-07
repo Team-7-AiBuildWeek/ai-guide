@@ -25,7 +25,8 @@ import { useT, type UiKey } from "@/lib/i18n/ui";
 import type { Detail, Interest, Pace } from "@/lib/providers/types";
 import { parseDuration } from "@/lib/tour/duration";
 import { SCRIPT_MINUTES, WALK_MINUTES, tourShape } from "@/lib/tour/shape";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
+import RouteSketch, { Roll } from "./RouteSketch";
 import Segmented from "./Segmented";
 
 /** Phrases a tap adds to the free-text box — NN/g's prompt suggestions. */
@@ -71,7 +72,7 @@ export function BriefFooter({
           aria-live="polite"
           className="min-w-0 truncate font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-medium tabular-nums text-[color:var(--ink)]"
         >
-          {t(`durationShort.${draft.durationMinutes}`)} · {t("brief.estimate", { stops: shape.stops, km: shape.km })}
+          <Roll value={`${t(`durationShort.${draft.durationMinutes}`)} · ${t("brief.estimate", { stops: shape.stops, km: shape.km })}`} />
         </p>
         <button
           type="button"
@@ -130,6 +131,42 @@ export function InterestPills({
   );
 }
 
+/**
+ * The interests as tiles, two to a row: a soft colour and a big icon each, so
+ * the most personal question on the screen is also the one you notice. The
+ * get-to-know-you sheet keeps the compact pills.
+ */
+function InterestTiles({ value, onChange }: { value: Interest[]; onChange: (next: Interest[]) => void }) {
+  const t = useT();
+  return (
+    <div className="mt-2 grid grid-cols-2 gap-2">
+      {INTERESTS.map((i) => {
+        const on = value.includes(i.value);
+        return (
+          <button
+            key={i.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((x) => x !== i.value) : [...value, i.value])}
+            className="tile"
+            style={{ "--tile-tint": i.tint } as CSSProperties}
+          >
+            <span aria-hidden="true" className="tile__icon">
+              {i.icon}
+            </span>
+            <span className="min-w-0">{t(`interest.${i.value}`)}</span>
+            {on ? (
+              <span aria-hidden="true" className="tile__tick">
+                ✓
+              </span>
+            ) : null}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 /** The words a suggestion adds, and the box with them taken out again. */
 function hasPhrase(text: string, phrase: string) {
   return text.toLowerCase().includes(phrase.toLowerCase());
@@ -180,6 +217,7 @@ export default function BriefStep({
   return (
     <div className="flex flex-col gap-6">
       <p className="u-eyebrow -mb-3">{t("brief.step")}</p>
+      <RouteSketch draft={draft} />
 
       {/* Tap options rather than a stepper, like GetYourGuide's duration
           filter: seven lengths fit on screen, and every one is visible. */}
@@ -218,7 +256,7 @@ export default function BriefStep({
             </span>
           ) : null}
         </div>
-        <InterestPills value={draft.interests} onChange={(interests) => onChange({ interests })} className="mt-2" />
+        <InterestTiles value={draft.interests} onChange={(interests) => onChange({ interests })} />
         {picked === 0 ? (
           <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
             {t("brief.interestsNone")}
