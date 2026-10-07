@@ -14,11 +14,21 @@ import { mergeWalks, type WalkRecord } from "@/lib/tour/history";
 
 export const accountsEnabled = !!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
 
+/**
+ * Whether this visitor has been through the welcome screen.
+ *
+ * With accounts, a signed-out visitor goes through it on every visit (this
+ * browser session); a signed-in one never needs to — see WelcomeGate. Without
+ * accounts there is nothing to sign in to, so once is enough.
+ */
+const WELCOME_SESSION_KEY = "btour:welcome:session";
 const WELCOME_KEY = "btour:welcome:v1";
 
 export function welcomed(): boolean {
   try {
-    return localStorage.getItem(WELCOME_KEY) !== null;
+    return accountsEnabled
+      ? sessionStorage.getItem(WELCOME_SESSION_KEY) !== null
+      : localStorage.getItem(WELCOME_KEY) !== null;
   } catch {
     return true; // storage unavailable: never trap anyone on the welcome screen
   }
@@ -26,7 +36,17 @@ export function welcomed(): boolean {
 
 export function markWelcomed() {
   try {
+    sessionStorage.setItem(WELCOME_SESSION_KEY, "1");
     localStorage.setItem(WELCOME_KEY, String(Date.now()));
+  } catch {
+    /* private mode */
+  }
+}
+
+/** Signing out sends the walker back through the front door. */
+export function forgetWelcome() {
+  try {
+    sessionStorage.removeItem(WELCOME_SESSION_KEY);
   } catch {
     /* private mode */
   }
@@ -66,6 +86,8 @@ export async function deleteAccount(): Promise<boolean> {
 // ------------------------------------------------------- email and code --
 
 /**
+ * Kept in step with mobile/src/lib/auth.ts (the two apps cannot share a module yet).
+ *
  * Clerk's errors carry the useful part one level down: an API error's own code
  * is generic, and the field's code and sentence are in `errors[0]`.
  */

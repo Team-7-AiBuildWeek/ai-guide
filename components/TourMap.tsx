@@ -125,24 +125,6 @@ function pinMarkerEl(kind: "start" | "end"): HTMLElement {
   return el;
 }
 
-/**
- * One of our sources, or nothing when the map cannot say.
- *
- * Between a map being made and its style arriving — and after it has been
- * torn down — MapLibre has no style to ask, and asking throws ("this.style is
- * null"). Safari met it coming from the welcome screen: the location fix
- * arrived before the style did, and the whole page went down with it. A
- * source that is not there yet is simply skipped; the load handler fills it in.
- */
-function sourceOf(map: MapLibreMap, id: string): GeoJSONSource | undefined {
-  if (!(map as unknown as { style?: unknown }).style) return undefined;
-  try {
-    return map.getSource(id) as GeoJSONSource | undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 export default function TourMap({
   styleUrl,
   center,
@@ -250,7 +232,7 @@ export default function TourMap({
     // has to be callable again — not just once on first load.
     const addOurLayers = () => {
       styleReady.current = true;
-      if (sourceOf(map, ROUTE)) return;
+      if (map.getSource(ROUTE)) return;
 
       map.addSource(ROUTE, {
         type: "geojson",
@@ -403,9 +385,14 @@ export default function TourMap({
       gpsMarker.current.setLngLat([at.lng, at.lat]);
     }
 
-    sourceOf(map, ACCURACY)?.setData(
-      accuracyPolygon(fix.lat, fix.lng, fix.accuracy),
-    );
+    // Only once the style is in: before it, the map has no sources to ask and
+    // asking throws (Safari met it — the fix arrived before the style). The
+    // load handler draws the circle from fixRef when the style lands.
+    if (styleReady.current) {
+      (map.getSource(ACCURACY) as GeoJSONSource | undefined)?.setData(
+        accuracyPolygon(fix.lat, fix.lng, fix.accuracy),
+      );
+    }
 
     if (!hasCentred.current) {
       hasCentred.current = true;
@@ -463,7 +450,7 @@ export default function TourMap({
     routeRef.current = route;
     if (!map) return;
     const apply = () =>
-      sourceOf(map, ROUTE)?.setData(
+      (map.getSource(ROUTE) as GeoJSONSource | undefined)?.setData(
         route ?? { type: "FeatureCollection", features: [] },
       );
     if (styleReady.current) apply();
@@ -499,7 +486,7 @@ export default function TourMap({
     ridesRef.current = rideShapes;
     if (!map) return;
     const apply = () =>
-      sourceOf(map, RIDES)?.setData(rideShapes);
+      (map.getSource(RIDES) as GeoJSONSource | undefined)?.setData(rideShapes);
     if (styleReady.current) apply();
     else map.once("load", apply);
   }, [rideShapes]);

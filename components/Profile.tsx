@@ -1,162 +1,22 @@
 "use client";
 
 /**
- * My profile: the walks somebody has built, and the two settings that outlive
- * any one of them.
- *
- * Everything here is read from the same localStorage the flow writes, so there
- * is no account and nothing leaves the device — which is also why the delete
- * buttons are real deletes rather than a request to a server that may or may
- * not honour them.
+ * The Account tab: what all the walks add up to, the account (when accounts
+ * are on), and the settings every new walk starts from. The walks themselves
+ * are on the Tours tab.
  */
 
 import Link from "next/link";
 import Account from "./Account";
-import TabBar, { TAB_BAR_PX } from "./TabBar";
+import TabBar, { ABOVE_TAB_BAR } from "./TabBar";
 import { accountsEnabled } from "@/lib/accounts/client";
-import { useCallback, useState, useSyncExternalStore } from "react";
-import { LANGUAGES, languageName } from "@/lib/i18n/languages";
+import { useState } from "react";
+import Stat from "./Stat";
+import { useLoadOnce } from "@/lib/useLoadOnce";
+import { LANGUAGES } from "@/lib/i18n/languages";
 import { announceUiLang, useT } from "@/lib/i18n/ui";
-import { EMPTY_DRAFT, loadDraft, saveDraft, saveRebuild } from "@/lib/tour/flow";
-import {
-  canWalkAgain,
-  formatDistance,
-  formatWhen,
-  loadWalks,
-  planFor,
-  type WalkRecord,
-} from "@/lib/tour/history";
-
-const never = () => () => {};
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="u-eyebrow">{label}</p>
-      <p className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
-        {value}
-      </p>
-    </div>
-  );
-}
-
-export function Walk({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
-  const t = useT();
-  const [open, setOpen] = useState(false);
-  const minutes = Math.max(1, Math.round(walk.seconds / 60));
-
-  /**
-   * The language this walk is about to be repeated in.
-   *
-   * Starts on the one it was built in, so the button is honest before it is
-   * touched: pressing it without opening the picker walks the same walk again,
-   * exactly as it was.
-   */
-  const [againLang, setAgainLang] = useState(walk.lang);
-  const again = canWalkAgain(walk);
-
-  const walkAgain = () => {
-    const plan = planFor(walk);
-    if (!walk.req || !plan) return;
-    saveRebuild({ req: { ...walk.req, lang: againLang }, plan });
-    // A full navigation rather than a client one: the flow reads the ask on
-    // mount, and a soft push would land on a TourFlow that has already
-    // mounted and already looked.
-    window.location.href = "/";
-  };
-
-  return (
-    <li className="rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        aria-expanded={open}
-        className="flex w-full items-start justify-between gap-3 text-left"
-      >
-        <span className="min-w-0">
-          <span className="block font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
-            {walk.title}
-          </span>
-          <span className="mt-1 block text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-            {[
-              walk.city,
-              formatWhen(walk.at, walk.lang),
-              `${walk.stopNames.length} ${t("profile.stops").toLowerCase()}`,
-              formatDistance(walk.meters),
-            ]
-              .filter(Boolean)
-              .join(" · ")}
-          </span>
-        </span>
-        <span aria-hidden="true" className="shrink-0 text-[color:var(--ink-mute)]">
-          {open ? "▲" : "▼"}
-        </span>
-      </button>
-
-      {open ? (
-        <div className="mt-4">
-          <div className="flex flex-wrap gap-6">
-            <Stat label={t("profile.askedFor")} value={`${walk.minutes} min`} />
-            <Stat label={t("profile.walking")} value={`${minutes} min`} />
-            <Stat label={t("brief.language")} value={languageName(walk.lang)} />
-          </div>
-
-          {walk.freeText ? (
-            <p className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--canvas)] p-3 text-[length:var(--text-caption)] italic text-[color:var(--ink-soft)]">
-              “{walk.freeText}”
-            </p>
-          ) : null}
-
-          <p className="u-eyebrow mt-4">{t("profile.theStops")}</p>
-          <ol className="mt-2 flex flex-col gap-1">
-            {walk.stopNames.map((name, i) => (
-              <li key={i} className="text-[length:var(--text-caption)] text-[color:var(--ink-soft)]">
-                <span className="tabular-nums text-[color:var(--ink-mute)]">{i + 1}.</span> {name}
-              </li>
-            ))}
-          </ol>
-
-          {/* Walking it again. The language sits next to the button rather
-              than behind a second screen, because changing it is the whole
-              reason the button is interesting — the same walk in a language
-              you are learning, or one a visitor reads. */}
-          {again ? (
-            <div className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--canvas)] p-3">
-              <label className="flex items-center justify-between gap-3">
-                <span className="u-eyebrow">{t("brief.language")}</span>
-                <select
-                  value={againLang}
-                  onChange={(e) => setAgainLang(e.target.value)}
-                  className="min-h-[44px] max-w-[60%] rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[length:var(--text-body)] text-[color:var(--ink)]"
-                >
-                  {LANGUAGES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.endonym === l.english ? l.endonym : `${l.endonym} — ${l.english}`}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <button type="button" onClick={walkAgain} className="btn btn--filled mt-3 w-full">
-                {t("profile.walkAgain")}
-              </button>
-              <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
-                {t("profile.walkAgainHint")}
-              </p>
-            </div>
-          ) : null}
-
-          <button
-            type="button"
-            onClick={onForget}
-            className="mt-4 min-h-[44px] font-[family-name:var(--font-display)] text-[length:var(--text-caption)] font-semibold text-[color:var(--danger)] underline underline-offset-4"
-          >
-            {t("profile.deleteOne")}
-          </button>
-        </div>
-      ) : null}
-    </li>
-  );
-}
+import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/tour/flow";
+import { formatDistance, loadWalks, type WalkRecord } from "@/lib/tour/history";
 
 export default function Profile() {
   const t = useT();
@@ -165,24 +25,11 @@ export default function Profile() {
    * about what is already saved, not a live view of it.
    */
   const [walks, setWalks] = useState<WalkRecord[]>([]);
-  const [loaded, setLoaded] = useState(false);
   const [lang, setLang] = useState(EMPTY_DRAFT.lang);
-
-  const hydrate = useCallback(() => {
+  useLoadOnce(() => {
     setWalks(loadWalks());
     setLang(loadDraft()?.lang ?? EMPTY_DRAFT.lang);
-    setLoaded(true);
-  }, []);
-
-  // localStorage is unreadable while this renders on the server.
-  useSyncExternalStore(
-    never,
-    () => {
-      if (!loaded) queueMicrotask(hydrate);
-      return loaded;
-    },
-    () => false,
-  );
+  });
 
   const setDefaultLang = (next: string) => {
     setLang(next);
@@ -198,7 +45,7 @@ export default function Profile() {
   return (
     <main
       className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 pt-[max(1.5rem,env(safe-area-inset-top))]"
-      style={{ paddingBottom: TAB_BAR_PX + 32 }}
+      style={{ paddingBottom: `calc(${ABOVE_TAB_BAR} + 2rem)` }}
     >
       <header>
         <h1 className="text-[length:var(--text-h2)]">Account</h1>

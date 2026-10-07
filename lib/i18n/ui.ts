@@ -124,7 +124,6 @@ const EN = {
   "gen.cancel": "Cancel",
 
   // ---------------------------------------------------------------- profile
-  "profile.title": "My profile",
   "profile.built": "Walks built",
   "profile.stops": "Stops",
   "profile.distance": "Distance",
@@ -140,7 +139,6 @@ const EN = {
   "profile.walkAgainHint": "The same stops, in the language you pick.",
   "profile.deleteOne": "Delete this walk",
   "profile.clearAll": "Clear all",
-  "profile.save": "Save settings",
   "profile.today": "Today",
   "profile.yesterday": "Yesterday",
 } as const;

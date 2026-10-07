@@ -365,12 +365,14 @@ export function useNarration({
   }, [status.playing, deviceVoice, entry, chunkIndex, player, pauseAll]);
 
   // Lengths: the real one for the piece playing, estimates for the rest.
-  const estimates = entry
-    ? entry.recordingMs !== null
-      ? [entry.recordingMs / 1000]
-      : entry.chunks.map(estimateSeconds)
-    : [];
-  const heard = speedrun ? estimates.slice(0, 1) : estimates;
+  // Keyed on the chunk list, which is replaced (not edited) when a stop's words
+  // arrive: entries are mutated in place, so the entry itself never changes.
+  const chunks = entry?.chunks;
+  const recordingMs = entry?.recordingMs ?? null;
+  const heard = useMemo(() => {
+    const estimates = recordingMs !== null ? [recordingMs / 1000] : (chunks ?? []).map(estimateSeconds);
+    return speedrun ? estimates.slice(0, 1) : estimates;
+  }, [chunks, recordingMs, speedrun]);
   const pieceLoaded = entry && loadedKey === `${entry.stop.id}:${chunkIndex}`;
   const chunkDuration = pieceLoaded && status.duration > 0 ? status.duration : heard[chunkIndex] ?? 0;
   const chunkStart = heard.slice(0, chunkIndex).reduce((a, b) => a + b, 0);

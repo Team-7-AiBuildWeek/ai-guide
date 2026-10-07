@@ -12,12 +12,17 @@
 import { useClerk, useUser } from "@clerk/nextjs";
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
-import { deleteAccount, syncWalks } from "@/lib/accounts/client";
+import { deleteAccount, forgetWelcome, syncWalks } from "@/lib/accounts/client";
 import { loadWalks, type WalkRecord } from "@/lib/tour/history";
 
 export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) => void }) {
   const { user, isLoaded, isSignedIn } = useUser();
   const { signOut } = useClerk();
+  /** Out, and back through the front door. */
+  const leave = () => {
+    forgetWelcome();
+    return signOut({ redirectUrl: "/welcome" });
+  };
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -51,7 +56,7 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
     setError(null);
     try {
       if (!(await deleteAccount())) throw new Error();
-      await signOut();
+      await leave();
     } catch {
       setError("The account could not be deleted. Try again, or write to the address on the privacy page.");
     } finally {
@@ -71,7 +76,7 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
       <p className="text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
         Your walks are kept with your account, so they are here and in the iPhone app.
       </p>
-      <button type="button" onClick={() => void signOut()} className="btn btn--quiet w-full">
+      <button type="button" onClick={() => void leave()} className="btn btn--quiet w-full">
         Sign out
       </button>
       {confirming ? (

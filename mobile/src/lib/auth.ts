@@ -11,20 +11,36 @@
 
 import { useSignIn, useSignUp } from "@clerk/expo";
 import { useState } from "react";
+import { accountsEnabled } from "./accounts";
 import { readJson, writeJson } from "./store";
 
 const WELCOME_KEY = "welcome-v1";
 
-/** Whether the welcome screen has been seen (and either signed in or skipped). */
+/** Through the welcome screen since the app was opened. */
+let passedThisLaunch = false;
+
+/**
+ * Whether this walker may skip the welcome screen. With accounts, a signed-out
+ * walker goes through it every time the app is opened (signed in, they never
+ * see it — see the tabs' layout); without accounts, once is enough.
+ */
 export function welcomed(): boolean {
-  return readJson<{ at: number }>(WELCOME_KEY) !== null;
+  return passedThisLaunch || (!accountsEnabled && readJson<{ at: number }>(WELCOME_KEY) !== null);
 }
 
 export function markWelcomed() {
+  passedThisLaunch = true;
   writeJson(WELCOME_KEY, { at: Date.now() });
 }
 
+/** Signing out sends the walker back through the front door. */
+export function forgetWelcome() {
+  passedThisLaunch = false;
+}
+
 /**
+ * Kept in step with lib/accounts/client.ts (the two apps cannot share a module yet).
+ *
  * Clerk's errors carry the useful part one level down: an API error's own code
  * is generic, and the field's code and sentence are in `errors[0]`.
  */

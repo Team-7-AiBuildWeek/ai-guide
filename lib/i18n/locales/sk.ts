@@ -76,7 +76,6 @@ export const sk: Partial<Record<UiKey, string>> = {
   "gen.retry": "Skúsiť znova",
   "gen.changeDetails": "Zmeniť zadanie",
   "gen.cancel": "Zrušiť",
-  "profile.title": "Môj profil",
   "profile.built": "Vytvorené prechádzky",
   "profile.stops": "Zastávky",
   "profile.distance": "Vzdialenosť",
@@ -91,7 +90,6 @@ export const sk: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Rovnaké zastávky, v jazyku, ktorý si vyberiete.",
   "profile.deleteOne": "Zmazať túto prechádzku",
   "profile.clearAll": "Vymazať všetko",
-  "profile.save": "Uložiť nastavenia",
   "profile.today": "Dnes",
   "profile.yesterday": "Včera"
 };

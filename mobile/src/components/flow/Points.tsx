@@ -5,13 +5,12 @@ import { useEffect, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { Btn, Eyebrow, Field, TextLink } from "@/components/ui";
 import { searchCities, searchPlaces } from "@/lib/api";
-import { distanceMeters } from "@/lib/geo";
+import { inCity } from "@/lib/geo";
 import { t } from "@/lib/strings";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
 import type { City, Draft, Fix, Place, Point } from "@/lib/types";
 
 type Target = "start" | "end";
-const CITY_RADIUS_M = 30_000;
 
 /** Search after the typing stops, not on every key. */
 function useDebounced<T>(query: string, search: (q: string) => Promise<T[]>, deps: unknown[]) {
@@ -238,7 +237,7 @@ export default function Points({
   const city = draft.city;
   // Search near the walker when they are in the city, else near the city.
   const near =
-    fix && (!city || distanceMeters(fix, city) < CITY_RADIUS_M)
+    fix && (!city || inCity(fix, city))
       ? { lat: fix.lat, lng: fix.lng }
       : city
         ? { lat: city.lat, lng: city.lng }

@@ -5,7 +5,8 @@
  */
 
 import { tourMinutes } from "./flow";
-import { readJson, writeJson } from "./store";
+import { readJson, removeJson, writeJson } from "./store";
+import { t } from "./strings";
 import type { Stop, StoredTour, TourPlan, TourRequest } from "./types";
 
 export type WalkRecord = {
@@ -83,7 +84,7 @@ export function saveRebuild(r: { req: TourRequest; plan: TourPlan }) {
 
 export function takeRebuild(): { req: TourRequest; plan: TourPlan } | null {
   const r = readJson<{ req: TourRequest; plan: TourPlan }>(REBUILD_KEY);
-  writeJson(REBUILD_KEY, null);
+  if (r) removeJson(REBUILD_KEY);
   return r?.req?.start && r?.plan?.stops?.length ? r : null;
 }
 
@@ -94,7 +95,7 @@ export function formatKm(meters: number): string {
 
 export function formatWhen(at: number): string {
   const days = Math.floor((Date.now() - at) / 86_400_000);
-  if (days === 0) return "Today";
-  if (days === 1) return "Yesterday";
+  if (days === 0) return t("profile.today");
+  if (days === 1) return t("profile.yesterday");
   return new Date(at).toLocaleDateString(undefined, { day: "numeric", month: "long" });
 }

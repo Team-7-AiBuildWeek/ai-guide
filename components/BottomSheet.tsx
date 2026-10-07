@@ -69,10 +69,10 @@ export default function BottomSheet({
   children,
   footer,
   collapsedContent,
-  lift = 0,
+  lift,
 }: {
-  /** Pixels to sit above the bottom edge, for a tab bar underneath. */
-  lift?: number;
+  /** A CSS length to sit above the bottom edge, for a tab bar underneath. */
+  lift?: string;
   height: SheetHeight;
   /** Where a drag left it. Omit to keep the sheet fixed to `height`. */
   onHeightChange?: (h: SheetHeight) => void;
@@ -405,13 +405,9 @@ export default function BottomSheet({
     <section
       ref={sheetRef}
       aria-label={title ?? "Tour options"}
-      style={
-        height === "collapsed" && keyboard > 0
-          ? { bottom: keyboard }
-          : height === "collapsed" && lift > 0
-            ? { bottom: lift }
-            : undefined
-      }
+      // Collapsed, the card rides above the keyboard when one is open (it covers
+      // any tab bar), else above the tab bar.
+      style={height === "collapsed" ? { bottom: keyboard > 0 ? keyboard : lift } : undefined}
       className={[
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",

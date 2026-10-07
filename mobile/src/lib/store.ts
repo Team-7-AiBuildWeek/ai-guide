@@ -8,9 +8,18 @@
 import { Directory, File, Paths } from "expo-file-system";
 
 const ROOT = new Directory(Paths.document, "walk");
+const VOICE = new Directory(ROOT, "voice");
+
+/** The folders are made once per launch, not on every read and write. */
+let made = false;
+function ensureDirs() {
+  if (made) return;
+  VOICE.create({ intermediates: true, idempotent: true });
+  made = true;
+}
 
 function fileFor(key: string): File {
-  ROOT.create({ intermediates: true, idempotent: true });
+  ensureDirs();
   return new File(ROOT, `${key}.json`);
 }
 
@@ -46,7 +55,6 @@ export function removeJson(key: string): void {
 
 /** Where the guide's voice is kept once it has been made. */
 export function audioDir(): Directory {
-  const dir = new Directory(ROOT, "voice");
-  dir.create({ intermediates: true, idempotent: true });
-  return dir;
+  ensureDirs();
+  return VOICE;
 }

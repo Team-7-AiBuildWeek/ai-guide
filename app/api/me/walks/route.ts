@@ -9,25 +9,19 @@
  * Bearer); the website with its session cookie. Either way Clerk says who.
  */
 
-import { auth } from "@clerk/nextjs/server";
-import { accountsConfigured, addWalks, forgetWalk, listWalks, type StoredWalk } from "@/lib/accounts/store";
+import { signedInUser } from "@/lib/accounts/server";
+import { addWalks, forgetWalk, listWalks, type StoredWalk } from "@/lib/accounts/store";
 
 export const dynamic = "force-dynamic";
 
-async function who(): Promise<string | Response> {
-  if (!accountsConfigured()) return Response.json({ error: "Accounts are not set up." }, { status: 503 });
-  const { userId } = await auth();
-  return userId ?? Response.json({ error: "Sign in first." }, { status: 401 });
-}
-
 export async function GET() {
-  const user = await who();
+  const user = await signedInUser();
   if (user instanceof Response) return user;
   return Response.json({ walks: await listWalks(user) });
 }
 
 export async function POST(request: Request) {
-  const user = await who();
+  const user = await signedInUser();
   if (user instanceof Response) return user;
   let body: { walks?: StoredWalk[] };
   try {
@@ -40,7 +34,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  const user = await who();
+  const user = await signedInUser();
   if (user instanceof Response) return user;
   const at = Number(new URL(request.url).searchParams.get("at"));
   if (!Number.isFinite(at)) return Response.json({ error: "Say which walk: ?at=…" }, { status: 400 });

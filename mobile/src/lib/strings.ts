@@ -82,7 +82,6 @@ const EN = {
   "gen.changeDetails": "Change the details",
   "gen.cancel": "Cancel",
 
-  "profile.title": "My profile",
   "profile.built": "Walks built",
   "profile.stops": "Stops",
   "profile.distance": "Distance",

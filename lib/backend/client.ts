@@ -152,28 +152,6 @@ export function requestBackendTour(body: BackendTourRequest): Promise<BackendTou
   return call<BackendTourResponse>("/tours", { method: "POST", body: JSON.stringify(body) }, 20_000);
 }
 
-export type BackendPremadeTour = {
-  id: number;
-  theme: string;
-  language: string;
-  persona: string;
-  depth_level: string;
-  target_duration_min: number;
-  stops: number;
-  total_duration_ms: number | null;
-  total_walk_m: number | null;
-};
-
-/** Ready-made, fully recorded tours for a city: nothing to generate, nothing to wait for. */
-export function backendPremadeTours(cityId: number): Promise<BackendPremadeTour[]> {
-  return call<BackendPremadeTour[]>(`/cities/${cityId}/tours`);
-}
-
-/** A finished tour's complete offline bundle, with freshly signed audio links. */
-export function backendReadyBundle(tourId: number): Promise<BackendBundle & { audio_urls_expire_at: string }> {
-  return call(`/tours/${tourId}/bundle`);
-}
-
 /** The tour as it stands, including stops whose recordings are not ready yet. */
 export function backendBundle(tourId: number): Promise<BackendBundle> {
   return call<BackendBundle>(`/tours/${tourId}/bundle?partial=true`);

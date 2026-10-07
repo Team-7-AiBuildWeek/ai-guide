@@ -9,7 +9,7 @@
 
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import * as Location from "expo-location";
-import { Redirect, useFocusEffect } from "expo-router";
+import { useFocusEffect, useLocalSearchParams, useNavigation } from "expo-router";
 import * as Speech from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -37,12 +37,10 @@ import {
   saveTour,
   tourMinutes,
 } from "@/lib/flow";
-import { distanceMeters, nextTurn, routePoints, TRUSTED_M } from "@/lib/geo";
+import { distanceMeters, inCity, nextTurn, routePoints, TRUSTED_M } from "@/lib/geo";
 import Greeting from "@/components/Greeting";
 import { accountsEnabled } from "@/lib/accounts";
-import { welcomed } from "@/lib/auth";
 import { rememberWalk, takeRebuild } from "@/lib/history";
-import { setTabBarHidden, takeResume } from "@/lib/tabbar";
 import { normaliseLang, speechLocale } from "@/lib/languages";
 import { prefetchSpeech, useNarration } from "@/lib/narration";
 import { t } from "@/lib/strings";
@@ -51,13 +49,19 @@ import type { City, Draft, Fix, Stage, StoredTour, TourPlan, TourPreview, TourRe
 
 /** Bratislava, until the walker is found. */
 const DEFAULT_CENTER = { lat: 48.1435, lng: 17.1077 };
-const CITY_RADIUS_M = 30_000;
 const PIN_PAUSE_MS = 1000;
+/** One empty list, so the memoized map sees the same "nothing" every render. */
+const NONE: never[] = [];
 const ARRIVAL_M = 35;
 const INSET_MINI = 150;
 const INSET_PLAYER = 420;
 
-function useLiveLocation(): { fix: Fix | null; denied: boolean } {
+/**
+ * Where the walker is. Full navigation precision, every few metres, only while
+ * walking — finding the city and a start point need far less, and GPS at full
+ * precision is the fastest way to empty a battery.
+ */
+function useLiveLocation(walking: boolean): { fix: Fix | null; denied: boolean } {
   const [fix, setFix] = useState<Fix | null>(null);
   const [denied, setDenied] = useState(false);
   useEffect(() => {
@@ -71,7 +75,9 @@ function useLiveLocation(): { fix: Fix | null; denied: boolean } {
         return;
       }
       sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 3 },
+        walking
+          ? { accuracy: Location.Accuracy.BestForNavigation, distanceInterval: 3 }
+          : { accuracy: Location.Accuracy.Balanced, distanceInterval: 25 },
         (pos) =>
           setFix({
             lat: pos.coords.latitude,
@@ -85,17 +91,11 @@ function useLiveLocation(): { fix: Fix | null; denied: boolean } {
       cancelled = true;
       sub?.remove();
     };
-  }, []);
+  }, [walking]);
   return { fix, denied };
 }
 
-/** The welcome screen comes first, once; after that the app opens on the map. */
-export default function Home() {
-  const [seen] = useState(welcomed);
-  return seen ? <Flow /> : <Redirect href="/welcome" />;
-}
-
-function Flow() {
+export default function Flow() {
   const insets = useSafeAreaInsets();
   // Whatever the last session left behind, read once as the screen is made.
   const [restored] = useState(() => {
@@ -129,7 +129,7 @@ function Flow() {
   const arrived = useRef<Set<string>>(new Set());
   const pinPause = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const { fix, denied } = useLiveLocation();
+  const { fix, denied } = useLiveLocation(stage === "tour");
 
   // The screens that are forms take the whole screen; the tour wants the map.
   const sheetFull =
@@ -154,11 +154,18 @@ function Flow() {
     [],
   );
 
-  // A walk asked for again from Tours wins over the one in progress; "Carry on
-  // walking" there opens the walk.
+  // "Carry on walking" on the Tours tab arrives as ?resume=<moment pressed>;
+  // each press is a new value, so each one opens the walk once.
+  const { resume } = useLocalSearchParams<{ resume?: string }>();
+  const [handledResume, setHandledResume] = useState<string | undefined>(undefined);
+  if (resume && resume !== handledResume) {
+    setHandledResume(resume);
+    if (tour) setStage("tour");
+  }
+
+  // A walk asked for again from Tours wins over the one in progress.
   useFocusEffect(
     useCallback(() => {
-      if (takeResume() && loadTour()) setStage("tour");
       const again = takeRebuild();
       if (again) {
         setDraft((prev) => ({ ...prev, lang: again.req.lang }));
@@ -250,7 +257,7 @@ function Flow() {
   useEffect(() => {
     if (!fix || cityLookup.current || cityPinned) return;
     const known = draft.city;
-    if (known && distanceMeters(fix, known) < CITY_RADIUS_M) return;
+    if (known && inCity(fix, known)) return;
     cityLookup.current = true;
     // Deferred a tick: this is about to wait on the network regardless.
     queueMicrotask(() => setDetectingCity(true));
@@ -267,11 +274,10 @@ function Flow() {
   const chooseCity = useCallback(
     (c: City) => {
       setCityPinned(c);
-      const inCity = (p: { lat: number; lng: number } | null) => !!p && distanceMeters(p, c) < CITY_RADIUS_M;
       patchDraft({
         city: c,
-        start: inCity(draft.start) ? draft.start : { lat: c.lat, lng: c.lng, label: c.name },
-        end: inCity(draft.end) ? draft.end : null,
+        start: inCity(draft.start, c) ? draft.start : { lat: c.lat, lng: c.lng, label: c.name },
+        end: inCity(draft.end, c) ? draft.end : null,
       });
     },
     [patchDraft, draft.start, draft.end],
@@ -397,12 +403,29 @@ function Flow() {
   }, [audio]);
 
   // ---------------------------------------------------------------- view --
+  const dropPin = useCallback(
+    (p: { lat: number; lng: number }) => {
+      const label = `Pin at ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
+      patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
+      setPinLanded(true);
+      if (pinPause.current) clearTimeout(pinPause.current);
+      pinPause.current = setTimeout(() => {
+        setPicking(null);
+        setPinLanded(false);
+      }, PIN_PAUSE_MS);
+    },
+    [picking, patchDraft],
+  );
+  const lookAt = useMemo(
+    () => (cityPinned ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label } : null),
+    [cityPinned],
+  );
   // The tab bar is for the first screen; building and walking take the whole screen.
   const showTabs = stage === "start" && picking === null;
+  const navigation = useNavigation();
   useEffect(() => {
-    setTabBarHidden(!showTabs);
-  }, [showTabs]);
-  useEffect(() => () => setTabBarHidden(false), []);
+    navigation.setOptions({ tabBarStyle: showTabs ? undefined : { display: "none" } });
+  }, [navigation, showTabs]);
   const sheetHidden = picking !== null && stage === "points";
   const pins = useMemo(() => {
     const out: { kind: "start" | "end"; point: NonNullable<Draft["start"]> }[] = [];
@@ -420,26 +443,17 @@ function Flow() {
       <TourMap
         center={DEFAULT_CENTER}
         fix={fix}
-        route={stage === "tour" ? route : []}
-        rides={stage === "tour" ? tour?.rides ?? [] : []}
-        stops={stage === "tour" ? stops : []}
+        route={stage === "tour" ? route : NONE}
+        rides={stage === "tour" ? tour?.rides ?? NONE : NONE}
+        stops={stage === "tour" ? stops : NONE}
         currentStopIndex={stage === "tour" ? currentIndex : -1}
         onSelectStop={chooseStop}
         pins={pins}
         picking={picking !== null && !pinLanded}
-        onPick={(p) => {
-          const label = `Pin at ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
-          patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
-          setPinLanded(true);
-          if (pinPause.current) clearTimeout(pinPause.current);
-          pinPause.current = setTimeout(() => {
-            setPicking(null);
-            setPinLanded(false);
-          }, PIN_PAUSE_MS);
-        }}
+        onPick={dropPin}
         bottomInset={sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI : INSET_PLAYER}
         follow={stage !== "tour" && !cityPinned}
-        lookAt={cityPinned && stage !== "tour" ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label } : null}
+        lookAt={stage !== "tour" ? lookAt : null}
         fitKey={stage === "tour" ? tour?.plan.title ?? null : null}
       />
 

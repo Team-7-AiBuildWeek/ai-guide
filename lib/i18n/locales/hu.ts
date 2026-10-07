@@ -76,7 +76,6 @@ export const hu: Partial<Record<UiKey, string>> = {
   "gen.retry": "Újra",
   "gen.changeDetails": "Adatok módosítása",
   "gen.cancel": "Mégse",
-  "profile.title": "Profilom",
   "profile.built": "Elkészült séták",
   "profile.stops": "Megállók",
   "profile.distance": "Távolság",
@@ -91,7 +90,6 @@ export const hu: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Ugyanazok a megállók, az általad választott nyelven.",
   "profile.deleteOne": "Séta törlése",
   "profile.clearAll": "Összes törlése",
-  "profile.save": "Beállítások mentése",
   "profile.today": "Ma",
   "profile.yesterday": "Tegnap"
 };

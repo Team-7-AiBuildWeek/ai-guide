@@ -76,7 +76,6 @@ export const pt: Partial<Record<UiKey, string>> = {
   "gen.retry": "Tentar de novo",
   "gen.changeDetails": "Mudar os dados",
   "gen.cancel": "Cancelar",
-  "profile.title": "O meu perfil",
   "profile.built": "Passeios criados",
   "profile.stops": "Paragens",
   "profile.distance": "Distância",
@@ -91,7 +90,6 @@ export const pt: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "As mesmas paragens, no idioma que escolher.",
   "profile.deleteOne": "Apagar este passeio",
   "profile.clearAll": "Limpar tudo",
-  "profile.save": "Guardar definições",
   "profile.today": "Hoje",
   "profile.yesterday": "Ontem"
 };

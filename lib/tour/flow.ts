@@ -256,31 +256,3 @@ export function takeRebuild(): Rebuild | null {
     return null;
   }
 }
-
-// ------------------------------------------------------------ carrying on
-
-const RESUME_KEY = "btour:resume:v1";
-
-/**
- * "Carry on walking" from the Tours tab, waiting for the map to pick it up.
- *
- * Opening the map with a walk saved shows it paused, one tap from carrying on;
- * this is that tap made somewhere else. Session storage, and taken once.
- */
-export function requestResume() {
-  try {
-    sessionStorage.setItem(RESUME_KEY, "1");
-  } catch {
-    /* private mode: the paused card still has the button */
-  }
-}
-
-export function takeResume(): boolean {
-  try {
-    const asked = sessionStorage.getItem(RESUME_KEY) !== null;
-    sessionStorage.removeItem(RESUME_KEY);
-    return asked;
-  } catch {
-    return false;
-  }
-}

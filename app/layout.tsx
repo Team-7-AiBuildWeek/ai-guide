@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Splash from "@/components/Splash";
+import WelcomeGate from "@/components/WelcomeGate";
 import "./globals.css";
 
 /** The pairing from smaut.tech: Space Grotesk for display, Inter for reading. */
@@ -63,7 +64,13 @@ export default function RootLayout({
         {/* Plays on every full load, before any script; gone by itself in about 1.8s. */}
         <Splash />
         {/* Accounts are optional: without Clerk's key the site runs as it always has. */}
-        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? <ClerkProvider>{children}</ClerkProvider> : children}
+        {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
+          <ClerkProvider>
+            <WelcomeGate>{children}</WelcomeGate>
+          </ClerkProvider>
+        ) : (
+          <WelcomeGate>{children}</WelcomeGate>
+        )}
       </body>
     </html>
   );

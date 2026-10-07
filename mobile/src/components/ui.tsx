@@ -121,6 +121,16 @@ export function Pill({ label, icon, on, onPress }: { label: string; icon?: strin
   );
 }
 
+/** A labelled figure: "Walks built 4", "Walking 52 min". */
+export function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <View>
+      <Eyebrow>{label}</Eyebrow>
+      <Text style={[type.lead, { marginTop: 4 }]}>{value}</Text>
+    </View>
+  );
+}
+
 export function Eyebrow({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[type.eyebrow, style]}>{children}</Text>;
 }

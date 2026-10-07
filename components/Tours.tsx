@@ -7,42 +7,29 @@
  */
 
 import { useRouter } from "next/navigation";
-import { useCallback, useState, useSyncExternalStore } from "react";
-import { Walk } from "./Profile";
-import TabBar, { TAB_BAR_PX } from "./TabBar";
+import { useState } from "react";
+import WalkCard from "./WalkCard";
+import TabBar, { ABOVE_TAB_BAR } from "./TabBar";
 import { accountsEnabled, forgetWalkEverywhere } from "@/lib/accounts/client";
 import { useT } from "@/lib/i18n/ui";
-import { loadTour, requestResume, type StoredTour } from "@/lib/tour/flow";
+import { useLoadOnce } from "@/lib/useLoadOnce";
+import { loadTour, type StoredTour } from "@/lib/tour/flow";
 import { forgetAllWalks, forgetWalk, loadWalks, type WalkRecord } from "@/lib/tour/history";
-
-const never = () => () => {};
 
 export default function Tours() {
   const t = useT();
   const router = useRouter();
   const [walks, setWalks] = useState<WalkRecord[]>([]);
   const [current, setCurrent] = useState<StoredTour | null>(null);
-  const [loaded, setLoaded] = useState(false);
-
-  // localStorage is unreadable during SSR: read it once, after hydration.
-  const hydrate = useCallback(() => {
+  const loaded = useLoadOnce(() => {
     setWalks(loadWalks());
     setCurrent(loadTour());
-    setLoaded(true);
-  }, []);
-  useSyncExternalStore(
-    never,
-    () => {
-      if (!loaded) queueMicrotask(hydrate);
-      return loaded;
-    },
-    () => false,
-  );
+  });
 
   return (
     <main
       className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 pt-[max(1.5rem,env(safe-area-inset-top))]"
-      style={{ paddingBottom: TAB_BAR_PX + 32 }}
+      style={{ paddingBottom: `calc(${ABOVE_TAB_BAR} + 2rem)` }}
     >
       <header>
         <h1 className="text-[length:var(--text-h2)]">Tours</h1>
@@ -58,10 +45,7 @@ export default function Tours() {
           </p>
           <button
             type="button"
-            onClick={() => {
-              requestResume();
-              router.push("/");
-            }}
+            onClick={() => router.push("/?resume=1")}
             className="btn btn--primary btn--lg w-full"
           >
             {t("landing.carryOn")}
@@ -100,7 +84,7 @@ export default function Tours() {
         ) : (
           <ul className="mt-3 flex flex-col gap-3">
             {walks.map((w) => (
-              <Walk
+              <WalkCard
                 key={w.at}
                 walk={w}
                 onForget={() => {

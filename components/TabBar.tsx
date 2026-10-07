@@ -13,8 +13,11 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-/** Height of the bar above the home indicator, for anything that sits on top of it. */
+/** The bar's own height, above the home indicator. */
 export const TAB_BAR_PX = 64;
+
+/** How far the bar reaches up from the bottom edge, home indicator included — for anything that sits on it. */
+export const ABOVE_TAB_BAR = `calc(${TAB_BAR_PX}px + env(safe-area-inset-bottom))`;
 
 const TABS: { href: string; label: string; icon: React.ReactNode }[] = [
   {

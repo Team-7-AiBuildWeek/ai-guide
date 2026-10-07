@@ -76,7 +76,6 @@ export const pl: Partial<Record<UiKey, string>> = {
   "gen.retry": "Spróbuj ponownie",
   "gen.changeDetails": "Zmień ustawienia",
   "gen.cancel": "Anuluj",
-  "profile.title": "Mój profil",
   "profile.built": "Stworzone spacery",
   "profile.stops": "Przystanki",
   "profile.distance": "Dystans",
@@ -91,7 +90,6 @@ export const pl: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Te same przystanki, w wybranym języku.",
   "profile.deleteOne": "Usuń ten spacer",
   "profile.clearAll": "Wyczyść wszystko",
-  "profile.save": "Zapisz ustawienia",
   "profile.today": "Dziś",
   "profile.yesterday": "Wczoraj"
 };

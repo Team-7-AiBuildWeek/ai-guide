@@ -76,7 +76,6 @@ export const ja: Partial<Record<UiKey, string>> = {
   "gen.retry": "もう一度",
   "gen.changeDetails": "条件を変える",
   "gen.cancel": "キャンセル",
-  "profile.title": "マイプロフィール",
   "profile.built": "作った散歩",
   "profile.stops": "立ち寄り先",
   "profile.distance": "距離",
@@ -91,7 +90,6 @@ export const ja: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "同じスポットを、選んだ言語で。",
   "profile.deleteOne": "この散歩を削除",
   "profile.clearAll": "すべて消去",
-  "profile.save": "設定を保存",
   "profile.today": "今日",
   "profile.yesterday": "昨日"
 };

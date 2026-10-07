@@ -55,6 +55,8 @@ export default async function Home({
       styles={styles}
       center={DEFAULT_CENTER}
       initialSimulate={"sim" in params}
+      // "Carry on walking" on the Tours tab.
+      initialResume={"resume" in params}
     />
   );
 }

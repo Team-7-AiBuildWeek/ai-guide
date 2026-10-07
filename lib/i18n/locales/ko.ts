@@ -76,7 +76,6 @@ export const ko: Partial<Record<UiKey, string>> = {
   "gen.retry": "다시 시도",
   "gen.changeDetails": "조건 변경",
   "gen.cancel": "취소",
-  "profile.title": "내 프로필",
   "profile.built": "만든 산책",
   "profile.stops": "장소",
   "profile.distance": "거리",
@@ -91,7 +90,6 @@ export const ko: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "같은 장소를, 선택한 언어로.",
   "profile.deleteOne": "이 산책 삭제",
   "profile.clearAll": "모두 지우기",
-  "profile.save": "설정 저장",
   "profile.today": "오늘",
   "profile.yesterday": "어제"
 };

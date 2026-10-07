@@ -1,9 +1,5 @@
-import { Inter_400Regular, Inter_500Medium, Inter_600SemiBold } from "@expo-google-fonts/inter";
-import {
-  SpaceGrotesk_500Medium,
-  SpaceGrotesk_600SemiBold,
-  SpaceGrotesk_700Bold,
-} from "@expo-google-fonts/space-grotesk";
+import { Inter_400Regular, Inter_600SemiBold } from "@expo-google-fonts/inter";
+import { SpaceGrotesk_500Medium, SpaceGrotesk_600SemiBold } from "@expo-google-fonts/space-grotesk";
 import { ClerkProvider } from "@clerk/expo";
 import { tokenCache } from "@clerk/expo/token-cache";
 import { useFonts } from "expo-font";
@@ -24,9 +20,7 @@ export default function RootLayout() {
   const [loaded] = useFonts({
     SpaceGrotesk_500Medium,
     SpaceGrotesk_600SemiBold,
-    SpaceGrotesk_700Bold,
     Inter_400Regular,
-    Inter_500Medium,
     Inter_600SemiBold,
   });
   const [splashing, setSplashing] = useState(true);

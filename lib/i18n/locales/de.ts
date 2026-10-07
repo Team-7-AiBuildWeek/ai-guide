@@ -76,7 +76,6 @@ export const de: Partial<Record<UiKey, string>> = {
   "gen.retry": "Erneut versuchen",
   "gen.changeDetails": "Angaben ändern",
   "gen.cancel": "Abbrechen",
-  "profile.title": "Mein Profil",
   "profile.built": "Erstellte Touren",
   "profile.stops": "Stationen",
   "profile.distance": "Strecke",
@@ -91,7 +90,6 @@ export const de: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Dieselben Stationen, in der Sprache Ihrer Wahl.",
   "profile.deleteOne": "Diese Tour löschen",
   "profile.clearAll": "Alles löschen",
-  "profile.save": "Einstellungen speichern",
   "profile.today": "Heute",
   "profile.yesterday": "Gestern"
 };

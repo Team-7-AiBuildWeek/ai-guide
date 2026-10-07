@@ -17,7 +17,6 @@ export const colors = {
   line: "#e5e7eb",
   lineStrong: "#d1d5db",
   dark: "#1f1f1f", // player chrome, map overlays
-  darkSoft: "#2a2e2c",
   onDark: "#f9fafb",
   onDarkMute: "#9ca3af",
   mint: "#5eda9b", // fill only
@@ -32,9 +31,7 @@ export const colors = {
 export const fonts = {
   display: "SpaceGrotesk_600SemiBold",
   displayMedium: "SpaceGrotesk_500Medium",
-  displayBold: "SpaceGrotesk_700Bold",
   body: "Inter_400Regular",
-  bodyMedium: "Inter_500Medium",
   bodySemi: "Inter_600SemiBold",
 };
 
@@ -59,6 +56,11 @@ export const radius = {
 export const shadow = StyleSheet.create({
   lift: { shadowColor: "#111827", shadowOpacity: 0.18, shadowRadius: 20, shadowOffset: { width: 0, height: 10 }, elevation: 8 },
   card: { shadowColor: "#111827", shadowOpacity: 0.08, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3 },
+});
+
+/** The white card with a hairline the website calls .card. */
+export const surface = StyleSheet.create({
+  card: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
 });
 
 export const type = StyleSheet.create({

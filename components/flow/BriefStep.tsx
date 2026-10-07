@@ -90,6 +90,40 @@ export function BriefFooter({
   );
 }
 
+/** The interest chips, as a row: shared with the get-to-know-you screen. */
+export function InterestPills({
+  value,
+  onChange,
+  className = "",
+}: {
+  value: Interest[];
+  onChange: (next: Interest[]) => void;
+  className?: string;
+}) {
+  const t = useT();
+  return (
+    <div className={`flex flex-wrap gap-2 ${className}`}>
+      {INTERESTS.map((i) => {
+        const on = value.includes(i.value);
+        return (
+          <button
+            key={i.value}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((x) => x !== i.value) : [...value, i.value])}
+            className="pill"
+          >
+            <span aria-hidden="true" className="pill--icon">
+              {i.icon}
+            </span>
+            {t(`interest.${i.value}`)}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 export default function BriefStep({
   draft,
   onChange,
@@ -123,12 +157,6 @@ export default function BriefStep({
     }
   };
 
-  const toggleInterest = (i: Interest) =>
-    onChange({
-      interests: draft.interests.includes(i)
-        ? draft.interests.filter((x) => x !== i)
-        : [...draft.interests, i],
-    });
 
   // The slider sits above the box that moved it, so the confirmation has to
   // name the value — by the time you have written "all afternoon" the words
@@ -185,25 +213,11 @@ export default function BriefStep({
 
       <div>
         <p className="u-eyebrow">{t("brief.interests")}</p>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {INTERESTS.map((i) => {
-            const on = draft.interests.includes(i.value);
-            return (
-              <button
-                key={i.value}
-                type="button"
-                aria-pressed={on}
-                onClick={() => toggleInterest(i.value)}
-                className="pill"
-              >
-                <span aria-hidden="true" className="pill--icon">
-                  {i.icon}
-                </span>
-                {t(`interest.${i.value}`)}
-              </button>
-            );
-          })}
-        </div>
+        <InterestPills
+          value={draft.interests}
+          onChange={(interests) => onChange({ interests })}
+          className="mt-2"
+        />
       </div>
 
       {/* The seam. Everything above answers the questions; everything below

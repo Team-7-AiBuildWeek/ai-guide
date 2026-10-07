@@ -4,24 +4,13 @@ import { useState } from "react";
 import { Linking, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import Account from "@/components/Account";
-import { Eyebrow, LanguageSelect, TextLink } from "@/components/ui";
+import { LanguageSelect, Stat, TextLink } from "@/components/ui";
 import { accountsEnabled } from "@/lib/accounts";
 import { BASE } from "@/lib/api";
 import { EMPTY_DRAFT, loadDraft, saveDraft } from "@/lib/flow";
 import { formatKm, loadWalks } from "@/lib/history";
 import { t } from "@/lib/strings";
-import { colors, radius, type } from "@/lib/theme";
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View>
-      <Eyebrow>{label}</Eyebrow>
-      <Text style={[type.lead, { marginTop: 4 }]}>{value}</Text>
-    </View>
-  );
-}
-
-const noop = () => {};
+import { colors, surface, type } from "@/lib/theme";
 
 export default function AccountTab() {
   const insets = useSafeAreaInsets();
@@ -35,17 +24,15 @@ export default function AccountTab() {
       style={{ flex: 1, backgroundColor: colors.canvas }}
       contentContainerStyle={{ padding: 16, paddingTop: Math.max(16, insets.top), paddingBottom: insets.bottom + 32, gap: 24 }}
     >
-      <View style={styles.header}>
-        <Text style={type.h2}>Account</Text>
-      </View>
+      <Text style={type.h2}>Account</Text>
 
-      <View style={[styles.card, styles.stats]}>
+      <View style={[surface.card, styles.stats]}>
         <Stat label={t("profile.built")} value={String(walks.length)} />
         <Stat label={t("profile.stops")} value={String(stops)} />
         <Stat label={t("profile.distance")} value={formatKm(walked)} />
       </View>
 
-      {accountsEnabled ? <Account onWalks={setWalks} bindForget={noop} /> : null}
+      {accountsEnabled ? <Account onWalks={setWalks} /> : null}
 
       <View>
         <Text style={type.h3}>Settings</Text>
@@ -67,9 +54,6 @@ export default function AccountTab() {
   );
 }
 
-
 const styles = StyleSheet.create({
-  header: { flexDirection: "row", alignItems: "center", gap: 12 },
-  card: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
 });

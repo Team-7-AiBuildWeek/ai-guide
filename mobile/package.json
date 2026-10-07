@@ -6,7 +6,6 @@
     "@clerk/expo": "^4.8.1",
     "@expo-google-fonts/inter": "^0.4.2",
     "@expo-google-fonts/space-grotesk": "^0.4.1",
-    "@react-native-masked-view/masked-view": "0.3.2",
     "eslint-config-expo": "~57.0.2",
     "expo": "~57.0.26",
     "expo-asset": "~57.0.18",
@@ -18,7 +17,6 @@
     "expo-font": "~57.0.4",
     "expo-glass-effect": "~57.0.4",
     "expo-keep-awake": "~57.0.2",
-    "expo-linear-gradient": "~57.0.2",
     "expo-linking": "~57.0.11",
     "expo-location": "~57.0.20",
     "expo-router": "~57.0.24",
@@ -33,8 +31,7 @@
     "react-native": "0.86.3",
     "react-native-maps": "1.27.2",
     "react-native-safe-area-context": "~5.7.0",
-    "react-native-screens": "~4.26.0",
-    "undefined": "/Users/jurkokolesar/.claude/jobs/f0f7174c/tmp/npm-cache"
+    "react-native-screens": "~4.26.0"
   },
   "devDependencies": {
     "@types/react": "~19.2.2",

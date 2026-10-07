@@ -67,5 +67,12 @@ export function formatDistance(meters: number): string {
   return `${(meters / 1000).toFixed(1)} km`;
 }
 
+/** Past this from a city's centre, a point is somewhere else. Generous: cities are big. */
+export const CITY_RADIUS_M = 30_000;
+
+export function inCity(p: LatLng | null | undefined, city: LatLng): boolean {
+  return !!p && distanceMeters(p, city) < CITY_RADIUS_M;
+}
+
 /** Past this, a fix is a guess about which street you are on (lib/tour/fixQuality.ts). */
 export const TRUSTED_M = 30;

@@ -203,12 +203,17 @@ export default function Welcome() {
 
   useEffect(() => {
     let loop: Animated.CompositeAnimation | null = null;
+    let gone = false;
     void AccessibilityInfo.isReduceMotionEnabled().then((still) => {
-      if (still) return;
+      // The screen may have closed before the answer came back.
+      if (gone || still) return;
       loop = Animated.loop(Animated.timing(spin, { toValue: 1, duration: 90_000, easing: Easing.linear, useNativeDriver: true }));
       loop.start();
     });
-    return () => loop?.stop();
+    return () => {
+      gone = true;
+      loop?.stop();
+    };
   }, [spin]);
 
   useEffect(() => {
@@ -228,10 +233,10 @@ export default function Welcome() {
     <View style={styles.screen}>
 
       <Animated.View style={[styles.orbit, { top: height * 0.36, transform: [{ translateY: orbitY }] }]} pointerEvents="none">
-        <View style={[styles.ringLine, { width: unit * 1.3, height: unit * 1.3, borderRadius: unit * 0.65 }]} />
+        <View style={[styles.ring, { width: unit * 1.3, height: unit * 1.3, borderRadius: unit * 0.65 }]} />
         <Ring radius={unit * 0.43} items={OUTER} spin={spin} reverse />
         <Ring radius={unit * 0.27} items={INNER} spin={spin} />
-        <View style={[styles.ringLine, styles.core, { width: unit * 0.3, height: unit * 0.3, borderRadius: unit * 0.15 }]}>
+        <View style={[styles.ring, styles.core, { width: unit * 0.3, height: unit * 0.3, borderRadius: unit * 0.15 }]}>
           <Image source={require("../../assets/logo.png")} style={styles.mark} />
         </View>
       </Animated.View>
@@ -264,7 +269,6 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas, overflow: "hidden" },
   orbit: { position: "absolute", left: 0, right: 0, alignItems: "center", justifyContent: "center", height: 0 },
   ring: { position: "absolute", borderWidth: 1, borderColor: colors.line },
-  ringLine: { position: "absolute", borderWidth: 1, borderColor: colors.line },
   core: { alignItems: "center", justifyContent: "center", backgroundColor: colors.surface, ...shadow.card },
   mark: { width: 64, height: 64, borderRadius: 16 },
   orbiter: {

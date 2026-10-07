@@ -29,6 +29,10 @@ export function normaliseLang(code: string | null | undefined): string {
   return BY_CODE.has(base) ? base : "en";
 }
 
+export function languageName(code: string | null | undefined): string {
+  return BY_CODE.get(normaliseLang(code))!.english;
+}
+
 export function speechLocale(code: string | null | undefined): string {
   return BY_CODE.get(normaliseLang(code))!.locale;
 }

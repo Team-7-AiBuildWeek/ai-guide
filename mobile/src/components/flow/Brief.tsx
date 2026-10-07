@@ -1,7 +1,7 @@
 /** "Build my tour": the website's BriefStep, with its footer. */
 
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { Btn, Eyebrow, Field, LanguageSelect, Pill, Segmented, Stepper, TextLink } from "@/components/ui";
 import { DETAILS, DURATIONS, EMPTY_DRAFT, INTERESTS, PACES } from "@/lib/flow";
 import { t } from "@/lib/strings";
@@ -30,14 +30,38 @@ export function BriefFooter({ onChange, onContinue }: { onChange: (p: Partial<Dr
   );
 }
 
+/** The interest chips, as a row: shared with the get-to-know-you screen. */
+export function InterestPills({
+  value,
+  onChange,
+  style,
+}: {
+  value: Interest[];
+  onChange: (next: Interest[]) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.pills, style]}>
+      {INTERESTS.map((i) => {
+        const on = value.includes(i.value);
+        return (
+          <Pill
+            key={i.value}
+            icon={i.icon}
+            label={t(`interest.${i.value}`)}
+            on={on}
+            onPress={() => onChange(on ? value.filter((x) => x !== i.value) : [...value, i.value])}
+          />
+        );
+      })}
+    </View>
+  );
+}
+
 export default function Brief({ draft, onChange }: { draft: Draft; onChange: (p: Partial<Draft>) => void }) {
   const [personalise, setPersonalise] = useState(() => draft.freeText.trim().length > 0);
   const durationIndex = DURATIONS.indexOf(draft.durationMinutes);
 
-  const toggleInterest = (i: Interest) =>
-    onChange({
-      interests: draft.interests.includes(i) ? draft.interests.filter((x) => x !== i) : [...draft.interests, i],
-    });
 
   return (
     <View style={{ gap: 16 }}>
@@ -68,17 +92,7 @@ export default function Brief({ draft, onChange }: { draft: Draft; onChange: (p:
 
       <View>
         <Eyebrow>{t("brief.interests")}</Eyebrow>
-        <View style={styles.pills}>
-          {INTERESTS.map((i) => (
-            <Pill
-              key={i.value}
-              icon={i.icon}
-              label={t(`interest.${i.value}`)}
-              on={draft.interests.includes(i.value)}
-              onPress={() => toggleInterest(i.value)}
-            />
-          ))}
-        </View>
+        <InterestPills value={draft.interests} onChange={(interests) => onChange({ interests })} style={{ marginTop: 8 }} />
       </View>
 
       <View style={styles.divider}>
@@ -114,7 +128,7 @@ export default function Brief({ draft, onChange }: { draft: Draft; onChange: (p:
 }
 
 const styles = StyleSheet.create({
-  pills: { marginTop: 8, flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   divider: { borderTopWidth: 1, borderColor: colors.line, paddingTop: 16 },
   personaliseRow: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   personaliseText: { fontFamily: fonts.displayMedium, fontSize: size.body, color: colors.ink },

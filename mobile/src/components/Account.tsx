@@ -1,5 +1,5 @@
 /**
- * The account card on the profile — the website's components/Account.tsx.
+ * The account card on the Account tab — the website's components/Account.tsx.
  *
  * Signing in only keeps walks in step between this phone and the website.
  * Deleting the account deletes what was kept for it, then the account itself,
@@ -8,39 +8,23 @@
 
 import { useAuth, useUser } from "@clerk/expo";
 import { router } from "expo-router";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { Btn, Eyebrow, TextLink } from "@/components/ui";
-import { BASE } from "@/lib/api";
-import { loadWalks, mergeWalks, type WalkRecord } from "@/lib/history";
-import { colors, fonts, radius, size, type } from "@/lib/theme";
+import { deleteAccount, syncWalks } from "@/lib/accounts";
+import { forgetWelcome } from "@/lib/auth";
+import type { WalkRecord } from "@/lib/history";
+import { colors, fonts, radius, size, surface, type } from "@/lib/theme";
 
-/** A request to the website's /api/me routes, signed with this phone's session. */
-export function useMe() {
-  const { getToken } = useAuth();
-  return useCallback(
-    async (path: string, init?: RequestInit) => {
-      const token = await getToken();
-      return fetch(`${BASE}/api/me${path}`, {
-        ...init,
-        headers: { ...(init?.headers ?? {}), authorization: `Bearer ${token}`, "content-type": "application/json" },
-      });
-    },
-    [getToken],
-  );
-}
-
-export default function Account({
-  onWalks,
-  bindForget,
-}: {
-  onWalks: (walks: WalkRecord[]) => void;
-  /** Hands the profile a way to forget a walk on the account too. */
-  bindForget: (forget: ((at: number) => void) | null) => void;
-}) {
+export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) => void }) {
   const { user, isLoaded } = useUser();
   const { isSignedIn, signOut } = useAuth();
-  const me = useMe();
+  /** Out, and back through the front door. */
+  const leave = async () => {
+    forgetWelcome();
+    await signOut();
+    router.replace("/welcome");
+  };
   const [confirming, setConfirming] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,22 +34,8 @@ export default function Account({
   useEffect(() => {
     if (!isSignedIn || synced.current) return;
     synced.current = true;
-    void (async () => {
-      try {
-        const res = await me("/walks", { method: "POST", body: JSON.stringify({ walks: loadWalks() }) });
-        if (!res.ok) return;
-        const body = (await res.json()) as { walks?: WalkRecord[] };
-        onWalks(mergeWalks(body.walks ?? []));
-      } catch {
-        /* offline: they sync next time */
-      }
-    })();
-  }, [isSignedIn, me, onWalks]);
-
-  useEffect(() => {
-    bindForget(isSignedIn ? (at) => void me(`/walks?at=${at}`, { method: "DELETE" }).catch(() => {}) : null);
-    return () => bindForget(null);
-  }, [isSignedIn, me, bindForget]);
+    void syncWalks().then((walks) => walks && onWalks(walks));
+  }, [isSignedIn, onWalks]);
 
   if (!isLoaded) return null;
 
@@ -85,9 +55,8 @@ export default function Account({
     setBusy(true);
     setError(null);
     try {
-      const res = await me("", { method: "DELETE" });
-      if (!res.ok) throw new Error();
-      await signOut();
+      if (!(await deleteAccount())) throw new Error();
+      await leave();
     } catch {
       setError("The account could not be deleted. Try again, or write to the address on the privacy page.");
     } finally {
@@ -105,7 +74,7 @@ export default function Account({
         </Text>
       </View>
       <Text style={type.caption}>Your walks are kept with your account, so they are here and on the website.</Text>
-      <Btn label="Sign out" onPress={() => void signOut()} />
+      <Btn label="Sign out" onPress={() => void leave()} />
       {confirming ? (
         <View style={styles.confirm}>
           <Text style={[type.caption, { color: colors.inkSoft }]}>
@@ -126,7 +95,7 @@ export default function Account({
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
+  card: { ...surface.card, gap: 12 },
   email: { marginTop: 4, fontFamily: fonts.display, fontSize: size.body, color: colors.ink },
   confirm: { backgroundColor: "#fef2f2", borderRadius: radius.control, padding: 12 },
 });

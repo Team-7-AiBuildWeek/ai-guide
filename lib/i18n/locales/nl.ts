@@ -76,7 +76,6 @@ export const nl: Partial<Record<UiKey, string>> = {
   "gen.retry": "Opnieuw proberen",
   "gen.changeDetails": "Gegevens wijzigen",
   "gen.cancel": "Annuleren",
-  "profile.title": "Mijn profiel",
   "profile.built": "Gemaakte wandelingen",
   "profile.stops": "Stops",
   "profile.distance": "Afstand",
@@ -91,7 +90,6 @@ export const nl: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Dezelfde stops, in de taal die je kiest.",
   "profile.deleteOne": "Verwijder deze wandeling",
   "profile.clearAll": "Alles wissen",
-  "profile.save": "Instellingen opslaan",
   "profile.today": "Vandaag",
   "profile.yesterday": "Gisteren"
 };

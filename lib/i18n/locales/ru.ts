@@ -76,7 +76,6 @@ export const ru: Partial<Record<UiKey, string>> = {
   "gen.retry": "Попробовать снова",
   "gen.changeDetails": "Изменить данные",
   "gen.cancel": "Отмена",
-  "profile.title": "Мой профиль",
   "profile.built": "Созданные прогулки",
   "profile.stops": "Остановки",
   "profile.distance": "Расстояние",
@@ -91,7 +90,6 @@ export const ru: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Те же остановки, на выбранном вами языке.",
   "profile.deleteOne": "Удалить эту прогулку",
   "profile.clearAll": "Очистить всё",
-  "profile.save": "Сохранить настройки",
   "profile.today": "Сегодня",
   "profile.yesterday": "Вчера"
 };

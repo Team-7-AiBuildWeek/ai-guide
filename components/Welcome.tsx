@@ -75,7 +75,8 @@ function SignInSheet({ onDone, onClose }: { onDone: () => void; onClose: () => v
 
   const check = async (value: string) => {
     if (!(await auth.verify(value))) return;
-    await syncWalks(loadWalks());
+    // In the background: moving on should not wait for the account's walks.
+    void syncWalks(loadWalks());
     const profile = profileOf(clerk.user);
     if (profile.onboarded) {
       // Back on a new device: take what they told us last time and go.

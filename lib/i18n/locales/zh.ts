@@ -76,7 +76,6 @@ export const zh: Partial<Record<UiKey, string>> = {
   "gen.retry": "再试一次",
   "gen.changeDetails": "修改条件",
   "gen.cancel": "取消",
-  "profile.title": "我的资料",
   "profile.built": "已生成散步",
   "profile.stops": "站点",
   "profile.distance": "距离",
@@ -91,7 +90,6 @@ export const zh: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "同样的站点，用你选择的语言。",
   "profile.deleteOne": "删除这条散步",
   "profile.clearAll": "全部清除",
-  "profile.save": "保存设置",
   "profile.today": "今天",
   "profile.yesterday": "昨天"
 };

@@ -10,11 +10,12 @@
 
 import { useUser } from "@clerk/nextjs";
 import { useState } from "react";
+import { InterestPills } from "./flow/BriefStep";
 import Segmented from "./flow/Segmented";
 import { applyPrefs, defaultPrefs, profileOf, type Prefs } from "@/lib/accounts/profile";
 import { useT } from "@/lib/i18n/ui";
-import { DETAILS, INTERESTS } from "@/lib/tour/flow";
-import type { Detail, Interest } from "@/lib/providers/types";
+import { DETAILS } from "@/lib/tour/flow";
+import type { Detail } from "@/lib/providers/types";
 
 function Progress({ step }: { step: 1 | 2 }) {
   return (
@@ -41,8 +42,6 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<Prefs>) => setPrefs((x) => ({ ...x, ...p }));
-  const toggle = (i: Interest) =>
-    patch({ interests: prefs.interests.includes(i) ? prefs.interests.filter((x) => x !== i) : [...prefs.interests, i] });
 
   const finish = async () => {
     setSaving(true);
@@ -101,22 +100,7 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
       </div>
       {/* The sheet stops at the screen's top; the choices scroll inside it. */}
       <div className="-mx-1 flex max-h-[46dvh] flex-col gap-4 overflow-y-auto px-1">
-        <div className="flex flex-wrap gap-2">
-          {INTERESTS.map((i) => (
-            <button
-              key={i.value}
-              type="button"
-              aria-pressed={prefs.interests.includes(i.value)}
-              onClick={() => toggle(i.value)}
-              className="pill"
-            >
-              <span aria-hidden="true" className="pill--icon">
-                {i.icon}
-              </span>
-              {t(`interest.${i.value}`)}
-            </button>
-          ))}
-        </div>
+        <InterestPills value={prefs.interests} onChange={(interests) => patch({ interests })} />
         <Segmented
           label={t("brief.detail")}
           options={DETAILS.map((d) => ({ value: d.value, label: t(`detail.${d.value}`) }))}

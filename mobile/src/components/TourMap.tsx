@@ -1,12 +1,13 @@
 /**
  * The map under everything — the website's TourMap on Apple Maps.
  *
- * Mounted once; only what is drawn on it changes. Mint is the walk, blue and
+ * Mounted once; only what is drawn on it changes. Memoized: the screen above
+ * re-renders with every tick of the narration, and the map need not. Mint is the walk, blue and
  * dashed is a ride. Stops are the website's numbered nodes: mint ahead, ink
  * with a mint number for the one you are on, pale for the ones behind you.
  */
 
-import { useEffect, useMemo, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import MapView, { Marker, Polyline, type MapPressEvent } from "react-native-maps";
 import { colors, fonts } from "@/lib/theme";
@@ -16,7 +17,7 @@ type MapStop = { id: string; name: string; lat: number; lng: number };
 
 const coord = (p: LatLng) => ({ latitude: p.lat, longitude: p.lng });
 
-export default function TourMap({
+export default memo(function TourMap({
   center,
   fix,
   route,
@@ -79,6 +80,8 @@ export default function TourMap({
     map.current?.animateCamera({ center: coord(fix), zoom: 15 }, { duration: 700 });
   }, [follow, fix]);
 
+  const routeCoords = useMemo(() => route.map(coord), [route]);
+
   const rideLines = useMemo(
     () =>
       rides.map((r) => ({
@@ -107,8 +110,8 @@ export default function TourMap({
     >
       {route.length > 1 ? (
         <>
-          <Polyline coordinates={route.map(coord)} strokeColor="#ffffff" strokeWidth={8} lineCap="round" lineJoin="round" />
-          <Polyline coordinates={route.map(coord)} strokeColor={colors.mintInk} strokeWidth={5} lineCap="round" lineJoin="round" />
+          <Polyline coordinates={routeCoords} strokeColor="#ffffff" strokeWidth={8} lineCap="round" lineJoin="round" />
+          <Polyline coordinates={routeCoords} strokeColor={colors.mintInk} strokeWidth={5} lineCap="round" lineJoin="round" />
         </>
       ) : null}
       {rideLines.map((r) => (
@@ -148,7 +151,7 @@ export default function TourMap({
       ))}
     </MapView>
   );
-}
+});
 
 const styles = StyleSheet.create({
   node: {

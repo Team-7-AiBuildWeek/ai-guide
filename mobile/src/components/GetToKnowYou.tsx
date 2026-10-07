@@ -7,12 +7,13 @@
 import { useUser } from "@clerk/expo";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { Btn, Eyebrow, Field, Pill, Segmented, TextLink } from "@/components/ui";
-import { DETAILS, INTERESTS } from "@/lib/flow";
+import { InterestPills } from "@/components/flow/Brief";
+import { Btn, Eyebrow, Field, Segmented, TextLink } from "@/components/ui";
+import { DETAILS } from "@/lib/flow";
 import { applyPrefs, defaultPrefs, profileOf, type Prefs } from "@/lib/profile";
 import { t } from "@/lib/strings";
 import { colors, size, type } from "@/lib/theme";
-import type { Detail, Interest } from "@/lib/types";
+import type { Detail } from "@/lib/types";
 
 function Progress({ step }: { step: 1 | 2 }) {
   return (
@@ -34,8 +35,6 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
   const [error, setError] = useState<string | null>(null);
 
   const patch = (p: Partial<Prefs>) => setPrefs((x) => ({ ...x, ...p }));
-  const toggle = (i: Interest) =>
-    patch({ interests: prefs.interests.includes(i) ? prefs.interests.filter((x) => x !== i) : [...prefs.interests, i] });
 
   const finish = async () => {
     setSaving(true);
@@ -88,17 +87,7 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
         <Text style={[type.caption, { marginTop: 4 }]}>Every new tour starts from this. You can change it each time.</Text>
       </View>
       <ScrollView style={{ maxHeight: 360 }} contentContainerStyle={{ gap: 16 }} keyboardShouldPersistTaps="handled">
-        <View style={styles.pills}>
-          {INTERESTS.map((i) => (
-            <Pill
-              key={i.value}
-              icon={i.icon}
-              label={t(`interest.${i.value}`)}
-              on={prefs.interests.includes(i.value)}
-              onPress={() => toggle(i.value)}
-            />
-          ))}
-        </View>
+        <InterestPills value={prefs.interests} onChange={(interests) => patch({ interests })} />
         <Segmented
           label={t("brief.detail")}
           options={DETAILS.map((d) => ({ value: d, label: t(`detail.${d}`) }))}
@@ -116,6 +105,5 @@ export default function GetToKnowYou({ onDone }: { onDone: () => void }) {
 const styles = StyleSheet.create({
   progress: { flexDirection: "row", gap: 8 },
   bar: { flex: 1, height: 6, borderRadius: 3 },
-  pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   error: { fontSize: size.caption, color: colors.danger },
 });

@@ -3,25 +3,15 @@
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
-import { Btn, Eyebrow, LanguageSelect } from "@/components/ui";
+import { Btn, Eyebrow, LanguageSelect, Stat } from "@/components/ui";
 import { canWalkAgain, formatKm, formatWhen, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
-import { LANGUAGES } from "@/lib/languages";
+import { languageName } from "@/lib/languages";
 import { t } from "@/lib/strings";
-import { colors, fonts, radius, size, type } from "@/lib/theme";
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View>
-      <Eyebrow>{label}</Eyebrow>
-      <Text style={[type.lead, { marginTop: 4 }]}>{value}</Text>
-    </View>
-  );
-}
+import { colors, fonts, radius, size, surface, type } from "@/lib/theme";
 
 export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   const [open, setOpen] = useState(false);
   const [againLang, setAgainLang] = useState(walk.lang);
-  const language = LANGUAGES.find((l) => l.code === walk.lang)?.english ?? walk.lang;
 
   const walkAgain = () => {
     const plan = planFor(walk);
@@ -32,7 +22,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
   };
 
   return (
-    <View style={styles.card}>
+    <View style={surface.card}>
       <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.walkHead}>
         <View style={{ flex: 1 }}>
           <Text style={type.lead}>{walk.title}</Text>
@@ -47,7 +37,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
           <View style={styles.stats}>
             <Stat label="Asked for" value={`${walk.minutes} min`} />
             <Stat label="Walking" value={`${Math.max(1, Math.round(walk.seconds / 60))} min`} />
-            <Stat label={t("brief.language")} value={language} />
+            <Stat label={t("brief.language")} value={languageName(walk.lang)} />
           </View>
           {walk.freeText ? <Text style={styles.quote}>“{walk.freeText}”</Text> : null}
           <Eyebrow style={{ marginTop: 16 }}>{t("profile.theStops")}</Eyebrow>
@@ -75,7 +65,6 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
 }
 
 const styles = StyleSheet.create({
-  card: { borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
   walkHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   quote: {

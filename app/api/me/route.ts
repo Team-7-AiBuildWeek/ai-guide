@@ -7,15 +7,15 @@
  * nobody can reach.
  */
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { accountsConfigured, forgetUser } from "@/lib/accounts/store";
+import { clerkClient } from "@clerk/nextjs/server";
+import { signedInUser } from "@/lib/accounts/server";
+import { forgetUser } from "@/lib/accounts/store";
 
 export const dynamic = "force-dynamic";
 
 export async function DELETE() {
-  if (!accountsConfigured()) return Response.json({ error: "Accounts are not set up." }, { status: 503 });
-  const { userId } = await auth();
-  if (!userId) return Response.json({ error: "Sign in first." }, { status: 401 });
+  const userId = await signedInUser();
+  if (userId instanceof Response) return userId;
   await forgetUser(userId);
   await (await clerkClient()).users.deleteUser(userId);
   return new Response(null, { status: 204 });

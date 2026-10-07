@@ -12,9 +12,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { accountsEnabled, welcomed } from "@/lib/accounts/client";
+import { accountsEnabled } from "@/lib/accounts/client";
 import Greeting from "./Greeting";
-import TabBar, { TAB_BAR_PX } from "./TabBar";
+import TabBar, { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
@@ -50,7 +50,6 @@ import {
   takeRebuild,
   type Draft,
   type Stage,
-  takeResume,
   type StoredTour,
 } from "@/lib/tour/flow";
 import type { City, MapStyle, TourPlan, TourRequest } from "@/lib/providers/types";
@@ -75,11 +74,14 @@ export default function TourFlow({
   styles,
   center,
   initialSimulate,
+  initialResume = false,
 }: {
   styleUrl: string;
   styles: MapStyle[];
   center: { lat: number; lng: number };
   initialSimulate: boolean;
+  /** Opened from "Carry on walking": straight into the saved walk. */
+  initialResume?: boolean;
 }) {
   const t = useT();
   const router = useRouter();
@@ -179,11 +181,6 @@ export default function TourFlow({
     // state without a hydration mismatch. Deferred a tick so it never writes
     // state during the mount commit.
     queueMicrotask(() => {
-      // The welcome screen comes first, once.
-      if (!welcomed() && !loadTour()) {
-        router.replace("/welcome");
-        return;
-      }
       const d = loadDraft();
       // Nothing saved: open in the browser's own language when it is one of
       // ours, so most walkers never have to find the picker at all.
@@ -209,14 +206,16 @@ export default function TourFlow({
       }
 
       // A saved walk opens paused, one tap from carrying on — unless that tap
-      // was "Carry on walking" on the Tours tab.
+      // was "Carry on walking" on the Tours tab. The flag leaves the address
+      // once used, so a reload lands on the paused card again.
       const t = loadTour();
       if (t) {
         setTour(t);
-        if (takeResume()) setStage("tour");
+        if (initialResume) setStage("tour");
       }
+      if (initialResume) window.history.replaceState(null, "", "/");
     });
-  }, [router]);
+  }, [router, initialResume]);
 
   const patchDraft = useCallback((patch: Partial<Draft>) => {
     setDraft((d) => {
@@ -931,7 +930,7 @@ export default function TourFlow({
         <BottomSheet
           height={sheetHeight}
           // Sits on the tab bar rather than under it.
-          lift={showTabs ? TAB_BAR_PX : 0}
+          lift={showTabs ? ABOVE_TAB_BAR : undefined}
           // Only the walk resizes. The landing screen's whole content is the
           // collapsed row, so pulling it open showed an empty panel; the forms
           // are already the whole screen, and dragging one down would uncover

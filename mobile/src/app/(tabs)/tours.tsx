@@ -9,19 +9,20 @@ import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WalkCard from "@/components/WalkCard";
 import { Btn, Eyebrow } from "@/components/ui";
+import { forgetWalkEverywhere } from "@/lib/accounts";
 import { loadTour } from "@/lib/flow";
-import { forgetWalk, loadWalks } from "@/lib/history";
+import { forgetWalk, loadWalks, type WalkRecord } from "@/lib/history";
 import { t } from "@/lib/strings";
-import { requestResume } from "@/lib/tabbar";
-import { colors, radius, type } from "@/lib/theme";
+import { colors, surface, type } from "@/lib/theme";
 import type { StoredTour } from "@/lib/types";
 
 export default function ToursTab() {
   const insets = useSafeAreaInsets();
-  const [walks, setWalks] = useState(loadWalks);
-  const [current, setCurrent] = useState<StoredTour | null>(loadTour);
+  const [walks, setWalks] = useState<WalkRecord[]>([]);
+  const [current, setCurrent] = useState<StoredTour | null>(null);
 
-  // Fresh each time the tab is opened: a walk may have been built on Explore.
+  // Read each time the tab is opened (including the first): a walk may have
+  // been built on Explore since.
   useFocusEffect(
     useCallback(() => {
       setWalks(loadWalks());
@@ -48,10 +49,7 @@ export default function ToursTab() {
             variant="primary"
             large
             label={t("landing.carryOn")}
-            onPress={() => {
-              requestResume();
-              router.navigate("/");
-            }}
+            onPress={() => router.navigate({ pathname: "/", params: { resume: String(Date.now()) } })}
           />
         </View>
       ) : (
@@ -67,7 +65,16 @@ export default function ToursTab() {
         {walks.length === 0 ? (
           <Text style={type.body}>{t("profile.empty")}</Text>
         ) : (
-          walks.map((w) => <WalkCard key={w.at} walk={w} onForget={() => setWalks(forgetWalk(w.at))} />)
+          walks.map((w) => (
+            <WalkCard
+              key={w.at}
+              walk={w}
+              onForget={() => {
+                setWalks(forgetWalk(w.at));
+                forgetWalkEverywhere(w.at);
+              }}
+            />
+          ))
         )}
       </View>
     </ScrollView>
@@ -75,5 +82,5 @@ export default function ToursTab() {
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 12, borderWidth: 1, borderColor: colors.line, backgroundColor: colors.surface, borderRadius: radius.card, padding: 16 },
+  card: { ...surface.card, gap: 12 },
 });

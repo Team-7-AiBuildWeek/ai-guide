@@ -76,7 +76,6 @@ export const tr: Partial<Record<UiKey, string>> = {
   "gen.retry": "Tekrar dene",
   "gen.changeDetails": "Bilgileri değiştir",
   "gen.cancel": "Vazgeç",
-  "profile.title": "Profilim",
   "profile.built": "Oluşturulan yürüyüşler",
   "profile.stops": "Duraklar",
   "profile.distance": "Mesafe",
@@ -91,7 +90,6 @@ export const tr: Partial<Record<UiKey, string>> = {
   "profile.walkAgainHint": "Aynı duraklar, seçtiğiniz dilde.",
   "profile.deleteOne": "Bu yürüyüşü sil",
   "profile.clearAll": "Hepsini temizle",
-  "profile.save": "Ayarları kaydet",
   "profile.today": "Bugün",
   "profile.yesterday": "Dün"
 };

@@ -50,21 +50,36 @@ export async function listWalks(userId: string): Promise<StoredWalk[]> {
   return rows.map((r) => r.record);
 }
 
-/** Adds walks this account has not seen; a walk already kept is left as it is. */
+/**
+ * Adds walks this account has not seen (a walk already kept is left as it is)
+ * and keeps only the newest thirty, the same as the devices — in one statement,
+ * so a sync is one round trip rather than one per walk.
+ */
 export async function addWalks(userId: string, walks: StoredWalk[]): Promise<StoredWalk[]> {
   await ensureSchema();
-  const q = sql();
-  for (const w of walks.slice(0, KEEP)) {
-    if (!Number.isFinite(w?.at)) continue;
-    await q`
-      INSERT INTO user_walks (user_id, at, record) VALUES (${userId}, ${Math.trunc(w.at)}, ${JSON.stringify(w)}::jsonb)
-      ON CONFLICT (user_id, at) DO NOTHING`;
-  }
-  // Older than the newest thirty: gone, the same as on the devices.
-  await q`
-    DELETE FROM user_walks WHERE user_id = ${userId} AND at NOT IN (
-      SELECT at FROM user_walks WHERE user_id = ${userId} ORDER BY at DESC LIMIT ${KEEP})`;
-  return listWalks(userId);
+  const fresh = walks
+    .filter((w) => Number.isFinite(w?.at))
+    .sort((a, b) => b.at - a.at)
+    .slice(0, KEEP);
+  const rows = (await sql()`
+    WITH added AS (
+      INSERT INTO user_walks (user_id, at, record)
+      SELECT ${userId}, (w->>'at')::bigint, w
+      FROM jsonb_array_elements(${JSON.stringify(fresh)}::jsonb) AS w
+      ON CONFLICT (user_id, at) DO NOTHING
+      RETURNING at, record
+    ),
+    everything AS (
+      SELECT at, record FROM user_walks WHERE user_id = ${userId}
+      UNION
+      SELECT at, record FROM added
+    ),
+    kept AS (SELECT at, record FROM everything ORDER BY at DESC LIMIT ${KEEP}),
+    dropped AS (
+      DELETE FROM user_walks WHERE user_id = ${userId} AND at NOT IN (SELECT at FROM kept)
+    )
+    SELECT record FROM kept ORDER BY at DESC`) as { record: StoredWalk }[];
+  return rows.map((r) => r.record);
 }
 
 export async function forgetWalk(userId: string, at: number): Promise<void> {
