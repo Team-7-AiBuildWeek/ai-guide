@@ -100,7 +100,7 @@ export default function Welcome({ openSheet = false }: { openSheet?: boolean }) 
       </div>
 
       {accountsEnabled ? (
-        <div className="welcome-sheet" role="dialog" aria-modal="true" aria-label="Get started" aria-hidden={!open} inert={!open}>
+        <div className="welcome-sheet t-panel-slide" data-open={open} role="dialog" aria-modal="true" aria-label="Get started" aria-hidden={!open} inert={!open}>
           <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
           <SignInSheet onDone={finish} onSkip={finish} onClose={() => setOpen(false)} />
         </div>

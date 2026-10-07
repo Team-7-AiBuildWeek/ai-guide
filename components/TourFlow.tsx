@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { accountsEnabled } from "@/lib/accounts/client";
 import Greeting from "./Greeting";
-import TabBar, { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
+import { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
@@ -23,8 +23,9 @@ import CityPicker from "./flow/CityPicker";
 import FullscreenButton from "./flow/FullscreenButton";
 import GeneratingStep, { type TourPreview } from "./flow/GeneratingStep";
 import HeadphonesStep from "./flow/HeadphonesStep";
-import TourStep, { DirectionsPanel } from "./flow/TourStep";
-import TurnCard from "./flow/TurnCard";
+import DirectionsMorph from "./flow/DirectionsMorph";
+import TourStep, { DirectionsContent } from "./flow/TourStep";
+import { TurnSummary, turnLabel } from "./flow/TurnCard";
 import { nextTurn, snapToRoute } from "@/lib/tour/navigation";
 import Player from "./flow/Player";
 import MiniPlayer from "./flow/MiniPlayer";
@@ -530,6 +531,9 @@ export default function TourFlow({
   const arrivedRef = useRef<Set<string>>(new Set());
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
+  /** The stop the arrival card names, kept while the card slides away. */
+  const [lastArrived, setLastArrived] = useState<string | null>(null);
+  if (justArrived && justArrived !== lastArrived) setLastArrived(justArrived);
 
   useEffect(() => {
     if (stage !== "tour" || !autoAdvance || !tour) return;
@@ -713,6 +717,11 @@ export default function TourFlow({
   // ----------------------------------------------------------------- view --
   /** Explore's tab bar: on the first screen only; building and walking take the whole screen. */
   const showTabs = stage === "start" && picking === null;
+  // The layout's tab bar steps aside while the map has the whole screen.
+  useEffect(() => {
+    document.body.toggleAttribute("data-immersive", !showTabs);
+    return () => document.body.removeAttribute("data-immersive");
+  }, [showTabs]);
   // While dropping a pin the sheet must get out of the way of the map.
   const sheetHidden = picking !== null && stage === "points";
 
@@ -813,49 +822,48 @@ export default function TourFlow({
               >
                 ←
               </button>
-              {/* With a routed tour this is the arrow and the distance to it.
-                  Without maneuvers — mock provider, or routing that failed —
-                  it falls back to the signpost that opens the written cue. */}
-              {turn ? (
-                <TurnCard
-                  kind={turn.maneuver.kind}
-                  meters={turn.meters}
-                  street={turn.maneuver.street}
+              {/* The turn card, top right, which grows open into the walking
+                  directions. With a routed tour it shows the arrow and the
+                  distance; without maneuvers — mock provider, or routing that
+                  failed — the signpost that opens the written cue. */}
+              {currentStop ? (
+                <DirectionsMorph
                   open={directionsOpen}
-                  onOpen={() => setDirectionsOpen((o) => !o)}
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDirectionsOpen((o) => !o)}
-                  className="btn btn--glass-dark px-4"
-                  aria-label="Walking directions"
-                  aria-expanded={directionsOpen}
+                  onToggle={() => setDirectionsOpen((o) => !o)}
+                  triggerLabel={turn ? turnLabel(turn.maneuver.kind, turn.meters, turn.maneuver.street) : "Walking directions"}
+                  closedRadius={turn ? 22 : 24}
+                  trigger={
+                    turn ? (
+                      <TurnSummary kind={turn.maneuver.kind} meters={turn.meters} street={turn.maneuver.street} />
+                    ) : (
+                      <span className="grid h-12 w-12 place-items-center">
+                        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+                          <path
+                            d="M12 21V10M12 4v2M4 7h11l3 3-3 3H4z"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          />
+                        </svg>
+                      </span>
+                    )
+                  }
                 >
-                  <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
-                    <path
-                      d="M12 21V10M12 4v2M4 7h11l3 3-3 3H4z"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                    />
-                  </svg>
-                </button>
-              )}
+                  <DirectionsContent
+                    stop={currentStop}
+                    distanceMeters={distanceToStop}
+                    accuracy={fix?.accuracy ?? null}
+                    turnInstruction={turn?.maneuver.instruction}
+                    turnMeters={turn?.meters}
+                    ride={rideToCurrent}
+                    onClose={() => setDirectionsOpen(false)}
+                    onSpeak={speak}
+                  />
+                </DirectionsMorph>
+              ) : null}
             </div>
           </div>
-          <DirectionsPanel
-            stop={currentStop}
-            distanceMeters={distanceToStop}
-            accuracy={fix?.accuracy ?? null}
-            turnInstruction={turn?.maneuver.instruction}
-            turnMeters={turn?.meters}
-            ride={rideToCurrent}
-            open={directionsOpen}
-            onClose={() => setDirectionsOpen(false)}
-            onSpeak={speak}
-          />
         </>
       ) : null}
 
@@ -879,13 +887,19 @@ export default function TourFlow({
       {stage === "tour" && !askOpen && sheetHeight !== "full" ? (
         <div className="pointer-events-none absolute inset-x-0 top-36 z-20 px-4">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg flex-col items-end gap-2">
-            {justArrived ? (
-              <div className="panel-dark panel--glass w-full px-4 py-3">
+            {/* Revealed on arrival and slid away after; it keeps the last name
+                while it leaves, so the card does not empty as it goes. */}
+            {lastArrived ? (
+              <div
+                data-open={!!justArrived}
+                aria-hidden={!justArrived}
+                className="t-panel-slide panel-dark panel--glass w-full px-4 py-3"
+              >
                 <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
                   You&apos;ve arrived
                 </p>
                 <p className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold">
-                  {justArrived}
+                  {lastArrived}
                 </p>
               </div>
             ) : null}
@@ -1160,7 +1174,6 @@ export default function TourFlow({
         </BottomSheet>
       )}
 
-      {showTabs ? <TabBar /> : null}
     </div>
   );
 }

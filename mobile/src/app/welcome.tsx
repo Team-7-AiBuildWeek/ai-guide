@@ -24,6 +24,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PanelReveal from "@/components/PanelReveal";
 import SignInSheet, { sheetChrome } from "@/components/SignInSheet";
 import { Btn } from "@/components/ui";
 import { accountsEnabled } from "@/lib/accounts";
@@ -122,7 +123,6 @@ export default function Welcome() {
 
   const orbitY = lift.interpolate({ inputRange: [0, 1], outputRange: [0, -height * 0.12] });
   const textOpacity = lift.interpolate({ inputRange: [0, 0.4], outputRange: [1, 0], extrapolate: "clamp" });
-  const sheetY = lift.interpolate({ inputRange: [0, 1], outputRange: [height, 0] });
 
   return (
     <View style={styles.screen}>
@@ -147,14 +147,14 @@ export default function Welcome() {
       </Animated.View>
 
       {accountsEnabled ? (
-        <Animated.View style={[styles.sheetWrap, { transform: [{ translateY: sheetY }] }]} pointerEvents={open ? "auto" : "none"}>
+        <PanelReveal open={open} style={styles.sheetWrap}>
           <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <View style={[sheetChrome.panel, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
               <View style={sheetChrome.grabber} />
               <SignInSheet onDone={finish} onSkip={finish} onClose={() => setOpen(false)} />
             </View>
           </KeyboardAvoidingView>
-        </Animated.View>
+        </PanelReveal>
       ) : null}
     </View>
   );

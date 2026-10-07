@@ -9,7 +9,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import WalkCard from "./WalkCard";
-import TabBar, { ABOVE_TAB_BAR } from "./TabBar";
+import { ABOVE_TAB_BAR } from "./TabBar";
 import { accountsEnabled, forgetWalkEverywhere } from "@/lib/accounts/client";
 import { useT } from "@/lib/i18n/ui";
 import { useLoadOnce } from "@/lib/useLoadOnce";
@@ -96,7 +96,6 @@ export default function Tours() {
           </ul>
         )}
       </section>
-      <TabBar />
     </main>
   );
 }

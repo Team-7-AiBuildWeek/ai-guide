@@ -8,7 +8,7 @@
 
 import Link from "next/link";
 import Account from "./Account";
-import TabBar, { ABOVE_TAB_BAR } from "./TabBar";
+import { ABOVE_TAB_BAR } from "./TabBar";
 import { accountsEnabled } from "@/lib/accounts/client";
 import { useState } from "react";
 import Stat from "./Stat";
@@ -95,7 +95,6 @@ export default function Profile() {
       >
         Privacy
       </Link>
-      <TabBar />
     </main>
   );
 }

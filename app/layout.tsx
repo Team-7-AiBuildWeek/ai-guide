@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Splash from "@/components/Splash";
+import TabBar from "@/components/TabBar";
 import WelcomeGate from "@/components/WelcomeGate";
 import "./globals.css";
 
@@ -66,10 +67,16 @@ export default function RootLayout({
         {/* Accounts are optional: without Clerk's key the site runs as it always has. */}
         {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
           <ClerkProvider>
-            <WelcomeGate>{children}</WelcomeGate>
+            <WelcomeGate>
+              {children}
+              <TabBar />
+            </WelcomeGate>
           </ClerkProvider>
         ) : (
-          <WelcomeGate>{children}</WelcomeGate>
+          <WelcomeGate>
+            {children}
+            <TabBar />
+          </WelcomeGate>
         )}
       </body>
     </html>

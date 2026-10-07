@@ -8,7 +8,6 @@ import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassSurface } from "@/components/Glass";
 import { Btn, Eyebrow, Field } from "@/components/ui";
 import { formatDistance, TRUSTED_M } from "@/lib/geo";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
@@ -143,43 +142,31 @@ const ARROW: Record<ManeuverKind, { ios: string; glyph: string; label: string }>
   arrive: { ios: "mappin.and.ellipse", glyph: "◉", label: "You arrive" },
 };
 
-export function TurnCard({
-  kind,
-  meters,
-  street,
-  onOpen,
-}: {
-  kind: ManeuverKind;
-  meters: number;
-  street?: string;
-  onOpen: () => void;
-}) {
+/** What the closed turn card shows: the arrow, how far, and the street. */
+export function TurnSummary({ kind, meters, street }: { kind: ManeuverKind; meters: number; street?: string }) {
   const a = ARROW[kind];
-  const distance = formatDistance(meters);
   return (
-    <Pressable
-      onPress={onOpen}
-      accessibilityRole="button"
-      accessibilityLabel={`${a.label}${meters >= 10 ? ` in ${distance}` : " now"}${street ? `, ${street}` : ""}. Open directions.`}
-      style={({ pressed }) => pressed && { opacity: 0.85 }}
-    >
-      <GlassSurface tone="dark" style={styles.turn}>
-        <SymbolView
-          name={{ ios: a.ios, android: "north", web: "north" } as never}
-          size={34}
-          tintColor={colors.mint}
-          weight="semibold"
-          fallback={<Text style={{ fontSize: 30, color: colors.mint }}>{a.glyph}</Text>}
-        />
-        <Text style={styles.turnDistance}>{distance}</Text>
-        {street ? (
-          <Text numberOfLines={1} style={styles.turnStreet}>
-            {street}
-          </Text>
-        ) : null}
-      </GlassSurface>
-    </Pressable>
+    <View style={styles.turn}>
+      <SymbolView
+        name={{ ios: a.ios, android: "north", web: "north" } as never}
+        size={34}
+        tintColor={colors.mint}
+        weight="semibold"
+        fallback={<Text style={{ fontSize: 30, color: colors.mint }}>{a.glyph}</Text>}
+      />
+      <Text style={styles.turnDistance}>{formatDistance(meters)}</Text>
+      {street ? (
+        <Text numberOfLines={1} style={styles.turnStreet}>
+          {street}
+        </Text>
+      ) : null}
+    </View>
   );
+}
+
+/** The same, read aloud, for anyone not looking at the arrow. */
+export function turnLabel(kind: ManeuverKind, meters: number, street?: string): string {
+  return `${ARROW[kind].label}${meters >= 10 ? ` in ${formatDistance(meters)}` : " now"}${street ? `, ${street}` : ""}. Directions.`;
 }
 
 // ---------------------------------------------------------- directions --
@@ -205,8 +192,10 @@ export function Directions({
   onClose: () => void;
   onSpeak: (text: string) => void;
 }) {
+  // Only the contents: the dark glass around them is the turn card, grown open
+  // (see DirectionsMorph).
   return (
-    <GlassSurface tone="dark" style={styles.directions}>
+    <View style={styles.directions}>
       <View style={styles.dirTop}>
         <View style={{ flex: 1 }}>
           <Eyebrow style={{ color: colors.onDarkMute }}>Next: {stop.name}</Eyebrow>
@@ -270,7 +259,7 @@ export function Directions({
           )
         }
       />
-    </GlassSurface>
+    </View>
   );
 }
 
@@ -298,11 +287,11 @@ const styles = StyleSheet.create({
   question: { fontFamily: fonts.display, fontSize: size.body, color: colors.ink },
   askForm: { flexDirection: "row", gap: 8, alignItems: "center" },
 
-  turn: { width: 92, borderRadius: radius.panel, alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 12 },
+  turn: { width: 92, alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 12 },
   turnDistance: { fontFamily: fonts.display, fontSize: size.lead, color: colors.onDark, fontVariant: ["tabular-nums"] },
   turnStreet: { width: "100%", textAlign: "center", fontFamily: fonts.body, fontSize: size.caption, color: colors.onDarkMute },
 
-  directions: { borderRadius: radius.panel, padding: 16 },
+  directions: { padding: 16 },
   dirTop: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   dirMeta: { marginTop: 4, fontFamily: fonts.body, fontSize: size.caption, color: colors.onDarkMute, fontVariant: ["tabular-nums"] },
   dirLead: { fontFamily: fonts.display, fontSize: size.lead, lineHeight: size.lead * 1.35, color: colors.onDark },

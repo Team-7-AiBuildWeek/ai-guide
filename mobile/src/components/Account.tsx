@@ -11,6 +11,7 @@ import { router } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import PanelReveal from "@/components/PanelReveal";
 import SignInSheet, { sheetChrome } from "@/components/SignInSheet";
 import { Btn, Eyebrow, TextLink } from "@/components/ui";
 import { deleteAccount, syncWalks } from "@/lib/accounts";
@@ -29,6 +30,7 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
   };
   const [confirming, setConfirming] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
+  const [modalUp, setModalUp] = useState(false);
   const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -50,16 +52,26 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
         <Text style={type.caption}>
           Sign in to keep your walks on this iPhone and the website alike. Everything else works without it.
         </Text>
-        <Btn variant="primary" label="Sign in with email" onPress={() => setSigningIn(true)} />
-        {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here. */}
-        <Modal visible={signingIn} transparent animationType="slide" onRequestClose={() => setSigningIn(false)}>
-          <Pressable style={styles.backdrop} onPress={() => setSigningIn(false)} accessibilityLabel="Close" />
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
-            <View style={[sheetChrome.panel, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
-              <View style={sheetChrome.grabber} />
-              <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
-            </View>
-          </KeyboardAvoidingView>
+        <Btn
+          variant="primary"
+          label="Sign in with email"
+          onPress={() => {
+            setModalUp(true);
+            setSigningIn(true);
+          }}
+        />
+        {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here.
+            The modal stays up until the sheet has finished sliding away. */}
+        <Modal visible={modalUp} transparent animationType="none" onRequestClose={() => setSigningIn(false)}>
+          <Pressable style={[styles.backdrop, !signingIn && { opacity: 0 }]} onPress={() => setSigningIn(false)} accessibilityLabel="Close" />
+          <PanelReveal open={signingIn} onClosed={() => setModalUp(false)}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+              <View style={[sheetChrome.panel, { paddingBottom: Math.max(24, insets.bottom + 8) }]}>
+                <View style={sheetChrome.grabber} />
+                <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
+              </View>
+            </KeyboardAvoidingView>
+          </PanelReveal>
         </Modal>
       </View>
     );

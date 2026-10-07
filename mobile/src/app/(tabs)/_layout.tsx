@@ -15,11 +15,12 @@
 import { useAuth } from "@clerk/expo";
 import { Redirect, Tabs } from "expo-router";
 import { SymbolView } from "expo-symbols";
-import type { ComponentProps } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState, type ComponentProps } from "react";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { accountsEnabled } from "@/lib/accounts";
 import { welcomed } from "@/lib/auth";
+import { EASE, TAB_SLIDE_MS, useReduceMotion } from "@/lib/motion";
 import { colors, fonts } from "@/lib/theme";
 
 /** What Expo Router hands a custom tab bar. */
@@ -33,37 +34,60 @@ const ICONS: Record<string, { label: string; ios: string; on: string; glyph: str
 
 function TabBar({ state, navigation, descriptors }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  const still = useReduceMotion();
+  const [tabWidth, setTabWidth] = useState(0);
+  const [x] = useState(() => new Animated.Value(0));
+  const placedAt = useRef(0);
+
+  // The pill slides to the tab you are on; on first layout (or a new width) it
+  // snaps there, so it never animates in from the edge.
+  useEffect(() => {
+    if (!tabWidth) return;
+    const to = state.index * tabWidth;
+    if (still || placedAt.current !== tabWidth) {
+      placedAt.current = tabWidth;
+      x.setValue(to);
+      return;
+    }
+    Animated.timing(x, { toValue: to, duration: TAB_SLIDE_MS, easing: EASE, useNativeDriver: true }).start();
+  }, [state.index, tabWidth, still, x]);
+
   const focused = descriptors[state.routes[state.index].key]?.options;
   if ((focused?.tabBarStyle as { display?: string } | undefined)?.display === "none") return null;
   return (
     <View style={[styles.bar, { paddingBottom: Math.max(8, insets.bottom) }]} accessibilityRole="tablist">
-      {state.routes.map((route, i) => {
-        const tab = ICONS[route.name];
-        if (!tab) return null;
-        const on = state.index === i;
-        const color = on ? colors.mintInk : colors.inkMute;
-        return (
-          <Pressable
-            key={route.key}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={tab.label}
-            onPress={() => {
-              const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
-              if (!on && !event.defaultPrevented) navigation.navigate(route.name);
-            }}
-            style={styles.tab}
-          >
-            <SymbolView
-              name={{ ios: on ? tab.on : tab.ios, android: "circle", web: "circle" } as never}
-              size={26}
-              tintColor={color}
-              fallback={<Text style={{ fontSize: 22 }}>{tab.glyph}</Text>}
-            />
-            <Text style={[styles.label, { color }]}>{tab.label}</Text>
-          </Pressable>
-        );
-      })}
+      <View style={styles.row} onLayout={(e) => setTabWidth(e.nativeEvent.layout.width / state.routes.length)}>
+        <Animated.View pointerEvents="none" style={[styles.pill, { width: tabWidth, transform: [{ translateX: x }] }]}>
+          <View style={styles.pillFill} />
+        </Animated.View>
+        {state.routes.map((route, i) => {
+          const tab = ICONS[route.name];
+          if (!tab) return null;
+          const on = state.index === i;
+          const color = on ? colors.mintInk : colors.inkMute;
+          return (
+            <Pressable
+              key={route.key}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={tab.label}
+              onPress={() => {
+                const event = navigation.emit({ type: "tabPress", target: route.key, canPreventDefault: true });
+                if (!on && !event.defaultPrevented) navigation.navigate(route.name);
+              }}
+              style={styles.tab}
+            >
+              <SymbolView
+                name={{ ios: on ? tab.on : tab.ios, android: "circle", web: "circle" } as never}
+                size={26}
+                tintColor={color}
+                fallback={<Text style={{ fontSize: 22 }}>{tab.glyph}</Text>}
+              />
+              <Text style={[styles.label, { color }]}>{tab.label}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -93,12 +117,15 @@ function TabsNavigator() {
 
 const styles = StyleSheet.create({
   bar: {
-    flexDirection: "row",
     backgroundColor: colors.surface,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.lineStrong,
     paddingTop: 8,
   },
-  tab: { flex: 1, alignItems: "center", gap: 3, minHeight: 48, justifyContent: "center" },
+  row: { flexDirection: "row" },
+  tab: { flex: 1, alignItems: "center", gap: 3, minHeight: 52, justifyContent: "center" },
+  /** Behind the tab you are on: the website's pale-mint pill. */
+  pill: { position: "absolute", top: 0, bottom: 0, left: 0 },
+  pillFill: { flex: 1, marginHorizontal: 12, borderRadius: 999, backgroundColor: colors.mintWash },
   label: { fontFamily: fonts.displayMedium, fontSize: 12 },
 });

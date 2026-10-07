@@ -48,16 +48,26 @@ export default function Account({ onWalks }: { onWalks: (walks: WalkRecord[]) =>
         <button type="button" onClick={() => setSigningIn(true)} className="btn btn--primary w-full">
           Sign in with email
         </button>
-        {signingIn ? (
-          <>
-            {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here. */}
-            <div aria-hidden="true" className="fixed inset-0 z-50 bg-black/30" onClick={() => setSigningIn(false)} />
-            <div className="welcome-sheet welcome-sheet--shown z-50" role="dialog" aria-modal="true" aria-label="Sign in">
-              <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
-              <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
-            </div>
-          </>
-        ) : null}
+        {/* The welcome screen's own sheet, over the Account tab; signing in keeps you here.
+            Always mounted, so it animates closed as well as open. */}
+        <div
+          aria-hidden="true"
+          data-open={signingIn}
+          className="t-backdrop fixed inset-0 z-50 bg-black/30"
+          onClick={() => setSigningIn(false)}
+        />
+        <div
+          className="welcome-sheet welcome-sheet--shown t-panel-slide z-50"
+          data-open={signingIn}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Sign in"
+          aria-hidden={!signingIn}
+          inert={!signingIn}
+        >
+          <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
+          <SignInSheet onDone={() => setSigningIn(false)} onClose={() => setSigningIn(false)} />
+        </div>
       </section>
     );
   }

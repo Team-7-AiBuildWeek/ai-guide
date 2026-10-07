@@ -14,7 +14,9 @@ import * as Speech from "expo-speech";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import DirectionsMorph from "@/components/DirectionsMorph";
 import { GlassSurface } from "@/components/Glass";
+import PanelReveal from "@/components/PanelReveal";
 import Sheet, { type SheetHeight } from "@/components/Sheet";
 import TourMap from "@/components/TourMap";
 import { Btn, Eyebrow, TextLink } from "@/components/ui";
@@ -23,7 +25,7 @@ import Generating from "@/components/flow/Generating";
 import Headphones from "@/components/flow/Headphones";
 import { MiniPlayer, Player } from "@/components/flow/Players";
 import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
-import { AskAnything, Directions, StopRow, TurnCard } from "@/components/flow/Walk";
+import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
 import { ask, buildTour, cityAt } from "@/lib/api";
 import {
   clearTour,
@@ -44,7 +46,7 @@ import { rememberWalk, takeRebuild } from "@/lib/history";
 import { normaliseLang, speechLocale } from "@/lib/languages";
 import { prefetchSpeech, useNarration } from "@/lib/narration";
 import { t } from "@/lib/strings";
-import { colors, fonts, size, type } from "@/lib/theme";
+import { colors, fonts, radius, size, type } from "@/lib/theme";
 import type { City, Draft, Fix, Stage, StoredTour, TourPlan, TourPreview, TourRequest } from "@/lib/types";
 
 /** Bratislava, until the walker is found. */
@@ -124,6 +126,9 @@ export default function Flow() {
   const [cityPinned, setCityPinned] = useState<City | null>(null);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
+  /** The stop the arrival card names, kept while the card slides away. */
+  const [lastArrived, setLastArrived] = useState<string | null>(null);
+  if (justArrived && justArrived !== lastArrived) setLastArrived(justArrived);
   const abortRef = useRef<AbortController | null>(null);
   const cityLookup = useRef(false);
   const arrived = useRef<Set<string>>(new Set());
@@ -481,43 +486,52 @@ export default function Flow() {
             accessibilityLabel={directionsOpen ? "Close directions" : "Leave the tour"}
             textStyle={{ fontSize: 20 }}
           />
-          {turn ? (
-            <TurnCard
-              kind={turn.maneuver.kind}
-              meters={turn.meters}
-              street={turn.maneuver.street}
-              onOpen={() => setDirectionsOpen((o) => !o)}
-            />
-          ) : (
-            <Btn variant="glassDark" label="⚑" onPress={() => setDirectionsOpen((o) => !o)} accessibilityLabel="Walking directions" />
-          )}
+          {/* The turn card, which grows open into the walking directions. Without
+              maneuvers (routing that failed) it is a round signpost instead. */}
+          {currentStop ? (
+            <DirectionsMorph
+              open={directionsOpen}
+              onToggle={() => setDirectionsOpen((o) => !o)}
+              triggerLabel={turn ? turnLabel(turn.maneuver.kind, turn.meters, turn.maneuver.street) : "Walking directions"}
+              closedRadius={turn ? radius.panel : 24}
+              trigger={
+                turn ? (
+                  <TurnSummary kind={turn.maneuver.kind} meters={turn.meters} street={turn.maneuver.street} />
+                ) : (
+                  <View style={styles.signpost}>
+                    <Text style={styles.signpostGlyph}>⚑</Text>
+                  </View>
+                )
+              }
+            >
+              <Directions
+                stop={currentStop}
+                cue={(audio.cue ?? currentStop.walkingCueToHere ?? "").trim()}
+                distanceMeters={distanceToStop}
+                accuracy={fix?.accuracy ?? null}
+                turnInstruction={turn?.maneuver.instruction}
+                turnMeters={turn?.meters}
+                ride={rideToCurrent}
+                onClose={() => setDirectionsOpen(false)}
+                onSpeak={speakCue}
+              />
+            </DirectionsMorph>
+          ) : null}
         </View>
       ) : null}
 
-      {onWalkMap && directionsOpen && currentStop ? (
-        <View style={[styles.topBar, { top }]}>
-          <Directions
-            stop={currentStop}
-            cue={(audio.cue ?? currentStop.walkingCueToHere ?? "").trim()}
-            distanceMeters={distanceToStop}
-            accuracy={fix?.accuracy ?? null}
-            turnInstruction={turn?.maneuver.instruction}
-            turnMeters={turn?.meters}
-            ride={rideToCurrent}
-            onClose={() => setDirectionsOpen(false)}
-            onSpeak={speakCue}
-          />
-        </View>
-      ) : null}
 
       {/* Arrival, and the switch that turns it off. */}
       {onWalkMap && !directionsOpen ? (
         <View style={[styles.arrival, { top: top + 130 }]} pointerEvents="box-none">
-          {justArrived ? (
-            <GlassSurface tone="dark" style={styles.arrived}>
-              <Eyebrow style={{ color: colors.onDarkMute }}>You&apos;ve arrived</Eyebrow>
-              <Text style={[styles.bannerText, { fontSize: size.lead, marginTop: 4 }]}>{justArrived}</Text>
-            </GlassSurface>
+          {/* Keeps the last name while it slides away, so the card does not empty as it goes. */}
+          {lastArrived ? (
+            <PanelReveal open={!!justArrived} style={{ alignSelf: "stretch" }}>
+              <GlassSurface tone="dark" style={styles.arrived}>
+                <Eyebrow style={{ color: colors.onDarkMute }}>You&apos;ve arrived</Eyebrow>
+                <Text style={[styles.bannerText, { fontSize: size.lead, marginTop: 4 }]}>{lastArrived}</Text>
+              </GlassSurface>
+            </PanelReveal>
           ) : null}
           <Btn
             small
@@ -687,6 +701,8 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.canvas },
   topBar: { position: "absolute", left: 16, right: 16 },
   walkBar: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between" },
+  signpost: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  signpostGlyph: { fontSize: 20, color: colors.onDark },
   banner: {
     borderRadius: 22,
     paddingHorizontal: 16,

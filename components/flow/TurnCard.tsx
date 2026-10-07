@@ -64,29 +64,11 @@ const LABEL: Record<ManeuverKind, string> = {
   arrive: "You arrive",
 };
 
-export default function TurnCard({
-  kind,
-  meters,
-  street,
-  onOpen,
-  open,
-}: {
-  kind: ManeuverKind;
-  meters: number;
-  street?: string;
-  onOpen: () => void;
-  open: boolean;
-}) {
+/** What the closed turn card shows: the arrow, how far, and the street. */
+export function TurnSummary({ kind, meters, street }: { kind: ManeuverKind; meters: number; street?: string }) {
   const distance = formatDistance(meters);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      aria-expanded={open}
-      // Spoken form for anyone not looking at the arrow.
-      aria-label={`${LABEL[kind]}${meters >= 10 ? ` in ${distance}` : " now"}${street ? `, ${street}` : ""}. Open directions.`}
-      className="panel-dark panel--glass flex w-[92px] shrink-0 flex-col items-center gap-1 px-2 py-3 active:opacity-85"
-    >
+    <span className="flex w-[92px] flex-col items-center gap-1 px-2 py-3">
       <span className="text-[color:var(--mint)]">
         <Arrow kind={kind} />
       </span>
@@ -98,6 +80,11 @@ export default function TurnCard({
           {street}
         </span>
       ) : null}
-    </button>
+    </span>
   );
+}
+
+/** The same, read aloud, for anyone not looking at the arrow. */
+export function turnLabel(kind: ManeuverKind, meters: number, street?: string): string {
+  return `${LABEL[kind]}${meters >= 10 ? ` in ${formatDistance(meters)}` : " now"}${street ? `, ${street}` : ""}. Directions.`;
 }

@@ -23,18 +23,17 @@ const RIDE_WORDS: Record<TourRide["mode"], string> = {
 
 type QA = { question: string; answer: string | null; failed?: boolean };
 
-export function DirectionsPanel({
+export function DirectionsContent({
   stop,
   distanceMeters,
   accuracy,
   turnInstruction,
   turnMeters,
   ride,
-  open,
   onClose,
   onSpeak,
 }: {
-  stop: Stop | null;
+  stop: Stop;
   distanceMeters: number | null;
   /** The current fix's radius in metres, so a bad one can say so. */
   accuracy?: number | null;
@@ -43,15 +42,14 @@ export function DirectionsPanel({
   turnMeters?: number;
   /** Set when this leg is ridden rather than walked. */
   ride?: TourRide | null;
-  open: boolean;
   onClose: () => void;
   onSpeak: (text: string) => void;
 }) {
-  if (!open || !stop) return null;
   const cue = stop.walkingCueToHere?.trim() ?? "";
   return (
-    <div className="pointer-events-auto absolute inset-x-0 top-0 z-30 mx-auto w-full max-w-lg p-4 pt-[max(1rem,env(safe-area-inset-top))]">
-      <div className="panel-dark panel--glass p-4">
+    // Only the contents: the dark glass surface around them is the turn card,
+    // grown open (see DirectionsMorph).
+    <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div>
             <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
@@ -142,7 +140,6 @@ export function DirectionsPanel({
         >
           Repeat directions
         </button>
-      </div>
     </div>
   );
 }

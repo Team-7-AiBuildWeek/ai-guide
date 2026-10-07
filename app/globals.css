@@ -688,16 +688,10 @@ pre {
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;
   background: var(--surface);
   box-shadow: var(--shadow-lift);
-  transform: translateY(calc(100% + 2rem));
-  transition: transform 420ms cubic-bezier(0.22, 1.2, 0.36, 1);
-}
-.welcome--open .welcome-sheet {
-  transform: none;
 }
 /* The same sheet, opened over another page (Sign in on the Account tab). */
 .welcome-sheet--shown {
   position: fixed;
-  transform: none;
 }
 @media (prefers-reduced-motion: reduce) {
   .welcome-ring,
@@ -748,5 +742,203 @@ pre {
   }
   .splash__mark {
     animation-name: none;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The tab bar's sliding pill (after Transitions.dev's "Tabs sliding").
+
+   A pale-mint pill sits behind the tab you are on and slides to the next one;
+   the label eases to the active colour. The bar is drawn once by the layout,
+   so the pill keeps its place between pages and only ever moves. Hidden while
+   a tour is being built or walked (body[data-immersive]).
+   ------------------------------------------------------------------------ */
+:root {
+  --tabs-dur: 250ms;
+  --tabs-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.tabbar-pill {
+  position: absolute;
+  inset-block: 6px;
+  left: 0;
+  z-index: 0;
+  pointer-events: none;
+  transition: transform var(--tabs-dur) var(--tabs-ease);
+  will-change: transform;
+}
+.tabbar-pill::before {
+  content: "";
+  position: absolute;
+  inset: 0 12px;
+  border-radius: 999px;
+  background: var(--mint-wash);
+}
+.tabbar-tab {
+  transition: color var(--tabs-dur) var(--tabs-ease);
+}
+body[data-immersive] .tabbar {
+  display: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tabbar-pill,
+  .tabbar-tab {
+    transition: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   Panel reveal (after Transitions.dev's "Panel reveal").
+
+   A panel that appears over the screen — the sign-in sheet, the walking
+   directions, "You've arrived" — slides up half its own height while it fades
+   in and un-blurs, all on one duration and ease, so the short travel still
+   reads as a full open. Closing runs a little quicker. The panel stays
+   mounted; data-open says which way it is going.
+   ------------------------------------------------------------------------ */
+:root {
+  --panel-open-dur: 400ms;
+  --panel-close-dur: 350ms;
+  --panel-travel: 50%; /* of the panel's own height */
+  --panel-blur: 2px;
+  --panel-ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+.t-panel-slide {
+  transform: translateY(var(--panel-travel));
+  opacity: 0;
+  filter: blur(var(--panel-blur));
+  pointer-events: none;
+  transition:
+    transform var(--panel-close-dur) var(--panel-ease),
+    opacity var(--panel-close-dur) var(--panel-ease),
+    filter var(--panel-close-dur) var(--panel-ease);
+  /* Not filter: like a filter, will-change: filter would cut the glass off too. */
+  will-change: transform, opacity;
+}
+.t-panel-slide[data-open="true"] {
+  transform: translateY(0);
+  opacity: 1;
+  /* none rather than blur(0): any filter at rest would cut the frosted glass
+     of the panels inside off from the map behind them. It animates the same. */
+  filter: none;
+  pointer-events: auto;
+  transition:
+    transform var(--panel-open-dur) var(--panel-ease),
+    opacity var(--panel-open-dur) var(--panel-ease),
+    filter var(--panel-open-dur) var(--panel-ease);
+}
+/* What dims the page behind a sheet fades on the same clock. */
+.t-backdrop {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--panel-close-dur) var(--panel-ease);
+}
+.t-backdrop[data-open="true"] {
+  opacity: 1;
+  pointer-events: auto;
+  transition-duration: var(--panel-open-dur);
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-panel-slide,
+  .t-backdrop {
+    transition: none !important;
+  }
+}
+
+/* ---------------------------------------------------------------------------
+   The turn card growing into the directions (after Transitions.dev's "Plus to
+   menu morph"). One surface: width, height and corner radius animate from the
+   card's top-right corner, with a bouncier ease opening than closing; the
+   card's contents slide and fade out as the directions fade, scale and
+   un-blur in. Sizes are measured in DirectionsMorph and passed as variables.
+   ------------------------------------------------------------------------ */
+:root {
+  --morph-open-dur: 350ms;
+  --morph-close-dur: 250ms;
+  --morph-ease: cubic-bezier(0.34, 1.25, 0.64, 1);
+  --morph-close-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --morph-r-open: 22px; /* --radius-panel */
+  --morph-fade-dur: 200ms;
+  --morph-slide: 40px;
+  --morph-scale: 0.97;
+  --morph-blur: 2px;
+}
+.t-morph-anchor {
+  position: relative;
+  flex-shrink: 0;
+}
+.t-morph {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: var(--morph-w-closed);
+  height: var(--morph-h-closed);
+  border-radius: var(--morph-r-closed);
+  overflow: hidden;
+  transition:
+    width var(--morph-close-dur) var(--morph-close-ease),
+    height var(--morph-close-dur) var(--morph-close-ease),
+    border-radius var(--morph-close-dur) var(--morph-close-ease);
+}
+.t-morph[data-open="true"] {
+  width: var(--morph-w-open);
+  height: var(--morph-h-open);
+  border-radius: var(--morph-r-open);
+  transition:
+    width var(--morph-open-dur) var(--morph-ease),
+    height var(--morph-open-dur) var(--morph-ease),
+    border-radius var(--morph-open-dur) var(--morph-ease);
+}
+/* The card's contents, pinned to the corner it grows from. */
+.t-morph-plus {
+  position: absolute;
+  top: 0;
+  right: 0;
+  display: grid;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-open-dur) var(--morph-close-ease),
+    filter var(--morph-fade-dur) var(--morph-close-ease);
+}
+.t-morph[data-open="true"] .t-morph-plus {
+  opacity: 0;
+  transform: translateX(calc(-1 * var(--morph-slide)));
+  filter: blur(var(--morph-blur));
+  pointer-events: none;
+}
+/* The directions, laid out at their open width from the start, so nothing
+   reflows while the surface grows around them. */
+.t-morph-menu {
+  position: absolute;
+  top: 0;
+  right: 0;
+  opacity: 0;
+  transform: translateX(var(--morph-slide)) scale(var(--morph-scale));
+  transform-origin: top right;
+  filter: blur(var(--morph-blur));
+  pointer-events: none;
+  transition:
+    opacity var(--morph-fade-dur) var(--morph-close-ease),
+    transform var(--morph-open-dur) var(--morph-close-ease),
+    filter var(--morph-fade-dur) var(--morph-close-ease);
+}
+.t-morph-menu-inner {
+  width: min(calc(100vw - 2rem), 32rem);
+}
+.t-morph[data-open="true"] .t-morph-menu {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  filter: none;
+  pointer-events: auto;
+}
+@media (prefers-reduced-motion: reduce) {
+  .t-morph,
+  .t-morph-plus,
+  .t-morph-menu {
+    transition: none !important;
   }
 }

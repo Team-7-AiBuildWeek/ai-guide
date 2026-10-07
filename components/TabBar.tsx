@@ -6,8 +6,10 @@
  *
  * Laid out like Airbnb's: white, a hairline on top, an icon over each label,
  * and the tab you are on in the one green that may be text (mint-ink). It sits
- * on the three home screens only; building a tour and walking one take the
- * whole screen, the way a booking does.
+ * on the three home screens only, drawn once by the layout so it stays put
+ * between them and the pill can slide; building a tour and walking one take
+ * the whole screen, the way a booking does (TourFlow marks the page
+ * data-immersive, which hides it).
  */
 
 import Link from "next/link";
@@ -53,22 +55,35 @@ const TABS: { href: string; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+/** On these three, the bar shows (unless a screen has asked for the whole screen). */
+const HOMES = TABS.map((t) => t.href);
+
 export default function TabBar() {
   const path = usePathname();
+  const index = TABS.findIndex((t) => (t.href === "/" ? path === "/" : path.startsWith(t.href)));
+  if (!HOMES.some((h) => (h === "/" ? path === "/" : path.startsWith(h)))) return null;
   return (
     <nav
       aria-label="Main"
-      className="fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--line)] bg-[color:var(--surface)] pb-[env(safe-area-inset-bottom)]"
+      className="tabbar fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--line)] bg-[color:var(--surface)] pb-[env(safe-area-inset-bottom)]"
     >
-      <ul className="mx-auto flex w-full max-w-lg" style={{ height: TAB_BAR_PX }}>
-        {TABS.map((tab) => {
-          const on = tab.href === "/" ? path === "/" : path.startsWith(tab.href);
+      <ul className="relative mx-auto flex w-full max-w-lg" style={{ height: TAB_BAR_PX }}>
+        {/* The pill behind the tab you are on. Tabs are equal widths, so its
+            place is the tab's index; the bar stays mounted across pages, so a
+            change of index slides it (see .tabbar-pill in globals.css). */}
+        <span
+          aria-hidden="true"
+          className="tabbar-pill"
+          style={{ width: `${100 / TABS.length}%`, transform: `translateX(${index * 100}%)` }}
+        />
+        {TABS.map((tab, i) => {
+          const on = i === index;
           return (
-            <li key={tab.href} className="flex-1">
+            <li key={tab.href} className="relative z-[1] flex-1">
               <Link
                 href={tab.href}
                 aria-current={on ? "page" : undefined}
-                className={`flex h-full flex-col items-center justify-center gap-1 text-[12px] font-medium ${
+                className={`tabbar-tab flex h-full flex-col items-center justify-center gap-1 text-[12px] font-medium ${
                   on ? "text-[color:var(--mint-ink)]" : "text-[color:var(--ink-mute)]"
                 }`}
               >
