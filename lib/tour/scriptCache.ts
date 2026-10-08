@@ -12,6 +12,7 @@
 import { createHash } from "crypto";
 import { getLLM } from "@/lib/providers/factory";
 import type { Stop, StopScript, TourRequest } from "@/lib/providers/types";
+import { loadScript, saveScript } from "@/lib/tour/saved";
 
 export type ScriptJob = {
   req: TourRequest;
@@ -34,8 +35,9 @@ const INFLIGHT = new Map<string, Promise<StopScript>>();
 const MAX_ENTRIES = 400;
 
 /** Everything that changes the words. The brief is in here: two walkers at the
- *  same stop asking for different things must not share a recording. */
-function cacheKey(b: ScriptJob): string {
+ *  same stop asking for different things must not share a recording. Also the
+ *  key a written stop is kept under in the database (lib/tour/saved.ts). */
+export function scriptKey(b: Pick<ScriptJob, "req" | "stop" | "previous" | "position" | "total">): string {
   return createHash("sha256")
     .update(
       [
@@ -59,11 +61,11 @@ function cacheKey(b: ScriptJob): string {
 }
 
 export function cachedScript(job: ScriptJob): StopScript | null {
-  return CACHE.get(cacheKey(job)) ?? null;
+  return CACHE.get(scriptKey(job)) ?? null;
 }
 
 export function writeStopScript(job: ScriptJob): Promise<StopScript> {
-  const key = cacheKey(job);
+  const key = scriptKey(job);
   const hit = CACHE.get(key);
   if (hit) return Promise.resolve(hit);
 
@@ -71,14 +73,21 @@ export function writeStopScript(job: ScriptJob): Promise<StopScript> {
   const running = INFLIGHT.get(key);
   if (running) return running;
 
-  const job$ = getLLM()
-    .generateStopScript({
-      req: job.req,
-      stop: job.stop,
-      previous: job.previous ?? null,
-      position: job.position,
-      total: job.total,
-      onOpening: job.onOpening,
+  // Written before, by anyone, on any server: kept in the database, so the
+  // words are free the second time. Otherwise written now, and kept.
+  const job$ = loadScript(key)
+    .then(async (kept) => {
+      if (kept) return kept;
+      const written = await getLLM().generateStopScript({
+        req: job.req,
+        stop: job.stop,
+        previous: job.previous ?? null,
+        position: job.position,
+        total: job.total,
+        onOpening: job.onOpening,
+      });
+      await saveScript(key, written);
+      return written;
     })
     .then((script) => {
       CACHE.set(key, script);

@@ -52,6 +52,7 @@ const EN = {
 
   // ------------------------------------------------------------------ brief
   "brief.title": "Build my tour",
+  "brief.demo": "Demo tour",
   "brief.language": "Language",
   "brief.step": "Step 1 of 2",
   "sketch.stops": "stops on your walk",

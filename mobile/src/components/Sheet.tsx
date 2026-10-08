@@ -36,6 +36,7 @@ export default function Sheet({
   height,
   onHeightChange,
   title,
+  titleAction,
   onCollapse,
   footer,
   collapsedContent,
@@ -47,6 +48,8 @@ export default function Sheet({
   height: SheetHeight;
   onHeightChange?: (h: SheetHeight) => void;
   title?: string;
+  /** A small button at the right end of the title row. */
+  titleAction?: ReactNode;
   onCollapse?: () => void;
   footer?: ReactNode;
   collapsedContent?: ReactNode;
@@ -181,6 +184,7 @@ export default function Sheet({
                 </Pressable>
               ) : null}
               <Text style={type.h3}>{title}</Text>
+              {titleAction ? <View style={{ marginLeft: "auto" }}>{titleAction}</View> : null}
             </View>
           ) : null}
         </View>

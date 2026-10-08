@@ -91,6 +91,14 @@ export async function buildTour(
 
 // ---------------------------------------------------------------- stops --
 
+/** A tour somebody already made, with its words, for looking around without building one. */
+export async function demoTour(): Promise<StoredTour> {
+  const res = await fetch(`${BASE}/api/demo-tour`);
+  const body = (await res.json().catch(() => ({}))) as StoredTour & { error?: string };
+  if (!res.ok) throw new Error(body.error ?? `The demo tour did not load (${res.status}).`);
+  return body;
+}
+
 export type WrittenStop = {
   script: string;
   walkingCueToHere?: string;

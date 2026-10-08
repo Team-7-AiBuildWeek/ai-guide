@@ -187,6 +187,8 @@ export type StoredTour = {
    * tour built before this existed, which is why nothing may assume it.
    */
   rides?: TourRide[];
+  /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
+  demo?: boolean;
 };
 
 export function loadTour(): StoredTour | null {

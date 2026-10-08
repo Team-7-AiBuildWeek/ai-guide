@@ -127,8 +127,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Hosting.</strong> The website and its servers
-            run on Vercel; the walks kept with accounts and the data for prepared tours are in a
-            Neon database, and prepared narration in Cloudflare R2 storage.
+            run on Vercel; the walks kept with accounts, the tours Walk keeps and the data for prepared
+            tours are in a Neon database, and narration in Cloudflare R2 storage.
           </li>
         </ul>
         <p>
@@ -156,9 +156,14 @@ export default function PrivacyPage() {
             everything kept with it, on the website and in the app.
           </li>
           <li>
-            <strong className="text-[color:var(--ink)]">On Walk&apos;s servers, briefly.</strong>{" "}
-            Written stories and recorded narration are held in the server&apos;s memory so the same
-            stop is not made twice. Nothing is written to disk, and they disappear whenever the server restarts, which happens regularly.
+            <strong className="text-[color:var(--ink)]">Every tour, on Walk&apos;s servers.</strong>{" "}
+            Each tour is kept when it is built — what you asked for (including anything typed in your
+            own words), the starting point, the stops and the route — together with the stories
+            written for its stops and the recorded narration, so the same stop is never made twice
+            and a tour can be played again. It is not linked to your account or to who you are. A kept
+            tour may be shown to other people as the demo tour in the app, without the words you
+            typed or the name of your starting point. Kept until it is no longer useful for this; to
+            have a tour removed, write to the address above.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">For prepared tours.</strong> When a tour is

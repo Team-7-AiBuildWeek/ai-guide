@@ -13,6 +13,7 @@ export const de: Partial<Record<UiKey, string>> = {
   "landing.different": "Andere Tour erstellen",
   "landing.stopOf": "Station {n} von {total}",
   "brief.title": "Tour erstellen",
+  "brief.demo": "Demo-Tour",
   "brief.language": "Sprache",
   "brief.howLong": "Wie lange",
   "brief.detail": "Detail",

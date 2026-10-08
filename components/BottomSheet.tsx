@@ -66,6 +66,7 @@ export default function BottomSheet({
   onHeightChange,
   onCollapse,
   title,
+  titleAction,
   children,
   footer,
   collapsedContent,
@@ -79,6 +80,8 @@ export default function BottomSheet({
   /** Omit to hide the back chevron — some steps must not be dismissable. */
   onCollapse?: () => void;
   title?: string;
+  /** A small button at the right end of the title row. */
+  titleAction?: React.ReactNode;
   children: React.ReactNode;
   /**
    * Buttons pinned below the scrolling content.
@@ -447,6 +450,7 @@ export default function BottomSheet({
                   </button>
                 ) : null}
                 <h2 className="text-[length:var(--text-h3)]">{title}</h2>
+                {titleAction ? <div className="ml-auto shrink-0">{titleAction}</div> : null}
               </div>
             ) : null}
           </header>

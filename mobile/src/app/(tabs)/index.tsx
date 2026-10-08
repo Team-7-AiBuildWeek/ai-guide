@@ -26,7 +26,7 @@ import Headphones from "@/components/flow/Headphones";
 import { MiniPlayer, Player } from "@/components/flow/Players";
 import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
 import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
-import { ask, buildTour, cityAt } from "@/lib/api";
+import { ask, buildTour, cityAt, demoTour } from "@/lib/api";
 import {
   clearTour,
   EMPTY_DRAFT,
@@ -192,9 +192,34 @@ export default function Flow() {
   }, [currentIndex]);
 
   // ------------------------------------------------------------ generate --
+  /** Whether the generating screen is showing the demo, so Try again retries the demo rather than building a tour. */
+  const demoRun = useRef(false);
+
+  /** The demo tour: one somebody already made, from the database — see the website's TourFlow. */
+  const loadDemo = useCallback(async () => {
+    demoRun.current = true;
+    setStage("generating");
+    setReady(false);
+    setGenError(null);
+    setPreview(null);
+    try {
+      const built = await demoTour();
+      setTour(built);
+      saveTour(built);
+      arrived.current.clear();
+      setCurrentIndex(0);
+      setPreview({ title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+      setPhase("done");
+      setReady(true);
+    } catch (err) {
+      setGenError(err instanceof Error ? err.message : "The demo tour did not load.");
+    }
+  }, []);
+
   const generate = useCallback(
     async (again?: { req: TourRequest; plan: TourPlan }) => {
       if (!again && !draft.start) return;
+      demoRun.current = false;
       setStage("generating");
       setReady(false);
       setPhase("stops");
@@ -572,6 +597,9 @@ export default function Flow() {
                   ? "Ask anything"
                   : undefined
           }
+          titleAction={
+            stage === "brief" ? <Btn small label={t("brief.demo")} onPress={() => void loadDemo()} /> : undefined
+          }
           onCollapse={
             stage === "brief"
               ? () => setStage("start")
@@ -658,7 +686,7 @@ export default function Flow() {
                 abortRef.current?.abort("cancelled");
                 setStage("points");
               }}
-              onRetry={() => void generate()}
+              onRetry={() => void (demoRun.current ? loadDemo() : generate())}
               onContinue={ready && tour ? () => setStage("headphones") : undefined}
               because={[
                 draft.interests.length > 0 ? draft.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,

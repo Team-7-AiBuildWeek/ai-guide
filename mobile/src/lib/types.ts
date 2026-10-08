@@ -90,6 +90,8 @@ export type StoredTour = {
   seconds: number;
   maneuvers?: Maneuver[];
   rides?: TourRide[];
+  /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
+  demo?: boolean;
 };
 
 export type TourPreview = { title: string; summary: string; stops: { name: string; angle: string }[] };

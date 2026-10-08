@@ -13,6 +13,7 @@ export const cs: Partial<Record<UiKey, string>> = {
   "landing.different": "Vytvořit jinou prohlídku",
   "landing.stopOf": "Zastávka {n} z {total}",
   "brief.title": "Vytvořit prohlídku",
+  "brief.demo": "Ukázková prohlídka",
   "brief.language": "Jazyk",
   "brief.howLong": "Jak dlouho",
   "brief.detail": "Detail",

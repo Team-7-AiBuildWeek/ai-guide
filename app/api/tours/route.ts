@@ -23,6 +23,7 @@ import { findRides, routeWithRides } from "@/lib/tour/rides";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 import { orderStops, walkLength } from "@/lib/tour/order";
 import { writeStopScript } from "@/lib/tour/scriptCache";
+import { saveTour } from "@/lib/tour/saved";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -287,6 +288,13 @@ export async function POST(request: Request) {
         }
 
         send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides } });
+        // Kept, once the walker has it: every tour goes in the database, so any
+        // of them can be played back later (the demo tour is one). A plan that
+        // arrived with all its words is a replay, already kept.
+        if (!plan.stops.every((s) => s.script)) {
+          const built = { plan, route, meters, seconds, maneuvers, rides, req };
+          after(() => saveTour(built));
+        }
       } catch (err) {
         send({
           phase: "error",

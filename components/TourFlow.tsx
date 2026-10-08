@@ -239,6 +239,37 @@ export default function TourFlow({
     .join(" · ");
 
   // ------------------------------------------------------------- generate --
+
+  /**
+   * The demo tour: a walk somebody already made, kept in the database with
+   * its words and voice (/api/demo-tour), through the same screens a built
+   * one takes — the itinerary, the headphones, the walk — without the minute
+   * of building, and without a model call or a second of new synthesis.
+   * Not remembered as one of this walker's walks.
+   */
+  /** Whether the generating screen is showing the demo, so Try again retries the demo rather than building a tour. */
+  const demoRun = useRef(false);
+  const loadDemo = useCallback(async () => {
+    demoRun.current = true;
+    setStage("generating");
+    setReady(false);
+    setGenError(null);
+    setPreview(null);
+    try {
+      const res = await fetch("/api/demo-tour");
+      const body = (await res.json().catch(() => ({}))) as StoredTour & { error?: string };
+      if (!res.ok) throw new Error(body.error ?? `The demo tour did not load (${res.status}).`);
+      const built: StoredTour = body;
+      setTour(built);
+      saveTour(built);
+      setCurrentIndex(0);
+      setPreview({ title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+      setPhase("done");
+      setReady(true);
+    } catch (err) {
+      setGenError((err as Error).message);
+    }
+  }, []);
   /**
    * Build a tour and walk to it.
    *
@@ -250,6 +281,7 @@ export default function TourFlow({
    */
   const generate = useCallback(async (again?: { req: TourRequest; plan: TourPlan }) => {
     if (!again && !draft.start) return;
+    demoRun.current = false;
     setStage("generating");
     setReady(false);
     setPhase("stops");
@@ -968,6 +1000,13 @@ export default function TourFlow({
                   ? "Ask anything"
                   : undefined
           }
+          titleAction={
+            stage === "brief" ? (
+              <button type="button" onClick={() => void loadDemo()} className="btn btn--quiet btn--small">
+                {t("brief.demo")}
+              </button>
+            ) : undefined
+          }
           onCollapse={
             stage === "brief"
               ? () => setStage("start")
@@ -1100,7 +1139,7 @@ export default function TourFlow({
                 abortRef.current?.abort("cancelled");
                 setStage("points");
               }}
-              onRetry={generate}
+              onRetry={() => (demoRun.current ? void loadDemo() : void generate())}
               onContinue={ready && tour ? () => setStage("headphones") : undefined}
               because={builtAround}
             />
