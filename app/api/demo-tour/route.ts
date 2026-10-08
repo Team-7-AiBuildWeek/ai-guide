@@ -71,7 +71,8 @@ export async function GET() {
   let rows: { id: string; tour: StoredTour }[];
   try {
     rows = await recentTours(LOOK_BACK);
-  } catch {
+  } catch (err) {
+    console.error("[demo-tour] saved tours unreachable", err);
     return Response.json({ error: "The saved tours could not be reached." }, { status: 503 });
   }
 
