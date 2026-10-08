@@ -1,11 +1,11 @@
 /**
  * Every tour, kept: the walk itself and the words written for its stops.
  *
- * Two tables in Neon:
+ * Two tables in Neon, prefixed because walk-backend already owns `tours`:
  *
- *   tours         one row per tour built — the plan, the route, the brief
- *   stop_scripts  one row per stop narration written, keyed by everything
- *                 that decides its words (lib/tour/scriptCache's key)
+ *   saved_tours         one row per tour built — the plan, the route, the brief
+ *   saved_stop_scripts  one row per stop narration written, keyed by everything
+ *                       that decides its words (lib/tour/scriptCache's key)
  *
  * The scripts are keyed by content rather than by tour because that is what
  * the clients send when they ask for one (the brief, the stop, its place in
@@ -33,14 +33,14 @@ function ensureSchema(): Promise<void> {
     const q = sql();
     if (!q) return;
     await q`
-      CREATE TABLE IF NOT EXISTS tours (
+      CREATE TABLE IF NOT EXISTS saved_tours (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         created_at timestamptz NOT NULL DEFAULT now(),
         tour jsonb NOT NULL
       )`;
-    await q`CREATE INDEX IF NOT EXISTS tours_created_at ON tours (created_at DESC)`;
+    await q`CREATE INDEX IF NOT EXISTS saved_tours_created_at ON saved_tours (created_at DESC)`;
     await q`
-      CREATE TABLE IF NOT EXISTS stop_scripts (
+      CREATE TABLE IF NOT EXISTS saved_stop_scripts (
         key text PRIMARY KEY,
         script text NOT NULL,
         walking_cue text NOT NULL DEFAULT '',
@@ -61,7 +61,7 @@ export async function saveTour(tour: object): Promise<string | null> {
   if (!q) return null;
   try {
     await ensureSchema();
-    const rows = (await q`INSERT INTO tours (tour) VALUES (${JSON.stringify(tour)}::jsonb) RETURNING id`) as { id: string }[];
+    const rows = (await q`INSERT INTO saved_tours (tour) VALUES (${JSON.stringify(tour)}::jsonb) RETURNING id`) as { id: string }[];
     return rows[0]?.id ?? null;
   } catch (err) {
     console.warn("[saved] tour not kept", err);
@@ -74,7 +74,7 @@ export async function recentTours(limit: number): Promise<{ id: string; tour: St
   const q = sql();
   if (!q) return [];
   await ensureSchema();
-  return (await q`SELECT id, tour FROM tours ORDER BY created_at DESC LIMIT ${limit}`) as { id: string; tour: StoredTour }[];
+  return (await q`SELECT id, tour FROM saved_tours ORDER BY created_at DESC LIMIT ${limit}`) as { id: string; tour: StoredTour }[];
 }
 
 export async function loadScript(key: string): Promise<StopScript | null> {
@@ -82,7 +82,7 @@ export async function loadScript(key: string): Promise<StopScript | null> {
   if (!q) return null;
   try {
     await ensureSchema();
-    const rows = (await q`SELECT script, walking_cue FROM stop_scripts WHERE key = ${key}`) as {
+    const rows = (await q`SELECT script, walking_cue FROM saved_stop_scripts WHERE key = ${key}`) as {
       script: string;
       walking_cue: string;
     }[];
@@ -99,7 +99,7 @@ export async function loadScripts(keys: string[]): Promise<Map<string, StopScrip
   const found = new Map<string, StopScript>();
   if (!q || keys.length === 0) return found;
   await ensureSchema();
-  const rows = (await q`SELECT key, script, walking_cue FROM stop_scripts WHERE key = ANY(${keys})`) as {
+  const rows = (await q`SELECT key, script, walking_cue FROM saved_stop_scripts WHERE key = ANY(${keys})`) as {
     key: string;
     script: string;
     walking_cue: string;
@@ -114,7 +114,7 @@ export async function saveScript(key: string, s: StopScript): Promise<void> {
   try {
     await ensureSchema();
     await q`
-      INSERT INTO stop_scripts (key, script, walking_cue)
+      INSERT INTO saved_stop_scripts (key, script, walking_cue)
       VALUES (${key}, ${s.script}, ${s.walkingCueToHere ?? ""})
       ON CONFLICT (key) DO NOTHING`;
   } catch (err) {
