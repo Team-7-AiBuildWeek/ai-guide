@@ -78,10 +78,11 @@ export async function r2Put(key: string, body: ArrayBuffer, mimeType: string): P
   const c = r2();
   if (!c) return;
   try {
+    // R2 refuses an upload whose length it is not told up front (411).
     const res = await c.aws.fetch(`${c.base}/${key}`, {
       method: "PUT",
-      body,
-      headers: { "content-type": mimeType },
+      body: new Uint8Array(body),
+      headers: { "content-type": mimeType, "content-length": String(body.byteLength) },
     });
     if (!res.ok) console.warn("[r2] put failed", key, res.status);
   } catch (err) {
