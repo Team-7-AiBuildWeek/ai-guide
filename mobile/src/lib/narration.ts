@@ -19,7 +19,12 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import { keepRecording, speak, writeStop } from "./api";
 import { chunkScript, estimateSeconds } from "./chunk";
 import { speechLocale } from "./languages";
+import { readJson, writeJson } from "./store";
 import type { Stop, StoredTour, TourRequest } from "./types";
+
+/** Where in the walk the walker had got to, down to the second. */
+type Listening = { stopId: string; chunk: number; seconds: number };
+const LISTENING_KEY = "listening-v1";
 
 // ------------------------------------------------------- early voicing --
 
@@ -197,6 +202,30 @@ class Library {
     this.audioJobs.set(e.stop.id, job);
     return job;
   }
+  /** Which background pass is current; a newer one makes the older stop. */
+  private recordRun = 0;
+
+  /**
+   * Record the whole walk in the background: this stop first, then the ones
+   * after it, then any before — one at a time through the same queue, so the
+   * stop being heard never waits behind more than one piece. Called again as
+   * the walker moves on; stops already made cost nothing. Stops at the first
+   * failure rather than spend the rest of a quota on failures.
+   */
+  recordAll(from: number) {
+    if (this.disposed) return;
+    const run = ++this.recordRun;
+    const order = [...this.stops.keys()].map((i) => (from + i) % this.stops.length);
+    void (async () => {
+      for (const i of order) {
+        if (this.disposed || run !== this.recordRun) return;
+        await this.ensureAudio(i);
+        const state = this.entry(i)?.state;
+        if (state?.voice === "failed" || state?.script === "failed") return;
+      }
+    })();
+  }
+
 }
 
 // ----------------------------------------------------------------- hook --
@@ -243,11 +272,14 @@ export function useNarration({
   album?: string;
 }): Narration {
   const [attempt, setAttempt] = useState(0);
+  // Keyed by what the tour is, not the object holding it: the same walk read
+  // back from storage is the same walk, and keeps everything already recorded.
+  const tourKey = tour ? `${tour.req?.lang ?? lang}|${tour.plan.stops.map((s) => s.id).join(",")}|${attempt}` : null;
   const library = useMemo(
     () => (tour ? new Library(tour.plan.stops, tour.req ?? null, tour.req?.lang ?? lang) : null),
     // A new library for a new tour (or a retry), not for every render of the same one.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [tour, attempt],
+    [tourKey],
   );
   useEffect(() => () => {
     if (library) library.disposed = true;
@@ -275,19 +307,31 @@ export function useNarration({
     void setAudioModeAsync({ playsInSilentMode: true, shouldPlayInBackground: true, interruptionMode: "doNotMix" });
   }, []);
 
-  // Words for this stop and the next, the voice for this one.
+  // Words for this stop and the next, the voice for this one — then the whole
+  // walk, in the background, so moving on never means waiting.
   useEffect(() => {
     if (!library || !(active || warm)) return;
     void library.ensureAudio(index);
     void library.ensureScript(index + 1);
+    library.recordAll(index);
   }, [library, index, active, warm]);
 
-  // A new stop starts at its beginning.
-  const [shownIndex, setShownIndex] = useState(index);
-  if (shownIndex !== index) {
-    setShownIndex(index);
-    setChunkIndex(0);
+  /**
+   * Where the walker was, kept on the phone: the stop, the piece and the
+   * second. Read once, when the walk is opened again (after the app was
+   * closed, say), and the player is put back exactly there.
+   */
+  const [resumeAt, setResumeAt] = useState<Listening | null>(null);
+  const [restoredFor, setRestoredFor] = useState<string | null>(null);
+  if (stop && restoredFor !== stop.id) {
+    setRestoredFor(stop.id);
+    const kept = readJson<Listening>(LISTENING_KEY);
+    const here = kept?.stopId === stop.id ? kept : null;
+    setResumeAt(here);
+    setChunkIndex(here?.chunk ?? 0);
   }
+  /** The piece the saved position has already been applied to, so it is applied once. */
+  const resumedPiece = useRef<string | null>(null);
 
   const stopFailed = entry ? entry.state.script === "failed" || entry.state.voice === "failed" : false;
 
@@ -301,8 +345,20 @@ export function useNarration({
     queueMicrotask(() => setLoadedKey(key));
     player.replace({ uri, name: entry.stop.name });
     player.setActiveForLockScreen(true, { title: entry.stop.name, artist: album ?? tour?.plan.title ?? "Walk" });
+    if (resumeAt && resumeAt.chunk === chunkIndex && resumeAt.seconds > 0 && resumedPiece.current !== key) {
+      void player.seekTo(resumeAt.seconds);
+    }
+    resumedPiece.current = key;
     player.play();
   });
+
+  // Written down while it plays (every few seconds) and whenever it stops.
+  const heardSecond = Math.floor(status.currentTime / 5);
+  useEffect(() => {
+    if (!entry || loadedKey !== `${entry.stop.id}:${chunkIndex}` || status.currentTime <= 0) return;
+    writeJson(LISTENING_KEY, { stopId: entry.stop.id, chunk: chunkIndex, seconds: status.currentTime } satisfies Listening);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heardSecond, status.playing, chunkIndex, loadedKey]);
 
   // The end of a piece goes on to the next, and the end of a stop to the next stop.
   const onFinish = useRef(() => {});

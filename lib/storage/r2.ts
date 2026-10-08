@@ -9,24 +9,39 @@
  * entirely from storage.
  *
  * Private bucket: everything goes through the server, signed with an R2 API
- * token, so nothing needs a public URL or CORS. Off (every call a no-op) until
- * R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_BUCKET are set.
+ * token, so nothing needs a public URL or CORS. R2 speaks the S3 protocol, so
+ * it reads the project's S3 settings — S3_ENDPOINT_URL, S3_BUCKET,
+ * S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY, optional S3_REGION — or the R2_*
+ * names (R2_ACCOUNT_ID in place of the endpoint). Off, every call a no-op,
+ * until one set is complete. Narration lives under `narration/`, clear of
+ * anything else in the bucket.
  */
 
 import { AwsClient } from "aws4fetch";
 
 let client: AwsClient | null = null;
 
+function settings() {
+  const e = process.env;
+  const endpoint =
+    e.S3_ENDPOINT_URL ?? (e.R2_ACCOUNT_ID ? `https://${e.R2_ACCOUNT_ID}.r2.cloudflarestorage.com` : undefined);
+  const bucket = e.S3_BUCKET ?? e.R2_BUCKET;
+  const accessKeyId = e.S3_ACCESS_KEY_ID ?? e.R2_ACCESS_KEY_ID;
+  const secretAccessKey = e.S3_SECRET_ACCESS_KEY ?? e.R2_SECRET_ACCESS_KEY;
+  if (!endpoint || !bucket || !accessKeyId || !secretAccessKey) return null;
+  return { endpoint: endpoint.replace(/\/+$/, ""), bucket, accessKeyId, secretAccessKey, region: e.S3_REGION || "auto" };
+}
+
 function r2(): { aws: AwsClient; base: string } | null {
-  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = process.env;
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) return null;
+  const s = settings();
+  if (!s) return null;
   client ??= new AwsClient({
-    accessKeyId: R2_ACCESS_KEY_ID,
-    secretAccessKey: R2_SECRET_ACCESS_KEY,
+    accessKeyId: s.accessKeyId,
+    secretAccessKey: s.secretAccessKey,
     service: "s3",
-    region: "auto",
+    region: s.region,
   });
-  return { aws: client, base: `https://${R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}` };
+  return { aws: client, base: `${s.endpoint}/${s.bucket}` };
 }
 
 export function r2Enabled(): boolean {

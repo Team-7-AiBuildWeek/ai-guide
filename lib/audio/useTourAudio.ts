@@ -20,6 +20,27 @@ import { AudioLibrary, type StopState } from "./library";
 import { deviceVoice, type DeviceVoiceState } from "./deviceVoice";
 import type { Stop, TourRequest } from "@/lib/providers/types";
 
+/**
+ * The library for the tour being walked, kept across screens.
+ *
+ * Keyed by what the tour is (its stops, in its language) rather than by the
+ * object holding it, because the tour is read back from localStorage as a new
+ * object every time the walk screen mounts. A different tour gets a fresh
+ * library, and only then are the old one's recordings let go.
+ */
+let kept: { key: string; library: AudioLibrary } | null = null;
+
+function libraryFor(stops: Stop[], req: TourRequest | null, lang: string): AudioLibrary {
+  const key = `${lang}|${stops.map((s) => s.id).join(",")}`;
+  if (kept?.key === key) return kept.library;
+  kept?.library.dispose();
+  const library = new AudioLibrary(stops, req, lang, (stopId, i, url) => {
+    audioEngine.setChunk(stopId, i, url);
+  });
+  kept = { key, library };
+  return library;
+}
+
 /** Hoisted: returning a fresh object from getServerSnapshot loops forever. */
 const NO_STATES: Record<string, StopState> = {};
 
@@ -87,14 +108,16 @@ export function useTourAudio({
     () => SERVER_STATE,
   );
 
-  const library = useMemo(
-    () =>
-      new AudioLibrary(stops, req, lang, (stopId, i, url) => {
-        audioEngine.setChunk(stopId, i, url);
-      }),
-    [stops, req, lang],
-  );
-  useEffect(() => () => library.dispose(), [library]);
+  /**
+   * One library per tour, outliving this hook.
+   *
+   * It used to be made here and disposed when the screen went away, which
+   * threw away every recording the moment the walker looked at the Tours tab:
+   * coming back meant "Recording…" again, from the first word, and the engine
+   * was left pointing at object URLs that had just been revoked. Now it is
+   * kept until a different tour replaces it (see libraryFor).
+   */
+  const library = useMemo(() => libraryFor(stops, req, lang), [stops, req, lang]);
 
   const stopStates = useSyncExternalStore(library.subscribe, library.getSnapshot, () => NO_STATES);
 
@@ -214,6 +237,16 @@ export function useTourAudio({
    * play was disabled until something had been fetched. Neither of these calls
    * touches the audio element, so there is nothing to wait for.
    */
+  /**
+   * Every stop, recorded in the background, from the moment the walk is in
+   * view: this one first, then the ones after it, then any before. Walking to
+   * the next stop should never mean waiting for it to be written and voiced.
+   */
+  useEffect(() => {
+    if (!(active || warm) || index < 0) return;
+    library.recordAll(index);
+  }, [active, warm, index, library]);
+
   useEffect(() => {
     if (!active || !stop) return;
     let cancelled = false;

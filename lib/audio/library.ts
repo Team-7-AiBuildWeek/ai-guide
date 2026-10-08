@@ -4,15 +4,15 @@
  * Fetches and holds the narration for a tour.
  *
  * Two things arrive from the server, in this order: the words, then the voice.
- * Both are slow, and both are hidden from the walker the same way — by getting
- * a little of it now rather than all of it eventually.
+ * Both are slow, and both are hidden from the walker the same way — the stop
+ * they are on comes first, and the rest of the walk follows in the background.
  *
- *   - Scripts are written one stop at a time. The stop being listened to, and
- *     the one after it, are fetched; nothing else is written until the walker
- *     gets near it. A four-hour tour is twenty-odd stops and most walkers stop
- *     at six.
+ *   - Scripts are written one stop at a time: the stop being listened to, the
+ *     one after it (so walking on never waits for words), then every other
+ *     stop in walking order, as part of recording the whole walk (recordAll).
  *   - A script is synthesised in pieces. The first is ~25 seconds of speech and
- *     lands in a few seconds; the rest are made while it plays.
+ *     lands in a few seconds; the rest are made while it plays. Then the next
+ *     stop is recorded, and the next, until the whole walk is ready.
  *
  * Blobs are held as object URLs rather than base64 in localStorage — a long
  * tour is many megabytes, well past the storage quota, and object URLs are what
@@ -409,6 +409,34 @@ export class AudioLibrary {
     if (RATE_LIMIT_MODE) return;
     const next = this.stops[index + 1];
     if (next) void this.ensureScript(next.id);
+  }
+
+  /** Which background pass is current; a newer one makes the older stop. */
+  private recordRun = 0;
+
+  /**
+   * Record the whole walk, in the background.
+   *
+   * Starting from the stop the walker is on, then the ones after it in walking
+   * order, then any before it — one stop at a time, each through the same
+   * serialised queue as everything else, so the stop being listened to only
+   * ever waits behind the one piece already in flight. Called again when the
+   * walker moves on, which restarts the order from there; stops already made
+   * cost nothing the second time round. Gives up on the first stop whose
+   * voice fails, rather than spending the rest of a quota on failures.
+   */
+  recordAll(from: number) {
+    if (RATE_LIMIT_MODE || this.disposed) return;
+    const run = ++this.recordRun;
+    const order = [...this.stops.slice(from), ...this.stops.slice(0, from)];
+    void (async () => {
+      for (const stop of order) {
+        if (this.disposed || run !== this.recordRun) return;
+        await this.ensureAudio(stop.id);
+        const state = this.entries.get(stop.id)?.state;
+        if (state?.voice === "failed" || state?.script === "failed") return;
+      }
+    })();
   }
 
   /** Object URLs are not garbage collected on their own. */
