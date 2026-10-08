@@ -102,6 +102,8 @@ export const cs: Partial<Record<UiKey, string>> = {
   "profile.walkAgain": "Projít znovu",
   "profile.walkAgainHint": "Stejné zastávky, v jazyce, který si vyberete.",
   "profile.deleteOne": "Smazat tuto procházku",
+  "swipe.delete": "Smazat",
+  "swipe.again": "Znovu",
   "profile.clearAll": "Vymazat vše",
   "profile.today": "Dnes",
   "profile.yesterday": "Včera"

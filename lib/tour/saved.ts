@@ -69,12 +69,17 @@ export async function saveTour(tour: object): Promise<string | null> {
   }
 }
 
-/** The newest tours, for the demo to choose from. */
-export async function recentTours(limit: number): Promise<{ id: string; tour: StoredTour }[]> {
+/** The tour marked as the demo (`"demo": true` in its record), newest first. */
+export async function pinnedDemo(): Promise<{ id: string; tour: StoredTour } | null> {
   const q = sql();
-  if (!q) return [];
+  if (!q) return null;
   await ensureSchema();
-  return (await q`SELECT id, tour FROM saved_tours ORDER BY created_at DESC LIMIT ${limit}`) as { id: string; tour: StoredTour }[];
+  const rows = (await q`
+    SELECT id, tour FROM saved_tours WHERE tour->>'demo' = 'true' ORDER BY created_at DESC LIMIT 1`) as {
+    id: string;
+    tour: StoredTour;
+  }[];
+  return rows[0] ?? null;
 }
 
 export async function loadScript(key: string): Promise<StopScript | null> {

@@ -1,9 +1,15 @@
 "use client";
 
-/** One past walk, folded: what it was; opened: its stops, walk it again, delete it. */
+/**
+ * One past walk, folded: what it was; opened: its stops, walk it again, delete it.
+ *
+ * Swipe it left for the same two things without opening it: "Again" and
+ * "Delete", and a long swipe deletes it outright (components/SwipeRow).
+ */
 
 import { useState } from "react";
 import Stat from "./Stat";
+import SwipeRow, { TrashIcon } from "./SwipeRow";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { useT } from "@/lib/i18n/ui";
 import { saveRebuild } from "@/lib/tour/flow";
@@ -35,7 +41,23 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
   };
 
   return (
-    <li className="rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
+    <li>
+      <SwipeRow
+        className="swipe-row--card"
+        label={walk.title}
+        actionColor="#b91c1c"
+        drawerColor="#5eda9b"
+        rowColor="#ffffff"
+        textColor="#111827"
+        commitAt={0.45}
+        resistance={0.7}
+        actions={[
+          { id: "delete", label: t("swipe.delete"), icon: <TrashIcon /> },
+          ...(again ? [{ id: "again", label: t("swipe.again"), icon: <AgainIcon />, onSelect: walkAgain }] : []),
+        ]}
+        onCommit={onForget}
+      >
+      <div className="p-4">
       <button
         type="button"
         onClick={() => setOpen((v) => !v)}
@@ -123,6 +145,16 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
           </button>
         </div>
       ) : null}
+      </div>
+      </SwipeRow>
     </li>
+  );
+}
+
+function AgainIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3 12a9 9 0 1 0 3-6.7L3 8M3 3v5h5" />
+    </svg>
   );
 }

@@ -102,6 +102,8 @@ export const de: Partial<Record<UiKey, string>> = {
   "profile.walkAgain": "Noch einmal gehen",
   "profile.walkAgainHint": "Dieselben Stationen, in der Sprache Ihrer Wahl.",
   "profile.deleteOne": "Diese Tour löschen",
+  "swipe.delete": "Löschen",
+  "swipe.again": "Nochmal",
   "profile.clearAll": "Alles löschen",
   "profile.today": "Heute",
   "profile.yesterday": "Gestern"

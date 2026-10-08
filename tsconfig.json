@@ -31,5 +31,5 @@
     ".next/dev/types/**/*.ts",
     "**/*.mts"
   ],
-  "exclude": ["node_modules", "node_modules.nosync", "mobile", "backend", ".local"]
+  "exclude": ["node_modules", "node_modules.nosync", "mobile", "backend", ".local", ".agents", ".claude"]
 }

@@ -160,6 +160,8 @@ const EN = {
   "profile.walkAgain": "Walk it again",
   "profile.walkAgainHint": "The same stops, in the language you pick.",
   "profile.deleteOne": "Delete this walk",
+  "swipe.delete": "Delete",
+  "swipe.again": "Again",
   "profile.clearAll": "Clear all",
   "profile.today": "Today",
   "profile.yesterday": "Yesterday",

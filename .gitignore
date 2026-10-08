@@ -56,3 +56,6 @@ next-env.d.ts
 # iCloud Drive conflict copies ("file 2.ts") — this folder is on a synced Desktop
 * [0-9].*
 * [0-9]
+
+# Personal Claude Code settings
+.claude/settings.local.json

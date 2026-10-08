@@ -231,9 +231,11 @@ export default function TourFlow({
 
   /** What the wait is spent building, in the walker's own choices — asking
    *  only feels worth it when the answers visibly shape the result. */
+  // The demo was built from somebody else's choices, so it names those.
+  const asked = ready && tour?.demo && tour.req ? tour.req : draft;
   const builtAround = [
-    draft.interests.length > 0 ? draft.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
-    t(`duration.${draft.durationMinutes}`),
+    asked.interests.length > 0 ? asked.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
+    t(`duration.${asked.durationMinutes}`),
   ]
     .filter(Boolean)
     .join(" · ");

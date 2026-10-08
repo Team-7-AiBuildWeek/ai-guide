@@ -1,13 +1,17 @@
-/** One past walk, folded: what it was, and opened: its stops, walk it again, delete it. */
+/**
+ * One past walk, folded: what it was, and opened: its stops, walk it again, delete it.
+ * Swipe it left for "Again" and "Delete"; a long swipe deletes it (SwipeRow).
+ */
 
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import SwipeRow from "@/components/SwipeRow";
 import { Btn, Eyebrow, LanguageSelect, Stat } from "@/components/ui";
 import { canWalkAgain, formatKm, formatWhen, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
 import { languageName } from "@/lib/languages";
 import { t } from "@/lib/strings";
-import { colors, fonts, radius, size, surface, type } from "@/lib/theme";
+import { colors, fonts, radius, size, type } from "@/lib/theme";
 
 export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForget: () => void }) {
   const [open, setOpen] = useState(false);
@@ -21,8 +25,17 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
     router.navigate("/");
   };
 
+  const again = canWalkAgain(walk);
+
   return (
-    <View style={surface.card}>
+    <SwipeRow
+      actions={[
+        { id: "delete", label: t("swipe.delete"), symbol: "trash" },
+        ...(again ? [{ id: "again", label: t("swipe.again"), symbol: "arrow.counterclockwise", onSelect: walkAgain }] : []),
+      ]}
+      onCommit={onForget}
+    >
+    <View style={styles.body}>
       <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.walkHead}>
         <View style={{ flex: 1 }}>
           <Text style={type.lead}>{walk.title}</Text>
@@ -48,7 +61,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
               </Text>
             ))}
           </View>
-          {canWalkAgain(walk) ? (
+          {again ? (
             <View style={styles.again}>
               <LanguageSelect label={t("brief.language")} value={againLang} onChange={setAgainLang} />
               <Btn variant="primary" label={t("profile.walkAgain")} onPress={walkAgain} style={{ marginTop: 12 }} />
@@ -61,10 +74,12 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
         </View>
       ) : null}
     </View>
+    </SwipeRow>
   );
 }
 
 const styles = StyleSheet.create({
+  body: { padding: 16 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
   walkHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
   quote: {

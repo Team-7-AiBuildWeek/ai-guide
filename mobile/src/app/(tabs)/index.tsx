@@ -191,6 +191,10 @@ export default function Flow() {
     saveProgress(currentIndex);
   }, [currentIndex]);
 
+  // What the generating screen says the tour was built around: the demo was
+  // built from somebody else's choices, so it names those.
+  const asked = ready && tour?.demo && tour.req ? tour.req : draft;
+
   // ------------------------------------------------------------ generate --
   /** Whether the generating screen is showing the demo, so Try again retries the demo rather than building a tour. */
   const demoRun = useRef(false);
@@ -689,8 +693,8 @@ export default function Flow() {
               onRetry={() => void (demoRun.current ? loadDemo() : generate())}
               onContinue={ready && tour ? () => setStage("headphones") : undefined}
               because={[
-                draft.interests.length > 0 ? draft.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
-                t(`duration.${draft.durationMinutes}`),
+                asked.interests.length > 0 ? asked.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
+                t(`duration.${asked.durationMinutes}`),
               ]
                 .filter(Boolean)
                 .join(" · ")}

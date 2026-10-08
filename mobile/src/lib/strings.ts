@@ -111,6 +111,8 @@ const EN = {
   "profile.walkAgain": "Walk it again",
   "profile.walkAgainHint": "The same stops, built again for you.",
   "profile.deleteOne": "Delete this walk",
+  "swipe.delete": "Delete",
+  "swipe.again": "Again",
   "profile.today": "Today",
   "profile.yesterday": "Yesterday",
 } as const;
