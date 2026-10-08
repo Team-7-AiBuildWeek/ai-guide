@@ -85,6 +85,20 @@ export type BackendBundle = {
   stops: BackendStop[];
 };
 
+/** A tour walk-backend recorded in advance, as `GET /cities/{id}/tours` lists it. */
+export type BackendPremadeTour = {
+  id: number;
+  theme: string;
+  language: string;
+  persona: string;
+  depth_level: string;
+  target_duration_min: number;
+  /** How many stops. */
+  stops: number;
+  total_duration_ms: number | null;
+  total_walk_m: number | null;
+};
+
 export function backendEnabled(): boolean {
   return config.backendUrl.length > 0;
 }
@@ -155,6 +169,19 @@ export function requestBackendTour(body: BackendTourRequest): Promise<BackendTou
 /** The tour as it stands, including stops whose recordings are not ready yet. */
 export function backendBundle(tourId: number): Promise<BackendBundle> {
   return call<BackendBundle>(`/tours/${tourId}/bundle?partial=true`);
+}
+
+/** The tours recorded in advance for a city: ready to walk, nothing to generate. */
+export function backendPremadeTours(cityId: number): Promise<BackendPremadeTour[]> {
+  return call<BackendPremadeTour[]>(`/cities/${cityId}/tours`);
+}
+
+/**
+ * A tour only once every stop is recorded — walk-backend answers 409 until
+ * then — for a client that downloads the whole thing and walks it offline.
+ */
+export function backendReadyBundle(tourId: number): Promise<BackendBundle> {
+  return call<BackendBundle>(`/tours/${tourId}/bundle`);
 }
 
 /** A freshly signed link to one recording. */
