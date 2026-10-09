@@ -15,6 +15,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import SignInSheet from "./SignInSheet";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 import { accountsEnabled, markWelcomed } from "@/lib/accounts/client";
 
 type Orbiter = { icon: string; bg: string; size: number; angle: number };
@@ -63,6 +64,7 @@ function Ring({ r, items, reverse }: { r: number; items: Orbiter[]; reverse?: bo
 }
 
 export default function Welcome({ openSheet = false }: { openSheet?: boolean }) {
+  const keyboard = useKeyboardInset();
   const router = useRouter();
   const [open, setOpen] = useState(openSheet);
 
@@ -100,7 +102,17 @@ export default function Welcome({ openSheet = false }: { openSheet?: boolean }) 
       </div>
 
       {accountsEnabled ? (
-        <div className="welcome-sheet t-panel-slide" data-open={open} role="dialog" aria-modal="true" aria-label="Get started" aria-hidden={!open} inert={!open}>
+        <div
+          className="welcome-sheet t-panel-slide"
+          data-open={open}
+          role="dialog"
+          aria-modal="true"
+          aria-label="Get started"
+          aria-hidden={!open}
+          inert={!open}
+          // Above the iPhone keyboard while the email or code is being typed.
+          style={keyboard > 0 ? { position: "fixed", bottom: keyboard } : undefined}
+        >
           <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
           <SignInSheet onDone={finish} onSkip={finish} onClose={() => setOpen(false)} />
         </div>

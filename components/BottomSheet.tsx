@@ -27,6 +27,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 
 export type SheetHeight = "collapsed" | "half" | "full";
 
@@ -101,26 +102,11 @@ export default function BottomSheet({
   const sheetRef = useRef<HTMLElement>(null);
 
   /**
-   * How much of the screen the keyboard is covering.
-   *
-   * iPhone Safari lays the keyboard over the page rather than shrinking it, so
-   * a field in the collapsed card — the city search on the first screen — sat
-   * underneath it. The visual viewport is what is left above the keyboard; the
-   * card is lifted by the difference. Only the collapsed card needs it: the
-   * taller sheets scroll their own fields into view.
+   * How much of the screen the keyboard is covering. Only the collapsed card
+   * needs it — the city search on the first screen sat underneath the
+   * keyboard — because the taller sheets scroll their own fields into view.
    */
-  const [keyboard, setKeyboard] = useState(0);
-  useEffect(() => {
-    const vv = window.visualViewport;
-    if (!vv) return;
-    const measure = () => setKeyboard(Math.max(0, Math.round(window.innerHeight - vv.height - vv.offsetTop)));
-    vv.addEventListener("resize", measure);
-    vv.addEventListener("scroll", measure);
-    return () => {
-      vv.removeEventListener("resize", measure);
-      vv.removeEventListener("scroll", measure);
-    };
-  }, []);
+  const keyboard = useKeyboardInset();
   const drag = useRef<Drag | null>(null);
   const settle = useRef<number | null>(null);
   /**

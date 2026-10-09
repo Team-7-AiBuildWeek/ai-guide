@@ -3,11 +3,12 @@
 /**
  * A sheet over the current page — the welcome screen's sign-in sheet, wherever
  * else one is needed: the map's look (rounded top, hairline, grabber) and the
- * panel reveal (see .t-panel-slide). Always mounted, so it animates closed as
+ * panel reveal (see .t-panel-slide). Rides up with the keyboard. Always mounted, so it animates closed as
  * well as open; tapping the dimmed page behind it closes it.
  */
 
 import type { ReactNode } from "react";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 
 export default function OverlaySheet({
   open,
@@ -20,6 +21,8 @@ export default function OverlaySheet({
   label: string;
   children: ReactNode;
 }) {
+  // Rides up with the iPhone keyboard, so the email field is never under it.
+  const keyboard = useKeyboardInset();
   return (
     <>
       <div aria-hidden="true" data-open={open} className="t-backdrop fixed inset-0 z-50 bg-black/30" onClick={onClose} />
@@ -31,6 +34,7 @@ export default function OverlaySheet({
         aria-label={label}
         aria-hidden={!open}
         inert={!open}
+        style={keyboard > 0 ? { bottom: keyboard } : undefined}
       >
         <div aria-hidden="true" className="mx-auto mb-3 h-1 w-10 rounded-full bg-[color:var(--line-strong)]" />
         {children}
