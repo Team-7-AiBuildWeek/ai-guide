@@ -8,7 +8,8 @@ import { SymbolView } from "expo-symbols";
 import { useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { Btn, Eyebrow, Field } from "@/components/ui";
+import PromptBar from "@/components/PromptBar";
+import { Btn, Eyebrow } from "@/components/ui";
 import { formatDistance, TRUSTED_M } from "@/lib/geo";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
 import type { ManeuverKind, Stop, TourPlan, TourRide } from "@/lib/types";
@@ -65,27 +66,37 @@ export function StopRow({
 type QA = { question: string; answer: string | null; failed?: boolean };
 
 export function AskAnything({ onAsk }: { onAsk: (q: string) => Promise<string> }) {
-  const [question, setQuestion] = useState("");
   const [thread, setThread] = useState<QA[]>([]);
   const [busy, setBusy] = useState(false);
   const insets = useSafeAreaInsets();
   const scroll = useRef<ScrollView>(null);
+  /** The question being answered; a newer one, or Stop, leaves the old answer unheard. */
+  const asking = useRef(0);
 
-  const submit = async () => {
-    const q = question.trim();
+  const submit = async (raw: string) => {
+    const q = raw.trim();
     if (!q || busy) return;
-    setQuestion("");
+    const run = ++asking.current;
     setThread((th) => [...th, { question: q, answer: null }]);
     setBusy(true);
     try {
       const answer = await onAsk(q);
+      if (run !== asking.current) return;
       setThread((th) => th.map((x, i) => (i === th.length - 1 ? { ...x, answer } : x)));
     } catch (err) {
+      if (run !== asking.current) return;
       const answer = err instanceof Error ? err.message : "Could not answer.";
       setThread((th) => th.map((x, i) => (i === th.length - 1 ? { ...x, answer, failed: true } : x)));
     } finally {
-      setBusy(false);
+      if (run === asking.current) setBusy(false);
     }
+  };
+
+  /** The stop square: the answer may still arrive, but nobody waits for it. */
+  const stopAsking = () => {
+    asking.current += 1;
+    setBusy(false);
+    setThread((th) => th.map((x, i) => (i === th.length - 1 && x.answer === null ? { ...x, answer: "Stopped." } : x)));
   };
 
   return (
@@ -97,7 +108,7 @@ export function AskAnything({ onAsk }: { onAsk: (q: string) => Promise<string> }
           </Text>
           <View style={{ marginTop: 16, gap: 8 }}>
             {["What am I looking at?", "Who built this and when?", "Is it worth going inside?"].map((q) => (
-              <Pressable key={q} onPress={() => setQuestion(q)} style={styles.suggestion}>
+              <Pressable key={q} onPress={() => void submit(q)} style={styles.suggestion}>
                 <Text style={type.body}>{q}</Text>
               </Pressable>
             ))}
@@ -117,17 +128,7 @@ export function AskAnything({ onAsk }: { onAsk: (q: string) => Promise<string> }
           </View>
         </ScrollView>
       )}
-      <View style={styles.askForm}>
-        <Field
-          value={question}
-          onChangeText={setQuestion}
-          placeholder="Ask anything"
-          returnKeyType="send"
-          onSubmitEditing={() => void submit()}
-          style={{ flex: 1, minHeight: 48 }}
-        />
-        <Btn variant="primary" label={busy ? "…" : "Ask"} disabled={busy || !question.trim()} onPress={() => void submit()} />
-      </View>
+      <PromptBar busy={busy} onSend={(q) => void submit(q)} onStop={stopAsking} />
     </View>
   );
 }
@@ -285,7 +286,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   question: { fontFamily: fonts.display, fontSize: size.body, color: colors.ink },
-  askForm: { flexDirection: "row", gap: 8, alignItems: "center" },
 
   turn: { width: 92, alignItems: "center", gap: 4, paddingHorizontal: 8, paddingVertical: 12 },
   turnDistance: { fontFamily: fonts.display, fontSize: size.lead, color: colors.onDark, fontVariant: ["tabular-nums"] },

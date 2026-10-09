@@ -7,6 +7,7 @@
 import { useClerk } from "@clerk/expo";
 import { useState } from "react";
 import { Image, StyleSheet, Text, View } from "react-native";
+import CodeSlots, { type CodeStatus } from "@/components/CodeSlots";
 import GetToKnowYou from "@/components/GetToKnowYou";
 import { Btn, Field, TextLink } from "@/components/ui";
 import { useEmailCode } from "@/lib/auth";
@@ -28,8 +29,17 @@ export default function SignInSheet({
   /** Signed in, and new: the two get-to-know-you questions before the map. */
   const [gettingToKnow, setGettingToKnow] = useState(false);
 
+  /** What the code slots show: typing, a wrong code draining away, or the tick. */
+  const [codeStatus, setCodeStatus] = useState<CodeStatus>("idle");
+
   const check = async (value: string) => {
-    if (!(await auth.verify(value))) return;
+    if (!(await auth.verify(value))) {
+      setCodeStatus("error");
+      return;
+    }
+    // Long enough to see the tick before the sheet moves on.
+    setCodeStatus("success");
+    await new Promise((r) => setTimeout(r, 650));
     const profile = profileOf(clerk.user);
     if (profile.onboarded) {
       // Back on a new phone: take what they told us last time and go.
@@ -51,21 +61,20 @@ export default function SignInSheet({
         <Text style={type.body}>
           We sent a 6-digit code to <Text style={{ fontFamily: fonts.bodySemi, color: colors.ink }}>{auth.email}</Text>.
         </Text>
-        <Field
-          value={code}
-          onChangeText={(c) => {
-            setCode(c);
-            if (c.replace(/\D/g, "").length === 6) void check(c);
-          }}
-          placeholder="000000"
-          keyboardType="number-pad"
-          textContentType="oneTimeCode"
-          autoComplete="one-time-code"
-          maxLength={6}
-          autoFocus
-          style={styles.code}
-          accessibilityLabel="Six-digit code"
-        />
+        <View style={{ paddingVertical: 4 }}>
+          <CodeSlots
+            value={code}
+            status={codeStatus}
+            onChange={(next) => {
+              setCode(next);
+              // A wrong code clears itself once drained; typing again starts afresh.
+              if (next && codeStatus === "error") setCodeStatus("idle");
+            }}
+            onComplete={(full) => void check(full)}
+            autoFocus
+            disabled={auth.busy && codeStatus === "idle"}
+          />
+        </View>
         {auth.error ? <Text style={styles.error}>{auth.error}</Text> : null}
         <Btn
           variant="primary"
@@ -80,6 +89,7 @@ export default function SignInSheet({
             label="Use a different email"
             onPress={() => {
               setCode("");
+              setCodeStatus("idle");
               auth.restart();
             }}
           />
@@ -146,7 +156,6 @@ const styles = StyleSheet.create({
   sheetTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 },
   badge: { width: 56, height: 56, borderRadius: 28, backgroundColor: colors.mintWash, alignItems: "center", justifyContent: "center" },
   badgeLogo: { width: 40, height: 40, borderRadius: 10 },
-  code: { minHeight: 60, fontFamily: fonts.display, fontSize: 28, letterSpacing: 10, textAlign: "center" },
   error: { fontFamily: fonts.body, fontSize: size.caption, color: colors.danger },
   links: { flexDirection: "row", justifyContent: "space-between" },
 });

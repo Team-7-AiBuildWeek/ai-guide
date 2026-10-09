@@ -1304,3 +1304,305 @@ body[data-immersive] .tabbar {
 .swipe-row--card .swipe-row__clip {
   border: 1px solid var(--line);
 }
+
+/* ---------------------------------------------------------- code slots --
+   React Bits' CodeSlots (components/CodeSlots.tsx): the six-digit sign-in
+   code, one slot per digit. Colours come in as props, in the app's palette. */
+.code-slots {
+  --cs-size: 44px;
+  --cs-height: 52px;
+  --cs-gap: 8px;
+  --cs-radius: 12px;
+  --cs-font: 22px;
+  position: relative;
+  display: inline-block;
+}
+.code-slots__row {
+  position: relative;
+  display: inline-flex;
+  gap: var(--cs-gap);
+  cursor: text;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 200ms ease;
+}
+.code-slots__row[data-disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.code-slots__input {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: transparent;
+  caret-color: transparent;
+  font-size: 16px; /* below 16px iOS zooms the page on focus */
+  opacity: 0;
+  cursor: inherit;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.code-slots__wash {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  display: grid;
+  place-items: center;
+  border-radius: var(--cs-radius);
+  background: var(--cs-accent);
+  color: var(--cs-digit);
+  pointer-events: none;
+}
+.code-slots__check {
+  display: grid;
+  place-items: center;
+}
+.code-slots__slot {
+  position: relative;
+  width: var(--cs-size);
+  height: var(--cs-height);
+  border-radius: var(--cs-radius);
+  overflow: hidden;
+  background: var(--cs-slot);
+  transition: background-color 200ms ease;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.code-slots__fill {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--cs-accent);
+  transform-origin: center;
+  transition: background-color 200ms ease;
+}
+@media (hover: hover) and (pointer: fine) {
+  .code-slots__row[data-status="idle"]:not([data-disabled]):hover .code-slots__slot:not([data-active]) {
+    background: color-mix(in srgb, var(--cs-ink) 4%, var(--cs-slot));
+  }
+}
+.code-slots__slot[data-active] {
+  background: color-mix(in srgb, var(--cs-ink) 8%, var(--cs-slot));
+  box-shadow: inset 0 0 0 2px var(--cs-accent);
+}
+.code-slots__row[data-status="error"] .code-slots__slot {
+  background: color-mix(in srgb, var(--cs-danger) 20%, var(--cs-slot));
+}
+.code-slots__row[data-status="error"] .code-slots__fill {
+  background: var(--cs-danger);
+}
+.code-slots__digit {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--cs-digit);
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: var(--cs-font);
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.code-slots__caret {
+  position: absolute;
+  z-index: 3;
+  top: 25%;
+  left: calc(var(--cs-size) / 2 - 0.75px);
+  width: 1.5px;
+  height: 50%;
+  opacity: 0;
+  pointer-events: none;
+}
+.code-slots__caret[data-show] {
+  opacity: 1;
+}
+.code-slots__caret-line {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--cs-ink);
+  animation: code-slots-blink 1s linear infinite;
+}
+@keyframes code-slots-blink {
+  0%,
+  49.9% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+.code-slots__sr {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+@media (prefers-reduced-motion: reduce) {
+  .code-slots__digit,
+  .code-slots__check {
+    transform: none !important;
+  }
+  .code-slots__caret-line {
+    animation: none;
+  }
+}
+
+/* ---------------------------------------------------------- prompt bar --
+   "Ask anything" (components/PromptBar.tsx, after React Bits' PromptBar), in
+   the app's palette: a canvas field, an ink send tile once there is a
+   question, its arrow morphing to a stop square while the guide answers. */
+.prompt-bar {
+  --pb-press: 0.96;
+  --pb-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  position: relative;
+  width: 100%;
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: 24px;
+}
+.prompt-bar__field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 12px 10px 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  cursor: text;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.prompt-bar__field:focus-within {
+  border-color: var(--ink-mute);
+  box-shadow: 0 0 0 3px var(--mint-wash);
+}
+.prompt-bar__input {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 16px; /* below 16px iOS zooms the page on focus */
+  line-height: 24px;
+  resize: none;
+  outline: none;
+  overflow-wrap: anywhere;
+}
+.prompt-bar__input::placeholder {
+  color: var(--ink-mute);
+}
+.prompt-bar__bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.prompt-bar__spacer {
+  flex: 1 1 auto;
+}
+.prompt-bar__tool,
+.prompt-bar__send {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.prompt-bar__tool {
+  background: transparent;
+  color: var(--ink-mute);
+  transition: background-color 150ms ease, color 150ms ease, transform 160ms var(--pb-ease-out);
+}
+.prompt-bar__tool:active {
+  transform: scale(0.94);
+}
+.prompt-bar__tool[data-on] {
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+}
+@media (hover: hover) and (pointer: fine) {
+  .prompt-bar__tool:hover {
+    background: var(--canvas);
+    color: var(--ink);
+  }
+}
+.prompt-bar__eq {
+  display: flex;
+  align-items: center;
+  gap: 2.5px;
+  height: 14px;
+}
+.prompt-bar__eq i {
+  display: block;
+  width: 2.5px;
+  height: 100%;
+  border-radius: 999px;
+  background: currentColor;
+  transform-origin: center;
+  animation: prompt-bar-eq 900ms ease-in-out infinite;
+}
+.prompt-bar__eq i:nth-child(2) {
+  animation-delay: 150ms;
+}
+.prompt-bar__eq i:nth-child(3) {
+  animation-delay: 300ms;
+}
+@keyframes prompt-bar-eq {
+  0%,
+  100% {
+    transform: scaleY(0.35);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.prompt-bar__send {
+  position: relative;
+  background: var(--canvas);
+  color: var(--line-strong);
+  transition: background-color 200ms ease, color 200ms ease, transform 160ms var(--pb-ease-out);
+}
+.prompt-bar__send:disabled {
+  cursor: default;
+}
+.prompt-bar__send[data-armed] {
+  background: var(--ink);
+  color: #ffffff;
+}
+.prompt-bar__send[data-pressed] {
+  transform: scale(var(--pb-press));
+}
+.prompt-bar__glyph {
+  display: block;
+  width: 18px;
+  height: 18px;
+  transform-origin: 50% 50%;
+}
+@media (prefers-reduced-motion: reduce) {
+  .prompt-bar__tool:active,
+  .prompt-bar__send[data-pressed] {
+    transform: none;
+  }
+}

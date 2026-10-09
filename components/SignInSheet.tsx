@@ -9,6 +9,7 @@
 import { useClerk } from "@clerk/nextjs";
 import Image from "next/image";
 import { useState } from "react";
+import CodeSlots, { type CodeStatus } from "./CodeSlots";
 import GetToKnowYou from "./GetToKnowYou";
 import { syncWalks, useEmailCode } from "@/lib/accounts/client";
 import { applyPrefs, profileOf } from "@/lib/accounts/profile";
@@ -28,11 +29,19 @@ export default function SignInSheet({
   const clerk = useClerk();
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
+  /** What the code slots show: typing, a wrong code draining away, or the tick. */
+  const [codeStatus, setCodeStatus] = useState<CodeStatus>("idle");
   /** Signed in, and new: the two get-to-know-you questions before the map. */
   const [gettingToKnow, setGettingToKnow] = useState(false);
 
   const check = async (value: string) => {
-    if (!(await auth.verify(value))) return;
+    if (!(await auth.verify(value))) {
+      setCodeStatus("error");
+      return;
+    }
+    // Long enough to see the tick land before the sheet moves on.
+    setCodeStatus("success");
+    await new Promise((r) => setTimeout(r, 650));
     // In the background: moving on should not wait for the account's walks.
     void syncWalks(loadWalks());
     const profile = profileOf(clerk.user);
@@ -60,20 +69,30 @@ export default function SignInSheet({
         <p>
           We sent a 6-digit code to <strong className="text-[color:var(--ink)]">{auth.email}</strong>.
         </p>
-        <input
-          value={code}
-          onChange={(e) => {
-            setCode(e.target.value);
-            if (e.target.value.replace(/\D/g, "").length === 6) void check(e.target.value);
-          }}
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          autoFocus
-          placeholder="000000"
-          aria-label="Six-digit code"
-          className="min-h-[60px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] text-center font-[family-name:var(--font-display)] text-[28px] tracking-[0.4em] text-[color:var(--ink)]"
-        />
+        <div className="flex justify-center py-1">
+          <CodeSlots
+            length={6}
+            value={code}
+            status={codeStatus}
+            onChange={(next) => {
+              setCode(next);
+              // A wrong code clears itself when it has drained; typing again starts afresh.
+              if (next && codeStatus === "error") setCodeStatus("idle");
+            }}
+            onComplete={(full) => void check(full)}
+            autoFocus
+            disabled={auth.busy && codeStatus === "idle"}
+            ariaLabel="Six-digit code"
+            accentColor="#5eda9b"
+            inkColor="#111827"
+            slotColor="#f3f4f6"
+            digitColor="#111827"
+            dangerColor="#b91c1c"
+            slotSize={46}
+            gap={8}
+            radius={12}
+          />
+        </div>
         {auth.error ? <p className="text-[length:var(--text-caption)] text-[color:var(--danger)]">{auth.error}</p> : null}
         <button type="submit" disabled={auth.busy || code.replace(/\D/g, "").length < 6} className="btn btn--primary btn--lg w-full">
           {auth.busy ? "Checking…" : "Continue"}
@@ -86,6 +105,7 @@ export default function SignInSheet({
             type="button"
             onClick={() => {
               setCode("");
+              setCodeStatus("idle");
               auth.restart();
             }}
             className="min-h-[44px] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"

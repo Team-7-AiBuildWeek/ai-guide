@@ -11,6 +11,8 @@
 import { useEffect, useRef, useState } from "react";
 import type { Stop, TourPlan, TourRide } from "@/lib/providers/types";
 import { TRUSTED_M } from "@/lib/tour/fixQuality";
+import { useUiLang } from "@/lib/i18n/ui";
+import PromptBar from "../PromptBar";
 
 /** What to call each thing on the front of the vehicle. */
 const RIDE_WORDS: Record<TourRide["mode"], string> = {
@@ -161,7 +163,6 @@ export default function TourStep({
   expanded: boolean;
   onToggleExpand: () => void;
 }) {
-  const [question, setQuestion] = useState("");
   const [thread, setThread] = useState<QA[]>([]);
   const [busy, setBusy] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -171,17 +172,22 @@ export default function TourStep({
     endRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [thread]);
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const q = question.trim();
+  const lang = useUiLang();
+  /** The question being answered; a newer one, or Stop, leaves the old answer unheard. */
+  const asking = useRef(0);
+
+  const submit = async (raw: string) => {
+    const q = raw.trim();
     if (!q || busy) return;
-    setQuestion("");
+    const run = ++asking.current;
     setThread((t) => [...t, { question: q, answer: null }]);
     setBusy(true);
     try {
       const answer = await onAsk(q);
+      if (run !== asking.current) return;
       setThread((t) => t.map((x, i) => (i === t.length - 1 ? { ...x, answer } : x)));
     } catch (err) {
+      if (run !== asking.current) return;
       setThread((t) =>
         t.map((x, i) =>
           i === t.length - 1
@@ -190,8 +196,15 @@ export default function TourStep({
         ),
       );
     } finally {
-      setBusy(false);
+      if (run === asking.current) setBusy(false);
     }
+  };
+
+  /** The stop square: the answer still arrives at the server, but nobody waits for it. */
+  const stopAsking = () => {
+    asking.current += 1;
+    setBusy(false);
+    setThread((t) => t.map((x, i) => (i === t.length - 1 && x.answer === null ? { ...x, answer: "Stopped." } : x)));
   };
 
   if (!expanded) {
@@ -249,7 +262,7 @@ export default function TourStep({
                 <button
                   key={q}
                   type="button"
-                  onClick={() => setQuestion(q)}
+                  onClick={() => void submit(q)}
                   className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] px-4 py-3 text-left"
                 >
                   {q}
@@ -276,18 +289,9 @@ export default function TourStep({
         <div ref={endRef} />
       </div>
 
-      <form onSubmit={submit} className="flex shrink-0 gap-2 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
-        <input
-          value={question}
-          onChange={(e) => setQuestion(e.target.value)}
-          placeholder="Ask anything"
-          aria-label="Ask anything"
-          className="min-h-[48px] min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-4 text-[length:var(--text-body)] text-[color:var(--ink)] placeholder:text-[color:var(--ink-mute)]"
-        />
-        <button type="submit" disabled={busy || !question.trim()} className="btn btn--primary shrink-0">
-          {busy ? "…" : "Ask"}
-        </button>
-      </form>
+      <div className="shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+        <PromptBar placeholder="Ask anything" busy={busy} lang={lang} onSend={(q) => void submit(q)} onStop={stopAsking} />
+      </div>
     </div>
   );
 }
