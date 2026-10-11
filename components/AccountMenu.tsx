@@ -9,7 +9,7 @@
  * and a row that leads nowhere is worse than no row.
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
- *   Support   Contact us · Privacy policy
+ *   Support   Contact us · About WalkDots · Privacy policy
  */
 
 import { useClerk, useUser } from "@clerk/nextjs";
@@ -24,6 +24,8 @@ import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { loadWalks, type WalkRecord } from "@/lib/tour/history";
 
 const CONTACT = "jurajkolesar1976@gmail.com";
+/** The landing site, where About and the privacy policy live. */
+const SITE = "https://www.walkdots.com";
 
 // ------------------------------------------------------------------ icons --
 
@@ -49,6 +51,12 @@ const ICONS = {
     </>
   ),
   privacy: <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" />,
+  about: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6M12 7.5v.5" />
+    </>
+  ),
 };
 
 function Icon({ name }: { name: keyof typeof ICONS }) {
@@ -103,9 +111,9 @@ function Row({
   );
   const tone = danger ? "text-[color:var(--danger)]" : "text-[color:var(--ink)]";
   if (href) {
-    const external = href.startsWith("mailto:");
+    const external = href.startsWith("mailto:") || href.startsWith("http");
     return external ? (
-      <a href={href} className={`${ROW} ${tone}`}>
+      <a href={href} className={`${ROW} ${tone}`} {...(href.startsWith("http") ? { target: "_blank", rel: "noopener" } : {})}>
         {body}
       </a>
     ) : (
@@ -162,7 +170,8 @@ function Card({ account }: { account: ReactNode }) {
       <hr className="mx-3 border-[color:var(--line)]" />
       <Section title="Support">
         <Row icon="contact" label="Contact us" href={`mailto:${CONTACT}?subject=WalkDots`} />
-        <Row icon="privacy" label="Privacy policy" href="/privacy" />
+        <Row icon="about" label="About WalkDots" href={`${SITE}/about.html`} />
+        <Row icon="privacy" label="Privacy policy" href={`${SITE}/privacy.html`} />
       </Section>
     </nav>
   );

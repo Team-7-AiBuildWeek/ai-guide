@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * when it last did.
  */
 
-const UPDATED = "6 October 2026";
+const UPDATED = "11 October 2026";
 const CONTACT = "jurajkolesar1976@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

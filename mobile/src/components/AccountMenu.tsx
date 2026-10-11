@@ -8,7 +8,7 @@
  * and a row that leads nowhere is worse than no row (Apple agrees).
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
- *   Support   Contact us · Privacy policy
+ *   Support   Contact us · About WalkDots · Privacy policy
  */
 
 import { useAuth, useUser } from "@clerk/expo";
@@ -21,7 +21,6 @@ import OverlaySheet from "./OverlaySheet";
 import SignInSheet from "./SignInSheet";
 import { Btn, pickLanguage } from "./ui";
 import { accountsEnabled, deleteAccount, syncWalks } from "@/lib/accounts";
-import { BASE } from "@/lib/api";
 import { forgetWelcome } from "@/lib/auth";
 import type { WalkRecord } from "@/lib/history";
 import { languageName } from "@/lib/languages";
@@ -29,6 +28,8 @@ import { profileOf } from "@/lib/profile";
 import { colors, fonts, radius, size, surface, type } from "@/lib/theme";
 
 const CONTACT = "jurajkolesar1976@gmail.com";
+/** The landing site, where About and the privacy policy live. */
+const SITE = "https://www.walkdots.com";
 
 const ICONS = {
   profile: "person",
@@ -37,6 +38,7 @@ const ICONS = {
   delete: "trash",
   contact: "envelope",
   privacy: "hand.raised",
+  about: "info.circle",
 } as const;
 
 function Row({
@@ -89,7 +91,8 @@ function Card({ account }: { account: ReactNode }) {
       <View style={styles.rule} />
       <Section title="Support">
         <Row icon="contact" label="Contact us" onPress={() => void Linking.openURL(`mailto:${CONTACT}?subject=WalkDots`)} />
-        <Row icon="privacy" label="Privacy policy" onPress={() => void Linking.openURL(`${BASE}/privacy`)} />
+        <Row icon="about" label="About WalkDots" onPress={() => void Linking.openURL(`${SITE}/about.html`)} />
+        <Row icon="privacy" label="Privacy policy" onPress={() => void Linking.openURL(`${SITE}/privacy.html`)} />
       </Section>
     </View>
   );
