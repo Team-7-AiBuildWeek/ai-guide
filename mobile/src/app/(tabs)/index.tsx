@@ -580,7 +580,7 @@ export default function Flow() {
         <View style={[styles.topBar, { top: top + 64 }]}>
           <GlassSurface tone="dark" style={styles.banner}>
             <Text style={[styles.bannerText, { flex: 1 }]}>
-              Location is off. Choose a city below, or allow location for Walk in Settings.
+              Location is off. Choose a city below, or allow location for WalkDots in Settings.
             </Text>
           </GlassSurface>
         </View>

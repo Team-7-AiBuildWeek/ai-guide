@@ -344,7 +344,7 @@ export function useNarration({
     loaded.current = key;
     queueMicrotask(() => setLoadedKey(key));
     player.replace({ uri, name: entry.stop.name });
-    player.setActiveForLockScreen(true, { title: entry.stop.name, artist: album ?? tour?.plan.title ?? "Walk" });
+    player.setActiveForLockScreen(true, { title: entry.stop.name, artist: album ?? tour?.plan.title ?? "WalkDots" });
     if (resumeAt && resumeAt.chunk === chunkIndex && resumeAt.seconds > 0 && resumedPiece.current !== key) {
       void player.seekTo(resumeAt.seconds);
     }

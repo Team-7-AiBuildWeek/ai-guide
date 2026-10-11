@@ -5,7 +5,7 @@
  * can be done here — laid out like a settings sidebar (small grey section
  * headings, an icon and a label per row, a soft highlight under the finger).
  *
- * Only rows that do something: Walk has no billing, notifications or themes,
+ * Only rows that do something: WalkDots has no billing, notifications or themes,
  * and a row that leads nowhere is worse than no row.
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
@@ -161,7 +161,7 @@ function Card({ account }: { account: ReactNode }) {
       </Section>
       <hr className="mx-3 border-[color:var(--line)]" />
       <Section title="Support">
-        <Row icon="contact" label="Contact us" href={`mailto:${CONTACT}?subject=Walk`} />
+        <Row icon="contact" label="Contact us" href={`mailto:${CONTACT}?subject=WalkDots`} />
         <Row icon="privacy" label="Privacy policy" href="/privacy" />
       </Section>
     </nav>

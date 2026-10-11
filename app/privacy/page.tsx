@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy — Walk",
-  description: "What Walk does with your location and your words, who it shares them with, and your rights.",
+  title: "Privacy — WalkDots",
+  description: "What WalkDots does with your location and your words, who it shares them with, and your rights.",
 };
 
 /**
@@ -40,7 +40,7 @@ export default function PrivacyPage() {
       <div className="flex flex-col gap-3">
         <p className="u-eyebrow">Last updated {UPDATED}</p>
         <p>
-          Walk builds audio walking tours on the website and in the iPhone app. This page says what
+          WalkDots builds audio walking tours on the website and in the iPhone app. This page says what
           it does with your information. The short version: no tracking and no advertising, and an
           account is optional. To build a tour, your starting point and what you asked for are sent
           to the services that write and voice it. Your walks are kept on your own device, and, if
@@ -48,9 +48,9 @@ export default function PrivacyPage() {
         </p>
       </div>
 
-      <Section title="Who runs Walk">
+      <Section title="Who runs WalkDots">
         <p>
-          Walk is run by Juraj Kolesár, who is responsible for your data under the EU General Data
+          WalkDots is run by Juraj Kolesár, who is responsible for your data under the EU General Data
           Protection Regulation (GDPR). For anything on this page, write to{" "}
           <a href={`mailto:${CONTACT}`} className="font-medium text-[color:var(--mint-ink)] underline underline-offset-4">
             {CONTACT}
@@ -59,7 +59,7 @@ export default function PrivacyPage() {
         </p>
       </Section>
 
-      <Section title="What Walk uses, and why">
+      <Section title="What WalkDots uses, and why">
         <ul className="flex list-disc flex-col gap-3 pl-5">
           <li>
             <strong className="text-[color:var(--ink)]">Your location.</strong> To show where you are,
@@ -75,7 +75,7 @@ export default function PrivacyPage() {
           <li>
             <strong className="text-[color:var(--ink)]">Your email address, if you sign in.</strong>{" "}
             Signing in is optional and uses a one-time code sent to your email; there is no
-            password. When you sign up you can also tell Walk what to call you and what you like to
+            password. When you sign up you can also tell WalkDots what to call you and what you like to
             see (interests and how much detail); both are optional. With an account, these and your
             past walks are kept with it so the website and the iPhone app start from the same place.
           </li>
@@ -86,14 +86,14 @@ export default function PrivacyPage() {
           </li>
         </ul>
         <p>
-          The legal basis is that you asked for this: Walk cannot build or guide a tour without it
-          (GDPR Article 6(1)(b)). Walk does not use your information for anything else, does not sell
+          The legal basis is that you asked for this: WalkDots cannot build or guide a tour without it
+          (GDPR Article 6(1)(b)). WalkDots does not use your information for anything else, does not sell
           it, and does not build a profile of you.
         </p>
       </Section>
 
       <Section title="Who it is shared with">
-        <p>Walk uses these services to do the work. Each receives only what it needs for its part:</p>
+        <p>WalkDots uses these services to do the work. Each receives only what it needs for its part:</p>
         <ul className="flex list-disc flex-col gap-3 pl-5">
           <li>
             <strong className="text-[color:var(--ink)]">Google (Gemini).</strong> Writes the tour and
@@ -127,7 +127,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Hosting.</strong> The website and its servers
-            run on Vercel; the walks kept with accounts, the tours Walk keeps and the data for prepared
+            run on Vercel; the walks kept with accounts, the tours WalkDots keeps and the data for prepared
             tours are in a Neon database, and narration in Cloudflare R2 storage.
           </li>
         </ul>
@@ -156,7 +156,7 @@ export default function PrivacyPage() {
             everything kept with it, on the website and in the app.
           </li>
           <li>
-            <strong className="text-[color:var(--ink)]">Every tour, on Walk&apos;s servers.</strong>{" "}
+            <strong className="text-[color:var(--ink)]">Every tour, on WalkDots&apos;s servers.</strong>{" "}
             Each tour is kept when it is built — what you asked for (including anything typed in your
             own words), the starting point, the stops and the route — together with the stories
             written for its stops and the recorded narration, so the same stop is never made twice
@@ -167,7 +167,7 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">For prepared tours.</strong> When a tour is
-            built from settings alone (nothing typed in your own words) in a city where Walk keeps
+            built from settings alone (nothing typed in your own words) in a city where WalkDots keeps
             prepared tours, the database records the city, the settings and the starting point
             rounded to about 100 metres, with no way to tell who asked. This shows which tours to
             prepare in advance and is kept until it is no longer useful for that.
@@ -175,13 +175,13 @@ export default function PrivacyPage() {
           <li>
             <strong className="text-[color:var(--ink)]">Server logs.</strong> Like any website, the
             hosting keeps short-lived technical logs of requests, which can include your internet
-            address and, for searches, what was searched for. Walk does not use them except to fix
+            address and, for searches, what was searched for. WalkDots does not use them except to fix
             faults.
           </li>
         </ul>
       </Section>
 
-      <Section title="What Walk does not do">
+      <Section title="What WalkDots does not do">
         <p>
           No analytics, advertising or tracking of any kind. No selling or renting of your data. The
           only cookies are the ones that keep you signed in, and only once you sign in. Fonts are
@@ -191,7 +191,7 @@ export default function PrivacyPage() {
 
       <Section title="Your rights">
         <p>
-          Under the GDPR you can ask to see the data Walk holds about you, have it corrected or
+          Under the GDPR you can ask to see the data WalkDots holds about you, have it corrected or
           deleted, restrict or object to its use, and receive it in a portable form. Most of it is
           on your own device, where you can delete it yourself, and an account can be deleted from
           the profile page at any time. For anything else, write to{" "}
@@ -205,13 +205,13 @@ export default function PrivacyPage() {
 
       <Section title="Children">
         <p>
-          Walk is not aimed at children under 16 and does not knowingly collect their information.
+          WalkDots is not aimed at children under 16 and does not knowingly collect their information.
         </p>
       </Section>
 
       <Section title="Changes">
         <p>
-          If Walk starts handling your information differently, this page will change first, and
+          If WalkDots starts handling your information differently, this page will change first, and
           the date at the top will say when.
         </p>
       </Section>

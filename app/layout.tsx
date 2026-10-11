@@ -21,13 +21,13 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Walk — audio tours anywhere",
+  title: "WalkDots — audio tours anywhere",
   description:
     "A free audio walking tour of wherever you are, built around what you want to see.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
-    title: "Walk",
+    title: "WalkDots",
     /**
      * Edge to edge on iOS: the page is drawn *under* the status bar rather
      * than below it, which is the difference between an app and a web page

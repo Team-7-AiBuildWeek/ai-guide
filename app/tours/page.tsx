@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Tours from "@/components/Tours";
 
 export const metadata: Metadata = {
-  title: "Tours — Walk",
+  title: "Tours — WalkDots",
   description: "The walk you are on, and every walk you have built.",
 };
 

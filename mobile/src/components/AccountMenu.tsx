@@ -4,7 +4,7 @@
  * settings sidebar (small grey section headings, an icon and a label per row,
  * a soft highlight under the finger).
  *
- * Only rows that do something: Walk has no billing, notifications or themes,
+ * Only rows that do something: WalkDots has no billing, notifications or themes,
  * and a row that leads nowhere is worse than no row (Apple agrees).
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
@@ -88,7 +88,7 @@ function Card({ account }: { account: ReactNode }) {
       <Section title="Account">{account}</Section>
       <View style={styles.rule} />
       <Section title="Support">
-        <Row icon="contact" label="Contact us" onPress={() => void Linking.openURL(`mailto:${CONTACT}?subject=Walk`)} />
+        <Row icon="contact" label="Contact us" onPress={() => void Linking.openURL(`mailto:${CONTACT}?subject=WalkDots`)} />
         <Row icon="privacy" label="Privacy policy" onPress={() => void Linking.openURL(`${BASE}/privacy`)} />
       </Section>
     </View>

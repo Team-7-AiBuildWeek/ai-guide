@@ -5,7 +5,7 @@
  * sign-in first; when Clerk does not know it, the same address becomes a
  * sign-up. Either way the walker types a six-digit code and is in.
  *
- * Accounts are optional. Everything in Walk works signed out; signing in only
+ * Accounts are optional. Everything in WalkDots works signed out; signing in only
  * keeps past walks and settings in step between the website and the phone.
  */
 

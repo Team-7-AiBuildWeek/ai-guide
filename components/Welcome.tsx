@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * The first screen: what Walk is, and a way in — the same screen as the iPhone
+ * The first screen: what WalkDots is, and a way in — the same screen as the iPhone
  * app's (mobile/src/app/welcome.tsx).
  *
  * Laid out like Luma's welcome — things orbiting a mark, a two-line promise, one
@@ -86,7 +86,7 @@ export default function Welcome({ openSheet = false }: { openSheet?: boolean }) 
 
       <div className="welcome-copy">
         <p className="welcome-wordmark">
-          walk<span aria-hidden="true" />
+          walkdots<span aria-hidden="true" />
         </p>
         <h1>
           Audio tours anywhere

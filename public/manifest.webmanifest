@@ -1,6 +1,6 @@
 {
-  "name": "Walk — audio tours anywhere",
-  "short_name": "Walk",
+  "name": "WalkDots — audio tours anywhere",
+  "short_name": "WalkDots",
   "description": "A free audio walking tour of wherever you are, built around what you want to see.",
   "start_url": "/",
   "scope": "/",

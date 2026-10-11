@@ -1,5 +1,5 @@
 /**
- * The splash: the Walk mark, walked.
+ * The splash: the WalkDots mark, walked.
  *
  * Starts as an exact copy of the native splash (the same logo, the same size,
  * the same #1f1f1f), so the hand-over from the system's still image is
@@ -98,7 +98,7 @@ export default function Splash({ ready, onDone }: { ready: boolean; onDone: () =
       onLayout={handOver}
       pointerEvents={walked ? "none" : "auto"}
       style={[StyleSheet.absoluteFill, styles.screen, { opacity: lift.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }]}
-      accessibilityLabel="Walk"
+      accessibilityLabel="WalkDots"
       accessibilityRole="image"
     >
       <Animated.View

@@ -1,5 +1,5 @@
 /**
- * The first screen: what Walk is, and a way in.
+ * The first screen: what WalkDots is, and a way in.
  *
  * Laid out like Luma's welcome — things orbiting a mark, a two-line promise, one
  * button — but drawn in the app's own language: the plain canvas, white
@@ -139,7 +139,7 @@ export default function Welcome() {
 
       <Animated.View style={[styles.bottom, { paddingBottom: insets.bottom + 16, opacity: textOpacity }]} pointerEvents={open ? "none" : "auto"}>
         <View style={styles.wordmark}>
-          <Text style={styles.wordmarkText}>walk</Text>
+          <Text style={styles.wordmarkText}>walkdots</Text>
           <View style={styles.wordmarkDot} />
         </View>
         <Text style={styles.headline}>Audio tours anywhere</Text>

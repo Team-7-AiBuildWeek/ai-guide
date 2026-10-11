@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Profile from "@/components/Profile";
 
 export const metadata: Metadata = {
-  title: "Account — Walk",
+  title: "Account — WalkDots",
   description: "Your account, language and support.",
 };
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Welcome from "@/components/Welcome";
 
 export const metadata: Metadata = {
-  title: "Welcome — Walk",
+  title: "Welcome — WalkDots",
   description: "Audio tours anywhere. Start walking.",
 };
 
