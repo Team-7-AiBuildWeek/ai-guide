@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * when it last did.
  */
 
-const UPDATED = "11 October 2026";
+const UPDATED = "12 October 2026";
 const CONTACT = "jurajkolesar1976@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -130,6 +130,13 @@ export default function PrivacyPage() {
             run on Vercel; the walks kept with accounts, the tours WalkDots keeps and the data for prepared
             tours are in a Neon database, and narration in Cloudflare R2 storage.
           </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">Visit counts.</strong> The website counts its
+            page views with Vercel Web Analytics: which page was opened, the referring site, and the
+            country, browser and kind of device. It sets no cookies and keeps nothing that identifies
+            you — telling one visit from another uses a value that is discarded every day. The iPhone
+            app does not count anything.
+          </li>
         </ul>
         <p>
           Some of these providers are based in the United States, so your data may be processed
@@ -183,7 +190,8 @@ export default function PrivacyPage() {
 
       <Section title="What WalkDots does not do">
         <p>
-          No analytics, advertising or tracking of any kind. No selling or renting of your data. The
+          No advertising, no tracking across sites, and no analytics beyond the anonymous visit
+          counts above. No selling or renting of your data. The
           only cookies are the ones that keep you signed in, and only once you sign in. Fonts are
           part of the site and the app, not fetched from a third party.
         </p>

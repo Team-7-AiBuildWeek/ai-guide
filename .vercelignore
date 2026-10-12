@@ -7,3 +7,5 @@ deploy/netlify.env
 /.local
 /mobile
 /node_modules.nosync
+# iCloud duplicates of node_modules ("node_modules 2", …)
+/node_modules *
