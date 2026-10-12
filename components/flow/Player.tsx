@@ -18,6 +18,7 @@
  */
 
 import { useEffect, useRef, useState } from "react";
+import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import StopPhoto from "./StopPhoto";
 
 /**
@@ -147,6 +148,7 @@ export default function Player({
   const spoken = useRef<HTMLParagraphElement>(null);
   /** Off by default: this is a walking tour, and the words are the fallback. */
   const [showText, setShowText] = useState(false);
+  const reduce = useReducedMotion();
   useEffect(() => {
     if (playing && showText) {
       spoken.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
@@ -176,7 +178,9 @@ export default function Player({
       ) : null}
       <StopPhoto {...photo} />
 
-      <div className="flex items-baseline justify-between gap-3">
+      {/* Keyed by the stop, so moving on rolls the new name in rather than
+          swapping the letters in place. */}
+      <div key={index} className="rise-in flex items-baseline justify-between gap-3">
         <p className="min-w-0 truncate font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
           {stopName}
         </p>
@@ -312,35 +316,46 @@ export default function Player({
       {/* What is being said, as it is said. There are no word timings, so the
           unit is the piece the voice is speaking — which is split at sentence
           ends, and is the smallest honest granularity available. */}
-      {showText && chunks.length > 0 ? (
-        <div
-          id="narration-text"
-          className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3"
-        >
-          <p className="u-eyebrow">{speedrun ? "Quick summary" : "What you are hearing"}</p>
-          <div className="mt-2 flex flex-col gap-3">
-            {(speedrun ? chunks.slice(0, 1) : chunks).map((text, i) => {
-              const now = i === chunkIndex;
-              return (
-                <p
-                  key={i}
-                  ref={now ? spoken : undefined}
-                  className={[
-                    "text-[length:var(--text-body)] leading-relaxed",
-                    now
-                      ? ""
-                      : i < chunkIndex
-                        ? "text-[color:var(--ink-mute)]"
-                        : "text-[color:var(--ink-soft)]",
-                  ].join(" ")}
-                >
-                  {now ? <SpokenLine text={text} progress={within} /> : text}
-                </p>
-              );
-            })}
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {showText && chunks.length > 0 ? (
+          <motion.div
+            key="narration"
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={reduce ? { duration: 0 } : { duration: 0.32, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden"
+          >
+            <div
+              id="narration-text"
+              className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3"
+            >
+              <p className="u-eyebrow">{speedrun ? "Quick summary" : "What you are hearing"}</p>
+              <div className="mt-2 flex flex-col gap-3">
+                {(speedrun ? chunks.slice(0, 1) : chunks).map((text, i) => {
+                  const now = i === chunkIndex;
+                  return (
+                    <p
+                      key={i}
+                      ref={now ? spoken : undefined}
+                      className={[
+                        "text-[length:var(--text-body)] leading-relaxed",
+                        now
+                          ? ""
+                          : i < chunkIndex
+                            ? "text-[color:var(--ink-mute)]"
+                            : "text-[color:var(--ink-soft)]",
+                      ].join(" ")}
+                    >
+                      {now ? <SpokenLine text={text} progress={within} /> : text}
+                    </p>
+                  );
+                })}
+              </div>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
     </div>
   );

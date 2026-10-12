@@ -445,7 +445,7 @@ export default function BottomSheet({
             // The top pad is bigger than the bottom on purpose: it is the one
             // that has a hard divider above it, and 16px under a line reads as
             // nothing at all.
-            className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-6"
+            className="fade-in min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 pt-6"
           >
             {children}
           </div>
@@ -462,7 +462,7 @@ export default function BottomSheet({
           {bar}
           {/* The bar is a grab area, not a margin. Without this the first line
               of the row sits directly under it and the sheet reads as clipped. */}
-          <div className="px-4 pt-1">{collapsedContent}</div>
+          <div className="fade-in px-4 pt-1">{collapsedContent}</div>
         </div>
       )}
     </section>

@@ -1183,7 +1183,7 @@ export default function TourFlow({
           ) : stage === "tour" && tour ? (
             /* Dragged open: the controls, what is being said, and the whole
                narration to read. How much of it you see is the drag. */
-            <div className="flex flex-col gap-4">
+            <div className="rise-in flex flex-col gap-4">
               <Player
                 stopName={currentStop?.name ?? ""}
                 index={currentIndex}

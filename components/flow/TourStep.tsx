@@ -245,7 +245,7 @@ export default function TourStep({
   }
 
   return (
-    <div className="flex h-full flex-col gap-4">
+    <div className="rise-in flex h-full flex-col gap-4">
       <div className="min-h-0 flex-1 overflow-y-auto">
         {thread.length === 0 ? (
           <div className="text-[color:var(--ink-soft)]">
