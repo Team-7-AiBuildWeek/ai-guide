@@ -187,7 +187,7 @@ function Card({ account }: { account: ReactNode }) {
               <div className="px-3 pb-2 pt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
                 {Object.entries(info).map(([k, v]) => (
                   <p key={k}>
-                    <span className="capitalize">{k}</span>: {v}
+                    {k}: {v}
                   </p>
                 ))}
               </div>

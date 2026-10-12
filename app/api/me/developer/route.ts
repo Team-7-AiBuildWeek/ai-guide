@@ -18,12 +18,12 @@ export async function GET() {
   return Response.json({
     developer: true,
     info: {
-      llm: config.llmProvider === "google" ? `Gemini (${config.geminiModel})` : config.llmProvider,
-      voice: `${config.ttsProvider} (${config.ttsModel})`,
-      maps: config.mapProvider,
-      storage: r2Enabled() ? "R2 on — recordings kept" : "R2 off — recordings not kept",
-      database: process.env.DATABASE_URL ? "on" : "off",
-      backend: backendEnabled() ? "connected" : "off",
+      "AI model": config.llmProvider === "google" ? `Gemini (${config.geminiModel})` : config.llmProvider,
+      Voice: `${config.ttsProvider} (${config.ttsModel})`,
+      Maps: config.mapProvider,
+      Storage: r2Enabled() ? "R2 on — recordings kept" : "R2 off — recordings not kept",
+      Database: process.env.DATABASE_URL ? "on" : "off",
+      "Tour backend": backendEnabled() ? "connected" : "off",
     },
   });
 }
