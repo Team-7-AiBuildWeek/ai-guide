@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Splash from "@/components/Splash";
 import TabBar from "@/components/TabBar";
@@ -79,9 +80,10 @@ export default function RootLayout({
             <TabBar />
           </WelcomeGate>
         )}
-        {/* Page views, counted by Vercel without cookies. Only sends from a
-            Vercel deployment; locally it logs to the console instead. */}
+        {/* Page views and how fast pages load, measured by Vercel without
+            cookies. Only sends from a Vercel deployment. */}
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

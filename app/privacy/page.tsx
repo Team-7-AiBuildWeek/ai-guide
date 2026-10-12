@@ -134,8 +134,10 @@ export default function PrivacyPage() {
             <strong className="text-[color:var(--ink)]">Visit counts.</strong> The website counts its
             page views with Vercel Web Analytics: which page was opened, the referring site, and the
             country, browser and kind of device. It sets no cookies and keeps nothing that identifies
-            you — telling one visit from another uses a value that is discarded every day. The iPhone
-            app does not count anything.
+            you — telling one visit from another uses a value that is discarded every day. Vercel
+            Speed Insights also measures how quickly each page loads on your device, with the same
+            page, country, browser and kind of device and nothing more. The iPhone app does not count
+            anything.
           </li>
         </ul>
         <p>
@@ -191,7 +193,7 @@ export default function PrivacyPage() {
       <Section title="What WalkDots does not do">
         <p>
           No advertising, no tracking across sites, and no analytics beyond the anonymous visit
-          counts above. No selling or renting of your data. The
+          counts and page speed above. No selling or renting of your data. The
           only cookies are the ones that keep you signed in, and only once you sign in. Fonts are
           part of the site and the app, not fetched from a third party.
         </p>
