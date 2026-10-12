@@ -419,7 +419,7 @@ export default function BottomSheet({
               dragClass,
               "flex shrink-0 flex-col border-b border-[color:var(--line)]",
               // A notch where there is one, and a little air where there is not.
-              height === "full" ? "pt-[max(0.25rem,env(safe-area-inset-top))]" : "",
+              height === "full" ? "pt-[max(0.25rem,var(--safe-top))]" : "",
             ].join(" ")}
           >
             {bar}
@@ -450,7 +450,7 @@ export default function BottomSheet({
             {children}
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+            <div className="shrink-0 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1rem,var(--safe-bottom))]">
               {footer}
             </div>
           ) : null}
@@ -458,7 +458,7 @@ export default function BottomSheet({
       ) : (
         // The whole collapsed row drags, buttons and all — the capture-after-
         // movement rule above is what keeps their taps working.
-        <div {...barHandlers} className={`${dragClass} pb-[max(1rem,env(safe-area-inset-bottom))]`}>
+        <div {...barHandlers} className={`${dragClass} pb-[max(1rem,var(--safe-bottom))]`}>
           {bar}
           {/* The bar is a grab area, not a margin. Without this the first line
               of the row sits directly under it and the sheet reads as clipped. */}

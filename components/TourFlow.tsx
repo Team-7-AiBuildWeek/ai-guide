@@ -832,7 +832,7 @@ export default function TourFlow({
           thing on screen at that moment, so it carries both the instruction
           and the way out. */}
       {sheetHidden ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,var(--safe-top))]">
           <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-center justify-between gap-3 panel-dark panel--glass px-4 py-3">
             {/* Once the pin is down the instruction is finished, and leaving
                 it up reads as though the tap did not register. */}
@@ -860,7 +860,7 @@ export default function TourFlow({
           the sheet up to full themselves, so it means what it says. */}
       {stage === "tour" && !askOpen && sheetHeight !== "full" ? (
         <>
-          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+          <div className="pointer-events-none absolute inset-x-0 top-0 z-30 p-4 pt-[max(1rem,var(--safe-top))]">
             <div className="pointer-events-auto mx-auto flex w-full max-w-lg items-start justify-between gap-3">
               <button
                 type="button"
@@ -973,7 +973,7 @@ export default function TourFlow({
 
       {/* Location trouble is reported once, above the sheet, not per screen. */}
       {status.kind === "error" && stage === "start" ? (
-        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+        <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 pt-[max(1rem,var(--safe-top))]">
           <div className="pointer-events-auto mx-auto w-full max-w-lg panel-dark panel--glass px-4 py-3">
             <p className="font-[family-name:var(--font-display)] font-semibold">{status.message}</p>
             {status.hint ? (

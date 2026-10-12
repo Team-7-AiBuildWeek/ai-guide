@@ -289,7 +289,7 @@ export default function TourStep({
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 pb-[max(0.5rem,env(safe-area-inset-bottom))]">
+      <div className="shrink-0 pb-[max(0.5rem,var(--safe-bottom))]">
         <PromptBar placeholder="Ask anything" busy={busy} lang={lang} onSend={(q) => void submit(q)} onStop={stopAsking} />
       </div>
     </div>

@@ -28,7 +28,7 @@ export default function Tours() {
 
   return (
     <main
-      className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 pt-[max(1.5rem,env(safe-area-inset-top))]"
+      className="mx-auto flex w-full max-w-lg flex-1 flex-col gap-6 px-4 pt-[max(1.5rem,var(--safe-top))]"
       style={{ paddingBottom: `calc(${ABOVE_TAB_BAR} + 2rem)` }}
     >
       <header>

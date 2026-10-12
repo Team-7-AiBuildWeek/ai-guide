@@ -18,6 +18,12 @@
    ========================================================================= */
 
 :root {
+  /* The phone's safe areas (status bar, home indicator). Read through these
+     rather than env() directly, so the developers' phone view (/dev/phone)
+     can fill them in for an app running inside its frame, where env() is 0. */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+
   /* --- ink ------------------------------------------------------------- */
   --ink: #111827; /* headings */
   --ink-soft: #374151; /* body copy */
@@ -650,7 +656,7 @@ pre {
   bottom: 0;
   margin-inline: auto;
   max-width: 32rem;
-  padding: 0 1.5rem max(1.5rem, env(safe-area-inset-bottom));
+  padding: 0 1.5rem max(1.5rem, var(--safe-bottom));
   text-align: center;
   transition: opacity 250ms ease;
 }
@@ -682,7 +688,7 @@ pre {
   bottom: 0;
   margin-inline: auto;
   max-width: 32rem;
-  padding: 0.75rem 1rem max(1.5rem, env(safe-area-inset-bottom));
+  padding: 0.75rem 1rem max(1.5rem, var(--safe-bottom));
   border: 1px solid var(--line);
   border-bottom: 0;
   border-radius: var(--radius-panel) var(--radius-panel) 0 0;

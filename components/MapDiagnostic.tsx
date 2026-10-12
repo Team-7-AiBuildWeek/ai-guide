@@ -30,7 +30,7 @@ export default function MapDiagnostic({
     <div className="relative h-full w-full">
       <TourMap styleUrl={styleUrl} center={center} fix={fix} />
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 pb-[calc(2rem+max(0.5rem,env(safe-area-inset-bottom)))]">
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 p-4 pb-[calc(2rem+max(0.5rem,var(--safe-bottom)))]">
         <div className="pointer-events-auto mx-auto w-full max-w-md panel-dark px-4 py-3">
           {simulating ? (
             <>

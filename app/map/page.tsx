@@ -41,7 +41,7 @@ export default async function MapPage({
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       <MapDiagnostic styleUrl={styleUrl} center={DEFAULT_CENTER} initialSimulate={"sim" in params} />
-      <div className="pointer-events-none absolute inset-x-0 top-0 p-4 pt-[max(1rem,env(safe-area-inset-top))]">
+      <div className="pointer-events-none absolute inset-x-0 top-0 p-4 pt-[max(1rem,var(--safe-top))]">
         <div className="pointer-events-auto mx-auto flex w-full max-w-md items-center gap-3">
           <Link href="/" className="btn btn--quiet shrink-0" aria-label="Back">←</Link>
           <span className="tag tag--quiet">tiles · {config.mapProvider}</span>

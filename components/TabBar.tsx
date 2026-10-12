@@ -19,7 +19,7 @@ import { usePathname } from "next/navigation";
 export const TAB_BAR_PX = 64;
 
 /** How far the bar reaches up from the bottom edge, home indicator included — for anything that sits on it. */
-export const ABOVE_TAB_BAR = `calc(${TAB_BAR_PX}px + env(safe-area-inset-bottom))`;
+export const ABOVE_TAB_BAR = `calc(${TAB_BAR_PX}px + var(--safe-bottom))`;
 
 const TABS: { href: string; label: string; icon: React.ReactNode }[] = [
   {
@@ -65,7 +65,7 @@ export default function TabBar() {
   return (
     <nav
       aria-label="Main"
-      className="tabbar fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--line)] bg-[color:var(--surface)] pb-[env(safe-area-inset-bottom)]"
+      className="tabbar fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--line)] bg-[color:var(--surface)] pb-[var(--safe-bottom)]"
     >
       <ul className="relative mx-auto flex w-full max-w-lg" style={{ height: TAB_BAR_PX }}>
         {/* The pill behind the tab you are on. Tabs are equal widths, so its

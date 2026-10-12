@@ -7,11 +7,12 @@
  * a phone-sized viewport of its own and every media query, `dvh` and fixed
  * sheet inside it behaves as on the device.
  *
- * Inside a frame nobody tells the app where the status bar and the home
- * indicator are (the safe-area insets are zero), so the frame draws them and
- * the app gets the space between — as on an iPhone, where the system keeps
- * that strip for the clock. The whole phone is scaled to fit the window, so
- * nothing is cut off on a laptop screen.
+ * Edge to edge, like the installed app: the app fills the whole screen and
+ * the status bar and home indicator are drawn over it. Inside a frame the
+ * system's safe-area insets are zero, so the frame hands the app the device's
+ * real ones through --safe-top / --safe-bottom (globals.css), and the map and
+ * the splash run up under the clock while headings and buttons stay clear of
+ * it. The whole phone is scaled to fit the window.
  */
 
 import Link from "next/link";
@@ -27,15 +28,16 @@ const PHONES = [
 
 const BEZEL = 12;
 
+/** Drawn over the app, in white with a difference blend so it reads on the dark splash and the light map alike. */
 function StatusBar({ height, island }: { height: number; island: boolean }) {
   return (
     <div
-      className="flex items-end justify-between px-7 pb-[6px] font-[family-name:var(--font-display)] text-[15px] font-semibold text-black"
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 flex items-end justify-between px-7 pb-[6px] font-[family-name:var(--font-display)] text-[15px] font-semibold text-white mix-blend-difference"
       style={{ height }}
       aria-hidden="true"
     >
       <span className={island ? "pl-3" : ""}>9:41</span>
-      {island ? <span className="absolute left-1/2 top-[11px] h-[35px] w-[124px] -translate-x-1/2 rounded-full bg-black" /> : null}
+
       <span className="flex items-center gap-[5px]">
         <svg width="18" height="11" viewBox="0 0 18 11" fill="currentColor">
           <rect x="0" y="7" width="3" height="4" rx="1" />
@@ -136,19 +138,33 @@ export default function PhoneViewPage() {
             className="relative origin-top-left rounded-[56px] bg-black shadow-[0_30px_80px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10"
             style={{ width: outerW, height: outerH, padding: BEZEL, transform: `scale(${scale})` }}
           >
-            <div className="relative flex h-full w-full flex-col overflow-hidden rounded-[44px] bg-[color:var(--canvas)]">
-              <StatusBar height={phone.top} island={phone.island} />
+            <div className="relative h-full w-full overflow-hidden rounded-[44px] bg-[color:var(--canvas)]">
               <iframe
                 key={`${phone.key}-${loaded}-${reloads}`}
                 src={loaded}
                 title={`WalkDots on ${phone.name}`}
-                className="block w-full flex-1 border-0"
+                className="absolute inset-0 block h-full w-full border-0"
                 allow="geolocation; microphone; autoplay"
+                onLoad={(e) => {
+                  // Same origin, so the app's own variables can be set: the
+                  // device's safe areas, re-applied on every full page load.
+                  const root = e.currentTarget.contentDocument?.documentElement;
+                  root?.style.setProperty("--safe-top", `${phone.top}px`);
+                  root?.style.setProperty("--safe-bottom", `${phone.bottom}px`);
+                }}
               />
+              <StatusBar height={phone.top} island={phone.island} />
+              {phone.island ? (
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute left-1/2 top-[11px] z-20 h-[35px] w-[124px] -translate-x-1/2 rounded-full bg-black"
+                />
+              ) : null}
               {phone.bottom ? (
-                <div className="flex items-center justify-center" style={{ height: phone.bottom }} aria-hidden="true">
-                  <span className="h-[5px] w-[134px] rounded-full bg-black" />
-                </div>
+                <span
+                  aria-hidden="true"
+                  className="pointer-events-none absolute bottom-[8px] left-1/2 z-10 h-[5px] w-[134px] -translate-x-1/2 rounded-full bg-white mix-blend-difference"
+                />
               ) : null}
             </div>
           </div>
