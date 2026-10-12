@@ -123,7 +123,15 @@ function remember<T>(key: string, value: T): T {
   return value;
 }
 
-async function overpass(query: string): Promise<Element[] | null> {
+/**
+ * One Overpass query, tried against each mirror in turn; null when none answer.
+ *
+ * Shared with the "what am I looking at" lookup (lib/tour/surroundings.ts),
+ * which passes a shorter timeout: a walker waiting on an answer in the street
+ * will not wait twenty-five seconds, and an answer without the map is still an
+ * answer.
+ */
+export async function overpass(query: string, timeoutMs = 25_000): Promise<Element[] | null> {
   const hit = CACHE.get(query);
   if (hit !== undefined) return hit as Element[] | null;
 
@@ -139,7 +147,7 @@ async function overpass(query: string): Promise<Element[] | null> {
         // Transit lines change on the order of years; the tiles they run on
         // change less. A day is conservative.
         next: { revalidate: 60 * 60 * 24 },
-        signal: AbortSignal.timeout(25_000),
+        signal: AbortSignal.timeout(timeoutMs),
       });
       if (!res.ok) continue;
       const body = (await res.json()) as { elements?: Element[] };

@@ -23,6 +23,7 @@ import { findRides, routeWithRides } from "@/lib/tour/rides";
 import { snapStopsToRealPlaces } from "@/lib/tour/snapStops";
 import { orderStops, walkLength } from "@/lib/tour/order";
 import { writeStopScript } from "@/lib/tour/scriptCache";
+import { spend } from "@/lib/rateLimit";
 import { saveTour } from "@/lib/tour/saved";
 
 export const dynamic = "force-dynamic";
@@ -152,6 +153,9 @@ export async function POST(request: Request) {
           });
         } else {
           send({ phase: "stops", message: "Choosing your stops" });
+          // The paid call. Over the limit, this throws a plain sentence that
+          // reaches the walker as the build's error (see the catch below).
+          await spend(request.headers, "tour");
           plan = await llm.generateTourPlan(req);
           send({
             phase: "stops",
@@ -213,7 +217,7 @@ export async function POST(request: Request) {
                 position: 1,
                 total: plan.stops.length,
                 onOpening: (opening) => send({ phase: lastPhase, opening }),
-              }).catch(() => null); // not fatal: the phone asks again for anything missing
+              }, { beforeWrite: () => spend(request.headers, "script") }).catch(() => null); // not fatal: the phone asks again for anything missing
 
         const points = [
           { lat: req.start.lat, lng: req.start.lng },

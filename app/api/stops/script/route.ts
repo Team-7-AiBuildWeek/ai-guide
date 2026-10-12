@@ -12,6 +12,7 @@
 
 import { backendStopWhenReady } from "@/lib/backend/tours";
 import { normaliseLang } from "@/lib/i18n/languages";
+import { RateLimited, rateLimitedResponse, spend } from "@/lib/rateLimit";
 import { cachedScript, writeStopScript, type ScriptJob } from "@/lib/tour/scriptCache";
 
 export const dynamic = "force-dynamic";
@@ -48,8 +49,11 @@ export async function POST(request: Request) {
   if (hit) return Response.json({ ...hit, cached: true });
 
   try {
-    return Response.json(await writeStopScript(body));
+    return Response.json(
+      await writeStopScript(body, { beforeWrite: () => spend(request.headers, "script") }),
+    );
   } catch (err) {
+    if (err instanceof RateLimited) return rateLimitedResponse(err);
     return Response.json(
       { error: err instanceof Error ? err.message : "Could not write this stop." },
       { status: 502 },

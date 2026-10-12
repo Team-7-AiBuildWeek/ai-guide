@@ -12,6 +12,7 @@
 import { after } from "next/server";
 import { getTTS } from "@/lib/providers/factory";
 import { normaliseLang } from "@/lib/i18n/languages";
+import { RateLimited, rateLimitedResponse, spend } from "@/lib/rateLimit";
 import { r2Get, r2Put } from "@/lib/storage/r2";
 import { voiceKey, voiceObject } from "@/lib/tour/voiceKey";
 
@@ -27,6 +28,9 @@ type Entry = { body: ArrayBuffer; mimeType: string };
  */
 const CACHE = new Map<string, Entry>();
 const MAX_ENTRIES = 60;
+
+/** Longest text synthesised in one call: about 600 words. */
+const MAX_TEXT_CHARS = 4000;
 
 function remember(key: string, entry: Entry) {
   CACHE.set(key, entry);
@@ -48,6 +52,11 @@ export async function POST(request: Request) {
 
   const text = body.text?.trim();
   if (!text) return Response.json({ error: "Nothing to say." }, { status: 400 });
+  // The longest piece the narration is ever cut into is a few hundred words
+  // (lib/audio/chunk.ts). Anything far longer is not a stop being read out.
+  if (text.length > MAX_TEXT_CHARS) {
+    return Response.json({ error: "That is too long to say in one go." }, { status: 413 });
+  }
 
   // Normalised before the cache key is built, so "en-GB" and "en" are one entry.
   const lang = normaliseLang(body.lang);
@@ -88,6 +97,8 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Only now, on a miss everywhere: this is the call that costs money.
+    await spend(request.headers, "audio");
     const tts = getTTS();
     const started = Date.now();
     const audio = await tts.synthesize(text, { lang, voice });
@@ -104,6 +115,7 @@ export async function POST(request: Request) {
       },
     });
   } catch (err) {
+    if (err instanceof RateLimited) return rateLimitedResponse(err);
     return Response.json(
       { error: err instanceof Error ? err.message : "Synthesis failed." },
       { status: 502 },

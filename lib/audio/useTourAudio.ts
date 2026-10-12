@@ -33,7 +33,13 @@ let kept: { key: string; library: AudioLibrary } | null = null;
 function libraryFor(stops: Stop[], req: TourRequest | null, lang: string): AudioLibrary {
   const key = `${lang}|${stops.map((s) => s.id).join(",")}`;
   if (kept?.key === key) return kept.library;
-  kept?.library.dispose();
+  // Let go of the old one after this render rather than during it: this runs
+  // inside useMemo, and disposing tells the old library's subscribers — the
+  // walk screen itself — that its state changed, which is a state update in
+  // the middle of rendering (React: "Cannot update a component while
+  // rendering a different component").
+  const old = kept?.library;
+  if (old) setTimeout(() => old.dispose(), 0);
   const library = new AudioLibrary(stops, req, lang, (stopId, i, url) => {
     audioEngine.setChunk(stopId, i, url);
   });

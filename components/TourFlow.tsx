@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import { accountsEnabled } from "@/lib/accounts/client";
 import Greeting from "./Greeting";
 import { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
+import MapBoundary from "./MapBoundary";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
 import DevPanel from "./DevPanel";
@@ -689,15 +690,22 @@ export default function TourFlow({
           tourTitle: tour?.plan.title,
           stopName: currentStop?.name,
           stopContext: currentStop?.script,
-          lat: fix?.lat ?? currentStop?.lat,
-          lng: fix?.lng ?? currentStop?.lng,
+          // Where the walker really is and which way they face, so "what am I
+          // looking at" is answered from the map around them. No fix means no
+          // position — the stop's would pretend they are standing on it.
+          lat: fix?.lat,
+          lng: fix?.lng,
+          accuracy: fix?.accuracy,
+          heading,
+          stopLat: currentStop?.lat,
+          stopLng: currentStop?.lng,
         }),
       });
       const body = (await res.json()) as { answer?: string; error?: string };
       if (!res.ok || !body.answer) throw new Error(body.error ?? "Could not answer.");
       return body.answer;
     },
-    [currentStop, fix, draft, tour],
+    [currentStop, fix, heading, draft, tour],
   );
 
   /** Speech synthesis is free and offline — good enough to repeat a cue. */
@@ -783,49 +791,50 @@ export default function TourFlow({
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
       {stage === "tour" && tour ? <DevPanel tour={tour} currentIndex={currentIndex} onJump={setCurrentIndex} /> : null}
-      <TourMap
-        styleUrl={styleUrl}
-        center={center}
-        fix={fix}
-        dot={snapped}
-        heading={heading}
-        route={stage === "tour" ? tour?.route ?? null : null}
-        rides={stage === "tour" ? tour?.rides ?? [] : []}
-        stops={stage === "tour" ? stops : []}
-        currentStopIndex={stage === "tour" ? currentIndex : -1}
-        onSelectStop={chooseStop}
-        pins={pins}
-        // Off the moment the pin lands, so the second spent looking at it
-        // cannot be spent accidentally moving it.
-        picking={picking !== null && !pinLanded}
-        onPick={(p) => {
-          const label = `Pin at ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
-          patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
-          setPinLanded(true);
-          if (pinPause.current) clearTimeout(pinPause.current);
-          pinPause.current = window.setTimeout(() => {
-            setPicking(null);
-            setPinLanded(false);
-          }, PIN_PAUSE_MS);
-        }}
-        // How much of the map the sheet is sitting on, so the camera centres in
-        // what is left of it. Read from where the sheet actually is, not from
-        // where this screen would put it — the walker can drag it now.
-        bottomInset={
-          sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI + (showTabs ? TAB_BAR_PX : 0) : INSET_PLAYER
-        }
-        follow={stage !== "tour" && !cityPinned}
-        fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
-        lookAt={
-          cityPinned && stage !== "tour"
-            ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label }
-            : null
-        }
-        showZoom={stage !== "tour"}
-        styles={styles}
-        styleId={styleId}
-      />
-
+      <MapBoundary>
+        <TourMap
+          styleUrl={styleUrl}
+          center={center}
+          fix={fix}
+          dot={snapped}
+          heading={heading}
+          route={stage === "tour" ? tour?.route ?? null : null}
+          rides={stage === "tour" ? tour?.rides ?? [] : []}
+          stops={stage === "tour" ? stops : []}
+          currentStopIndex={stage === "tour" ? currentIndex : -1}
+          onSelectStop={chooseStop}
+          pins={pins}
+          // Off the moment the pin lands, so the second spent looking at it
+          // cannot be spent accidentally moving it.
+          picking={picking !== null && !pinLanded}
+          onPick={(p) => {
+            const label = `Pin at ${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}`;
+            patchDraft(picking === "end" ? { end: { ...p, label } } : { start: { ...p, label } });
+            setPinLanded(true);
+            if (pinPause.current) clearTimeout(pinPause.current);
+            pinPause.current = window.setTimeout(() => {
+              setPicking(null);
+              setPinLanded(false);
+            }, PIN_PAUSE_MS);
+          }}
+          // How much of the map the sheet is sitting on, so the camera centres in
+          // what is left of it. Read from where the sheet actually is, not from
+          // where this screen would put it — the walker can drag it now.
+          bottomInset={
+            sheetHeight === "full" ? 0 : sheetHeight === "collapsed" ? INSET_MINI + (showTabs ? TAB_BAR_PX : 0) : INSET_PLAYER
+          }
+          follow={stage !== "tour" && !cityPinned}
+          fitTo={stage === "tour" ? tour?.plan.title ?? null : null}
+          lookAt={
+            cityPinned && stage !== "tour"
+              ? { lat: cityPinned.lat, lng: cityPinned.lng, key: cityPinned.label }
+              : null
+          }
+          showZoom={stage !== "tour"}
+          styles={styles}
+          styleId={styleId}
+        />
+      </MapBoundary>
 
       {/* Dropping a pin takes the sheet away so the map is reachable, which
           also takes away everything that said what to do. This is the only

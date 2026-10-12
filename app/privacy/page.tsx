@@ -113,12 +113,16 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">OpenStreetMap (Overpass).</strong> Finds trams
-            and buses along the route. It receives the route&apos;s points, not who you are.
+            and buses along the route, and the named places around you when you ask a question. It
+            receives the route&apos;s points and, for a question, your position — sent from our server,
+            so not who you are.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Wikipedia and Wikimedia.</strong> Photos of
-            the stops. It receives the stop&apos;s name and position, never yours. The photo itself is
-            loaded straight from Wikimedia, which sees your device&apos;s internet address.
+            the stops, and the landmarks around you when you ask a question. For a photo it receives
+            the stop&apos;s name and position; for a question, your position, sent from our server so
+            not who you are. The photo itself is loaded straight from Wikimedia, which sees your
+            device&apos;s internet address.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Apple.</strong> In the iPhone app, the map is
@@ -157,6 +161,18 @@ export default function PrivacyPage() {
             clearing the website&apos;s data in your browser or deleting the app.
           </li>
           <li>
+            <strong className="text-[color:var(--ink)]">Usage counts, to stop abuse.</strong> Building a
+            tour, writing and voicing its stops and answering questions cost money for every request,
+            so each is counted against a limit per person. If you are signed in, that is your account;
+            if not, the first time you use one of these, the website gives your browser a random ID in a
+            cookie that is only sent with those requests and only used for this. There is also a looser
+            limit per internet address. The counts are kept under scrambled, one-way codes — your
+            account, the ID and your address themselves are never stored with them — and each count is
+            deleted shortly after its hour or day is over. The cookie lasts a year, or until you clear
+            the website&apos;s data. This is WalkDots&apos; legitimate interest in keeping the service
+            running and paid for (GDPR Article 6(1)(f)).
+          </li>
+          <li>
             <strong className="text-[color:var(--ink)]">With your account.</strong> If you sign in,
             your last 30 walks (the same record your device keeps, including what you asked for and
             where each started) are kept with your account, and Clerk keeps your email address. They
@@ -193,8 +209,9 @@ export default function PrivacyPage() {
       <Section title="What WalkDots does not do">
         <p>
           No advertising, no tracking across sites, and no analytics beyond the anonymous visit
-          counts and page speed above. No selling or renting of your data. The
-          only cookies are the ones that keep you signed in, and only once you sign in. Fonts are
+          counts and page speed above. No selling or renting of your data. The only cookies are the
+          ones that keep you signed in, once you sign in, and the random ID behind the usage limits
+          above. Fonts are
           part of the site and the app, not fetched from a third party.
         </p>
       </Section>

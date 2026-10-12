@@ -64,7 +64,15 @@ export function cachedScript(job: ScriptJob): StopScript | null {
   return CACHE.get(scriptKey(job)) ?? null;
 }
 
-export function writeStopScript(job: ScriptJob): Promise<StopScript> {
+/**
+ * `beforeWrite` runs only when the words really have to be written — not on a
+ * hit in memory or in the database — so the rate limit (lib/rateLimit.ts)
+ * counts paid calls and nothing else. Throwing from it abandons the write.
+ */
+export function writeStopScript(
+  job: ScriptJob,
+  opts: { beforeWrite?: () => Promise<void> } = {},
+): Promise<StopScript> {
   const key = scriptKey(job);
   const hit = CACHE.get(key);
   if (hit) return Promise.resolve(hit);
@@ -78,6 +86,7 @@ export function writeStopScript(job: ScriptJob): Promise<StopScript> {
   const job$ = loadScript(key)
     .then(async (kept) => {
       if (kept) return kept;
+      await opts.beforeWrite?.();
       const written = await getLLM().generateStopScript({
         req: job.req,
         stop: job.stop,

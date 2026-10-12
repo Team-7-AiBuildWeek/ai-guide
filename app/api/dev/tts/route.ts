@@ -2,11 +2,22 @@
  * Synthesis endpoint for the /dev/tts bench.
  *
  * The key is server-side only, so the browser asks us and we ask the provider.
- * Development aid — gate or delete it before the app is public.
+ *
+ * It speaks any text it is given and caches nothing, so in production it is
+ * for developer accounts only — open, it was a free voice for anyone on the
+ * internet, billed to us. On a local dev server it stays open for the bench.
  */
 
+import { developerOnly } from "@/lib/accounts/developer";
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getTTS } from "@/lib/providers/factory";
+
+/** Null to go ahead; otherwise the response to send instead. */
+async function gate(): Promise<Response | null> {
+  if (process.env.NODE_ENV === "development") return null;
+  const who = await developerOnly();
+  return who instanceof Response ? who : null;
+}
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -36,6 +47,8 @@ function fail(err: unknown) {
 }
 
 export async function GET(request: Request) {
+  const denied = await gate();
+  if (denied) return denied;
   const url = new URL(request.url);
   try {
     return await synthesize(
@@ -49,6 +62,8 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  const denied = await gate();
+  if (denied) return denied;
   try {
     const body = (await request.json()) as { text?: string; lang?: string; voice?: string };
     if (!body.text?.trim()) {

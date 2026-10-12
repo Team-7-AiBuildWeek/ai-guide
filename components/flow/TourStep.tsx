@@ -12,7 +12,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Stop, TourPlan, TourRide } from "@/lib/providers/types";
 import { TRUSTED_M } from "@/lib/tour/fixQuality";
 import { useUiLang } from "@/lib/i18n/ui";
+import { useKeyboardInset } from "@/lib/useKeyboardInset";
 import PromptBar from "../PromptBar";
+import ThoughtLine from "../ThoughtLine";
 
 /** What to call each thing on the front of the vehicle. */
 const RIDE_WORDS: Record<TourRide["mode"], string> = {
@@ -168,9 +170,12 @@ export default function TourStep({
   const endRef = useRef<HTMLDivElement>(null);
   const stop = plan.stops[currentIndex];
 
+  // The newest line stays in view: when one is added, and when the keyboard
+  // comes up and the sheet shrinks to the space above it.
+  const keyboard = useKeyboardInset();
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [thread]);
+    endRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+  }, [thread, keyboard]);
 
   const lang = useUiLang();
   /** The question being answered; a newer one, or Stop, leaves the old answer unheard. */
@@ -277,11 +282,25 @@ export default function TourStep({
                 <p className="font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
                   {qa.question}
                 </p>
-                <p
-                  className={`mt-2 ${qa.failed ? "text-[color:var(--danger)]" : "text-[color:var(--ink-soft)]"}`}
-                >
-                  {qa.answer ?? "Thinking…"}
-                </p>
+                {/* Breathes while the guide works it out, then settles into
+                    "Thought for 2.4s" above the answer. */}
+                <ThoughtLine
+                  working={qa.answer === null}
+                  label="Thinking…"
+                  doneLabel="Thought for"
+                  collapsible={false}
+                  fontSize={14}
+                  color="var(--ink-mute)"
+                  glyphColor="var(--mint-ink)"
+                  className="mt-2"
+                />
+                {qa.answer !== null ? (
+                  <p
+                    className={`rise-in mt-2 ${qa.failed ? "text-[color:var(--danger)]" : "text-[color:var(--ink-soft)]"}`}
+                  >
+                    {qa.answer}
+                  </p>
+                ) : null}
               </li>
             ))}
           </ul>

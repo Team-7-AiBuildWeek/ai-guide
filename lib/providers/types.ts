@@ -152,8 +152,21 @@ export type AskRequest = {
   stopContext?: string;
   /** Which city the question is being asked in. */
   city?: string;
+  /** The walker's GPS fix. Absent when there is none — not the stop's position. */
   lat?: number;
   lng?: number;
+  /** The fix's radius in metres: how far to trust "straight ahead". */
+  accuracy?: number;
+  /** Which way the phone points, degrees clockwise from north, when it has a compass. */
+  heading?: number | null;
+  /** Where the current stop is, to say how far the walker is from it. */
+  stopLat?: number;
+  stopLng?: number;
+  /**
+   * The named places around the walker, worked out by the server from the map
+   * (lib/tour/surroundings.ts) — never sent by the client.
+   */
+  surroundings?: string[];
 };
 
 // ---------------------------------------------------------------------- tts

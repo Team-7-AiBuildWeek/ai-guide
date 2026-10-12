@@ -62,6 +62,21 @@ type Drag = {
   fromContent: boolean;
 };
 
+/**
+ * An open sheet while the keyboard is up: standing on the keyboard, and no
+ * taller than the part of the screen still showing above it.
+ *
+ * The visual viewport's height rather than the window less the keyboard:
+ * Safari may also pan the page up when a field is focused, and the window
+ * height does not know that, so the sheet's header ended up above the top of
+ * the screen.
+ */
+function raisedAboveKeyboard(height: SheetHeight, keyboard: number): React.CSSProperties {
+  const visible = window.visualViewport?.height ?? window.innerHeight - keyboard;
+  const wanted = height === "full" ? visible : Math.min(visible, window.innerHeight * SHARE.half);
+  return { bottom: keyboard, height: Math.round(wanted) };
+}
+
 export default function BottomSheet({
   height,
   onHeightChange,
@@ -102,9 +117,14 @@ export default function BottomSheet({
   const sheetRef = useRef<HTMLElement>(null);
 
   /**
-   * How much of the screen the keyboard is covering. Only the collapsed card
-   * needs it — the city search on the first screen sat underneath the
-   * keyboard — because the taller sheets scroll their own fields into view.
+   * How much of the screen the keyboard is covering.
+   *
+   * Every height needs it. The collapsed card rides above it (the city search
+   * on the first screen sat underneath the keyboard), and so does an open
+   * sheet: "Ask anything" keeps its field at the bottom, and iPhone Safari lays
+   * the keyboard over it, so a walker typing a question could not see a word
+   * of it. Scrolling the field into view does not help when the field is the
+   * last thing in a sheet pinned to the bottom of the screen.
    */
   const keyboard = useKeyboardInset();
   const drag = useRef<Drag | null>(null);
@@ -396,7 +416,13 @@ export default function BottomSheet({
       aria-label={title ?? "Tour options"}
       // Collapsed, the card rides above the keyboard when one is open (it covers
       // any tab bar), else above the tab bar.
-      style={height === "collapsed" ? { bottom: keyboard > 0 ? keyboard : lift } : undefined}
+      style={
+        height === "collapsed"
+          ? { bottom: keyboard > 0 ? keyboard : lift }
+          : keyboard > 0
+            ? raisedAboveKeyboard(height, keyboard)
+            : undefined
+      }
       className={[
         "pointer-events-auto absolute inset-x-0 bottom-0 z-20 mx-auto w-full max-w-lg",
         "rounded-t-[var(--radius-panel)] border border-b-0 border-[color:var(--line)]",
