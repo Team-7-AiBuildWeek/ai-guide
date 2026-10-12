@@ -17,6 +17,8 @@ import Greeting from "./Greeting";
 import { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
+import DevPanel from "./DevPanel";
+import { useDeveloper } from "@/lib/accounts/useDeveloper";
 import BriefStep, { BriefFooter } from "./flow/BriefStep";
 import PointsStep, { PointsFooter } from "./flow/PointsStep";
 import CityPicker from "./flow/CityPicker";
@@ -85,6 +87,8 @@ export default function TourFlow({
   initialResume?: boolean;
 }) {
   const t = useT();
+  /** Developer accounts only: the demo tour and the developer panel (lib/accounts/developer.ts). */
+  const { developer } = useDeveloper();
   const router = useRouter();
   const [stage, setStage] = useState<Stage>("start");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
@@ -778,6 +782,7 @@ export default function TourFlow({
 
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden">
+      {stage === "tour" && tour ? <DevPanel tour={tour} currentIndex={currentIndex} onJump={setCurrentIndex} /> : null}
       <TourMap
         styleUrl={styleUrl}
         center={center}
@@ -1003,7 +1008,7 @@ export default function TourFlow({
                   : undefined
           }
           titleAction={
-            stage === "brief" ? (
+            stage === "brief" && developer ? (
               <button type="button" onClick={() => void loadDemo()} className="btn btn--quiet btn--small">
                 {t("brief.demo")}
               </button>

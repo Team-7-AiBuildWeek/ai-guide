@@ -11,6 +11,7 @@ import CodeSlots, { type CodeStatus } from "@/components/CodeSlots";
 import GetToKnowYou from "@/components/GetToKnowYou";
 import { Btn, Field, TextLink } from "@/components/ui";
 import { useEmailCode } from "@/lib/auth";
+import { recheckDeveloper } from "@/lib/developer";
 import { applyPrefs, profileOf } from "@/lib/profile";
 import { colors, fonts, radius, shadow, size, type } from "@/lib/theme";
 
@@ -37,6 +38,7 @@ export default function SignInSheet({
       setCodeStatus("error");
       return;
     }
+    recheckDeveloper();
     // Long enough to see the tick before the sheet moves on.
     setCodeStatus("success");
     await new Promise((r) => setTimeout(r, 650));

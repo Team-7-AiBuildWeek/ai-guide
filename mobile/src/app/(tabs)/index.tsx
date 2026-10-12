@@ -19,6 +19,7 @@ import { GlassSurface } from "@/components/Glass";
 import PanelReveal from "@/components/PanelReveal";
 import Sheet, { type SheetHeight } from "@/components/Sheet";
 import TourMap from "@/components/TourMap";
+import DevPanel from "@/components/DevPanel";
 import { Btn, Eyebrow, TextLink } from "@/components/ui";
 import Brief, { BriefFooter } from "@/components/flow/Brief";
 import Generating from "@/components/flow/Generating";
@@ -27,6 +28,7 @@ import { MiniPlayer, Player } from "@/components/flow/Players";
 import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
 import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
 import { ask, buildTour, cityAt, demoTour } from "@/lib/api";
+import { useDeveloper } from "@/lib/developer";
 import {
   clearTour,
   EMPTY_DRAFT,
@@ -196,6 +198,9 @@ export default function Flow() {
   const asked = ready && tour?.demo && tour.req ? tour.req : draft;
 
   // ------------------------------------------------------------ generate --
+  /** Developer accounts only: the demo tour and the developer panel. */
+  const { developer } = useDeveloper();
+
   /** Whether the generating screen is showing the demo, so Try again retries the demo rather than building a tour. */
   const demoRun = useRef(false);
 
@@ -474,6 +479,7 @@ export default function Flow() {
 
   return (
     <View style={styles.screen}>
+      {stage === "tour" && tour ? <DevPanel tour={tour} currentIndex={currentIndex} onJump={setCurrentIndex} /> : null}
       <TourMap
         center={DEFAULT_CENTER}
         fix={fix}
@@ -602,7 +608,7 @@ export default function Flow() {
                   : undefined
           }
           titleAction={
-            stage === "brief" ? <Btn small label={t("brief.demo")} onPress={() => void loadDemo()} /> : undefined
+            stage === "brief" && developer ? <Btn small label={t("brief.demo")} onPress={() => void loadDemo()} /> : undefined
           }
           onCollapse={
             stage === "brief"

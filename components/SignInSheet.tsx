@@ -12,6 +12,7 @@ import { useState } from "react";
 import CodeSlots, { type CodeStatus } from "./CodeSlots";
 import GetToKnowYou from "./GetToKnowYou";
 import { syncWalks, useEmailCode } from "@/lib/accounts/client";
+import { recheckDeveloper } from "@/lib/accounts/useDeveloper";
 import { applyPrefs, profileOf } from "@/lib/accounts/profile";
 import { loadWalks } from "@/lib/tour/history";
 
@@ -42,6 +43,7 @@ export default function SignInSheet({
     // Long enough to see the tick land before the sheet moves on.
     setCodeStatus("success");
     await new Promise((r) => setTimeout(r, 650));
+    recheckDeveloper();
     // In the background: moving on should not wait for the account's walks.
     void syncWalks(loadWalks());
     const profile = profileOf(clerk.user);

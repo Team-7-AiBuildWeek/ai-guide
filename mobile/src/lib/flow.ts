@@ -39,6 +39,19 @@ export function tourShape(d: Pick<Draft, "durationMinutes" | "detail" | "pace">)
   return { stops, km };
 }
 
+/**
+ * What a tour roughly costs to make, for the developer panel — the website's
+ * lib/tour/cost.ts: Gemini Flash for the writing, about $0.015 a minute of
+ * audio for the voice. Recordings already kept cost nothing, which this does
+ * not know.
+ */
+export function estimateTourCost(stops: number, detail: Detail = "story") {
+  const audioMinutes = stops * SCRIPT_MINUTES[detail];
+  const writing = 0.01 + stops * 0.009;
+  const voice = audioMinutes * 0.015;
+  return { audioMinutes, writing, voice, total: writing + voice };
+}
+
 export const INTERESTS: { value: Interest; icon: string; tint: string }[] = [
   { value: "history", icon: "🏛", tint: "#f6efe4" },
   { value: "architecture", icon: "🏗", tint: "#edf1f7" },

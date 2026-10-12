@@ -22,12 +22,15 @@ import SignInSheet from "./SignInSheet";
 import { Btn, pickLanguage } from "./ui";
 import { accountsEnabled, deleteAccount, syncWalks } from "@/lib/accounts";
 import { forgetWelcome } from "@/lib/auth";
+import { recheckDeveloper, useDeveloper } from "@/lib/developer";
 import type { WalkRecord } from "@/lib/history";
 import { languageName } from "@/lib/languages";
 import { profileOf } from "@/lib/profile";
 import { colors, fonts, radius, size, surface, type } from "@/lib/theme";
 
 const CONTACT = "jurajkolesar1976@gmail.com";
+/** The web app, where the developers' saved tours page lives. */
+const SITE_APP = "https://app.walkdots.com";
 /** The landing site, where About and the privacy policy live. */
 const SITE = "https://www.walkdots.com";
 
@@ -39,6 +42,7 @@ const ICONS = {
   contact: "envelope",
   privacy: "hand.raised",
   about: "info.circle",
+  tours: "point.topleft.down.to.point.bottomright.curvepath",
 } as const;
 
 function Row({
@@ -85,9 +89,27 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Card({ account }: { account: ReactNode }) {
+  const { developer, info } = useDeveloper();
   return (
     <View style={[surface.card, styles.card]}>
       <Section title="Account">{account}</Section>
+      {developer ? (
+        <>
+          <View style={styles.rule} />
+          <Section title="Developer">
+            <Row icon="tours" label="Saved tours" onPress={() => void Linking.openURL(`${SITE_APP}/dev/tours`)} />
+            {info ? (
+              <View style={{ paddingHorizontal: 12, paddingBottom: 8, gap: 2 }}>
+                {Object.entries(info).map(([k, v]) => (
+                  <Text key={k} style={type.caption}>
+                    {k[0].toUpperCase() + k.slice(1)}: {v}
+                  </Text>
+                ))}
+              </View>
+            ) : null}
+          </Section>
+        </>
+      ) : null}
       <View style={styles.rule} />
       <Section title="Support">
         <Row icon="contact" label="Contact us" onPress={() => void Linking.openURL(`mailto:${CONTACT}?subject=WalkDots`)} />
@@ -117,6 +139,7 @@ function WithAccount({ language, onWalks }: { language: ReactNode; onWalks: (wal
   const leave = async () => {
     forgetWelcome();
     await signOut();
+    recheckDeveloper();
     router.replace("/welcome");
   };
 

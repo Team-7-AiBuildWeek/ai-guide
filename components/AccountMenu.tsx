@@ -9,6 +9,7 @@
  * and a row that leads nowhere is worse than no row.
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
+ *   Developer Saved tours · Phone view · what the server runs on (developers only)
  *   Support   Contact us · About WalkDots · Privacy policy
  */
 
@@ -20,6 +21,7 @@ import OverlaySheet from "./OverlaySheet";
 import SignInSheet from "./SignInSheet";
 import { accountsEnabled, deleteAccount, forgetWelcome, syncWalks } from "@/lib/accounts/client";
 import { profileOf } from "@/lib/accounts/profile";
+import { useDeveloper } from "@/lib/accounts/useDeveloper";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
 import { loadWalks, type WalkRecord } from "@/lib/tour/history";
 
@@ -51,6 +53,13 @@ const ICONS = {
     </>
   ),
   privacy: <path d="M12 3 5 6v5c0 4.5 3 8.3 7 10 4-1.7 7-5.5 7-10V6l-7-3Z" />,
+  tours: <path d="M5 19c3-1 4-6 7-7s5 2 7 0M5 19a2 2 0 1 0 0-.01M19 12a2 2 0 1 0 0-.01" />,
+  phone: (
+    <>
+      <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+      <path d="M11 18.5h2" />
+    </>
+  ),
   about: (
     <>
       <circle cx="12" cy="12" r="9" />
@@ -162,11 +171,30 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 }
 
 function Card({ account }: { account: ReactNode }) {
+  const { developer, info } = useDeveloper();
   return (
     <nav aria-label="Account" className="card flex flex-col gap-2 p-2">
       <Section title="Account">
         {account}
       </Section>
+      {developer ? (
+        <>
+          <hr className="mx-3 border-[color:var(--line)]" />
+          <Section title="Developer">
+            <Row icon="tours" label="Saved tours" detail="everyone's" href="/dev/tours" />
+            <Row icon="phone" label="Phone view" href="/dev/phone" />
+            {info ? (
+              <div className="px-3 pb-2 pt-1 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">
+                {Object.entries(info).map(([k, v]) => (
+                  <p key={k}>
+                    <span className="capitalize">{k}</span>: {v}
+                  </p>
+                ))}
+              </div>
+            ) : null}
+          </Section>
+        </>
+      ) : null}
       <hr className="mx-3 border-[color:var(--line)]" />
       <Section title="Support">
         <Row icon="contact" label="Contact us" href={`mailto:${CONTACT}?subject=WalkDots`} />

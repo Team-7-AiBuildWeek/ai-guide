@@ -82,6 +82,59 @@ export async function pinnedDemo(): Promise<{ id: string; tour: StoredTour } | n
   return rows[0] ?? null;
 }
 
+/** One saved tour, summarised for the developers' list. */
+export type SavedTourSummary = {
+  id: string;
+  createdAt: string;
+  title: string;
+  city: string | null;
+  minutes: number | null;
+  detail: string | null;
+  pace: string | null;
+  interests: string[];
+  lang: string | null;
+  stops: number;
+  meters: number | null;
+  freeText: string | null;
+  demo: boolean;
+};
+
+/** The newest saved tours, without their routes and words. */
+export async function listSavedTours(limit: number): Promise<SavedTourSummary[]> {
+  const q = sql();
+  if (!q) return [];
+  await ensureSchema();
+  const rows = (await q`
+    SELECT id, created_at,
+      tour->'plan'->>'title' AS title,
+      tour->'req'->'city'->>'name' AS city,
+      (tour->'req'->>'durationMinutes')::int AS minutes,
+      tour->'req'->>'detail' AS detail,
+      tour->'req'->>'pace' AS pace,
+      COALESCE(tour->'req'->'interests', '[]'::jsonb) AS interests,
+      tour->'req'->>'lang' AS lang,
+      jsonb_array_length(tour->'plan'->'stops') AS stops,
+      (tour->>'meters')::float AS meters,
+      tour->'req'->>'freeText' AS free_text,
+      COALESCE(tour->>'demo' = 'true', false) AS demo
+    FROM saved_tours ORDER BY created_at DESC LIMIT ${limit}`) as Record<string, unknown>[];
+  return rows.map((r) => ({
+    id: String(r.id),
+    createdAt: new Date(r.created_at as string).toISOString(),
+    title: (r.title as string) ?? "Untitled",
+    city: (r.city as string) ?? null,
+    minutes: (r.minutes as number) ?? null,
+    detail: (r.detail as string) ?? null,
+    pace: (r.pace as string) ?? null,
+    interests: (r.interests as string[]) ?? [],
+    lang: (r.lang as string) ?? null,
+    stops: Number(r.stops ?? 0),
+    meters: (r.meters as number) ?? null,
+    freeText: (r.free_text as string) ?? null,
+    demo: Boolean(r.demo),
+  }));
+}
+
 export async function loadScript(key: string): Promise<StopScript | null> {
   const q = sql();
   if (!q) return null;

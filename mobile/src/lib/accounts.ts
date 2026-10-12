@@ -30,6 +30,18 @@ async function me(path: string, init?: RequestInit): Promise<Response | null> {
   });
 }
 
+/** Whether this account is a developer, and what the server runs on (see the website's lib/accounts/developer.ts). */
+export async function developerStatus(): Promise<{ developer: boolean; info: Record<string, string> | null }> {
+  try {
+    const res = await me("/developer");
+    if (!res?.ok) return { developer: false, info: null };
+    const body = (await res.json()) as { developer?: boolean; info?: Record<string, string> };
+    return { developer: Boolean(body.developer), info: body.info ?? null };
+  } catch {
+    return { developer: false, info: null };
+  }
+}
+
 /** Sends this phone's walks, takes back the account's, keeps the union. */
 export async function syncWalks(): Promise<WalkRecord[] | null> {
   try {
