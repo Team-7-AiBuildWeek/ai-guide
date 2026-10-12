@@ -29,6 +29,19 @@ const ROUTE = "tour-route";
 const RIDES = "tour-rides";
 
 /**
+ * One of our GeoJSON sources, or undefined when the map has no style to ask.
+ *
+ * `getSource` throws rather than returning undefined while the style is gone,
+ * and it goes for more than a basemap swap: when Safari takes the WebGL
+ * context back (memory pressure, a tab left in the background) MapLibre
+ * destroys the style and rebuilds it once the context returns. A GPS fix
+ * landing in that gap took the whole screen down with "this.style.getSource".
+ */
+function sourceOf(map: MapLibreMap, id: string): GeoJSONSource | undefined {
+  return map.style ? (map.getSource(id) as GeoJSONSource | undefined) : undefined;
+}
+
+/**
  * A city, not a street: close enough to see the shape of the centre, far
  * enough to read as a place rather than four blocks.
  *
@@ -232,7 +245,16 @@ export default function TourMap({
     // has to be callable again — not just once on first load.
     const addOurLayers = () => {
       styleReady.current = true;
-      if (map.getSource(ROUTE)) return;
+      // Already there — a style rebuilt after a lost WebGL context keeps our
+      // sources, but with whatever they held when it was lost. Bring them up
+      // to date from the refs, which kept listening in the meantime.
+      if (map.getSource(ROUTE)) {
+        sourceOf(map, ROUTE)?.setData(routeRef.current ?? { type: "FeatureCollection", features: [] });
+        sourceOf(map, RIDES)?.setData(ridesRef.current);
+        const f = fixRef.current;
+        if (f) sourceOf(map, ACCURACY)?.setData(accuracyPolygon(f.lat, f.lng, f.accuracy));
+        return;
+      }
 
       map.addSource(ROUTE, {
         type: "geojson",
@@ -308,6 +330,11 @@ export default function TourMap({
     map.on("load", addOurLayers);
     // Fired after setStyle finishes; without this the route vanishes on swap.
     map.on("style.load", addOurLayers);
+    // The style is destroyed with the context; it comes back through
+    // style.load above once the browser returns the context.
+    map.on("webglcontextlost", () => {
+      styleReady.current = false;
+    });
 
     const click = (e: MapMouseEvent) => {
       if (!pickingRef.current) return;
@@ -389,9 +416,7 @@ export default function TourMap({
     // asking throws (Safari met it — the fix arrived before the style). The
     // load handler draws the circle from fixRef when the style lands.
     if (styleReady.current) {
-      (map.getSource(ACCURACY) as GeoJSONSource | undefined)?.setData(
-        accuracyPolygon(fix.lat, fix.lng, fix.accuracy),
-      );
+      sourceOf(map, ACCURACY)?.setData(accuracyPolygon(fix.lat, fix.lng, fix.accuracy));
     }
 
     if (!hasCentred.current) {
@@ -450,9 +475,7 @@ export default function TourMap({
     routeRef.current = route;
     if (!map) return;
     const apply = () =>
-      (map.getSource(ROUTE) as GeoJSONSource | undefined)?.setData(
-        route ?? { type: "FeatureCollection", features: [] },
-      );
+      sourceOf(map, ROUTE)?.setData(route ?? { type: "FeatureCollection", features: [] });
     if (styleReady.current) apply();
     else map.once("load", apply);
   }, [route]);
@@ -486,7 +509,7 @@ export default function TourMap({
     ridesRef.current = rideShapes;
     if (!map) return;
     const apply = () =>
-      (map.getSource(RIDES) as GeoJSONSource | undefined)?.setData(rideShapes);
+      sourceOf(map, RIDES)?.setData(rideShapes);
     if (styleReady.current) apply();
     else map.once("load", apply);
   }, [rideShapes]);
