@@ -1125,6 +1125,7 @@ export default function TourFlow({
           // are already the whole screen, and dragging one down would uncover
           // the landing screen behind it.
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
+          glass={stage === "tour" && askOpen}
           title={
             stage === "brief"
               ? t("brief.title")

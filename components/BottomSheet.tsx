@@ -87,7 +87,10 @@ export default function BottomSheet({
   footer,
   collapsedContent,
   lift,
+  glass = false,
 }: {
+  /** Frosted when raised too (a chat over the map), a little more opaque for reading. */
+  glass?: boolean;
   /** A CSS length to sit above the bottom edge, for a tab bar underneath. */
   lift?: string;
   height: SheetHeight;
@@ -429,7 +432,7 @@ export default function BottomSheet({
         "bg-[color:var(--surface)] shadow-[var(--shadow-lift)]",
         // Collapsed it is a control strip floating on the map: frosted. Raised to
         // read, it is a page of text: solid (see .sheet--glass in globals.css).
-        height === "collapsed" ? "sheet--glass" : "",
+        height === "collapsed" ? "sheet--glass" : glass ? "sheet--glass sheet--glass-read" : "",
         // A spring, not a linear slide — it should feel like it was thrown up.
         "transition-[height] duration-[420ms] ease-[cubic-bezier(0.22,1.2,0.36,1)]",
         height === "full" ? "h-[100dvh] rounded-t-none" : "",
@@ -476,7 +479,7 @@ export default function BottomSheet({
             {children}
           </div>
           {footer ? (
-            <div className="shrink-0 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1rem,var(--safe-bottom))]">
+            <div className="sheet__footer shrink-0 border-t border-[color:var(--line)] bg-[color:var(--surface)] px-4 pt-3 pb-[max(1rem,var(--safe-bottom))]">
               {footer}
             </div>
           ) : null}

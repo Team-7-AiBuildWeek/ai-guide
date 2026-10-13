@@ -268,7 +268,7 @@ export default function TourStep({
                   key={q}
                   type="button"
                   onClick={() => void submit(q)}
-                  className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] px-4 py-3 text-left"
+                  className="ask-chip rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] px-4 py-3 text-left"
                 >
                   {q}
                 </button>
