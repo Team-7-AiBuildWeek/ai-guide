@@ -29,13 +29,19 @@ export const PACES: Pace[] = ["relaxed", "steady", "cover-ground"];
  * walk that gets planned.
  */
 export const SCRIPT_MINUTES: Record<Detail, number> = { highlights: 4, story: 4.5, everything: 5 };
-export const WALK_MINUTES: Record<Pace, number> = { relaxed: 4, steady: 6, "cover-ground": 9 };
-const KM_PER_HOUR: Record<Pace, number> = { relaxed: 3.5, steady: 4.5, "cover-ground": 5 };
+/** Pace is walking speed; stops stay ~420 m apart, so a faster walker reaches each sooner (7, 6, 5 min). */
+const SPEED_MPS: Record<Pace, number> = { relaxed: 1.0, steady: 1.2, "cover-ground": 1.4 };
+const STOP_SPACING_M = 420;
+export const WALK_MINUTES: Record<Pace, number> = {
+  relaxed: Math.round(STOP_SPACING_M / (SPEED_MPS.relaxed * 60)),
+  steady: Math.round(STOP_SPACING_M / (SPEED_MPS.steady * 60)),
+  "cover-ground": Math.round(STOP_SPACING_M / (SPEED_MPS["cover-ground"] * 60)),
+};
 
 export function tourShape(d: Pick<Draft, "durationMinutes" | "detail" | "pace">) {
   const stops = Math.max(3, Math.round(d.durationMinutes / (SCRIPT_MINUTES[d.detail] + WALK_MINUTES[d.pace])));
   const walking = Math.max(0, d.durationMinutes - Math.round(stops * SCRIPT_MINUTES[d.detail]));
-  const km = Math.max(0.5, Math.round((walking / 60) * KM_PER_HOUR[d.pace] * 2) / 2);
+  const km = Math.max(0.5, Math.round(((walking * 60 * SPEED_MPS[d.pace]) / 1000) * 2) / 2);
   return { stops, km };
 }
 
@@ -112,7 +118,6 @@ export function saveProgress(index: number) {
 // ------------------------------------------------------------------ timing
 // lib/tour/timing.ts: walking at a tourist's pace plus standing at every stop.
 
-const SPEED_MPS: Record<Pace, number> = { relaxed: 1.0, steady: 1.2, "cover-ground": 1.4 };
 const SPOKEN_MINUTES: Record<Detail, number> = { highlights: 4, story: 4.5, everything: 5 };
 
 export function tourMinutes(tour: StoredTour): number {

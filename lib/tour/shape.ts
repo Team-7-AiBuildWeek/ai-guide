@@ -19,18 +19,36 @@ export const SCRIPT_MINUTES: Record<Detail, number> = {
   everything: 5,
 };
 
-/** Minutes of walking between one stop and the next, by pace. */
-export const WALK_MINUTES: Record<Pace, number> = {
-  relaxed: 4,
-  steady: 6,
-  "cover-ground": 9,
+/**
+ * How fast each pace walks, in metres per second.
+ *
+ * Pace is walking speed — that is what the word means to the person choosing
+ * it. It used to mean spacing: "Fast" (internally "cover-ground") put the
+ * stops further apart, nine minutes between them against Relaxed's four, so
+ * choosing Fast made the gaps longer, which read as broken.
+ *
+ * Sightseeing speeds, well under a router's ~1.4 m/s for someone with
+ * somewhere to be: 3.6, 4.3 and 5 km/h. Shared with lib/tour/timing.ts, so the
+ * estimate on the setup screen and the time given for the planned walk agree.
+ */
+export const WALK_SPEED_MPS: Record<Pace, number> = {
+  relaxed: 1.0,
+  steady: 1.2,
+  "cover-ground": 1.4,
 };
 
-/** Walking speed by pace, for the distance estimate only. */
-const KM_PER_HOUR: Record<Pace, number> = {
-  relaxed: 3.5,
-  steady: 4.5,
-  "cover-ground": 5,
+/**
+ * How far apart stops are on foot, whatever the pace: a few minutes'
+ * stroll in a city centre. A faster walker reaches the next one sooner,
+ * which is what leaves room for more stops in the same time.
+ */
+export const STOP_SPACING_M = 420;
+
+/** Minutes of walking between one stop and the next, by pace: 7, 6 and 5. */
+export const WALK_MINUTES: Record<Pace, number> = {
+  relaxed: Math.round(STOP_SPACING_M / (WALK_SPEED_MPS.relaxed * 60)),
+  steady: Math.round(STOP_SPACING_M / (WALK_SPEED_MPS.steady * 60)),
+  "cover-ground": Math.round(STOP_SPACING_M / (WALK_SPEED_MPS["cover-ground"] * 60)),
 };
 
 /**
@@ -52,6 +70,6 @@ export function tourShape(req: Settings) {
   const listening = Math.round(stops * SCRIPT_MINUTES[req.detail]);
   const walking = Math.max(0, req.durationMinutes - listening);
   // To the nearest half kilometre: an estimate, and it should read like one.
-  const km = Math.max(0.5, Math.round(((walking / 60) * KM_PER_HOUR[req.pace]) * 2) / 2);
+  const km = Math.max(0.5, Math.round(((walking * 60 * WALK_SPEED_MPS[req.pace]) / 1000) * 2) / 2);
   return { stops, listening, walking, km };
 }

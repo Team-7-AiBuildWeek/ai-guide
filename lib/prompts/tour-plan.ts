@@ -68,9 +68,10 @@ const DETAIL_WORDS: Record<Detail, string> = {
 };
 
 const PACE_WORDS: Record<TourRequest["pace"], string> = {
-  relaxed: "Relaxed: more stops, short distances between them, plenty of standing still.",
-  steady: "Steady: a normal walking rhythm.",
-  "cover-ground": "Cover more ground: fewer stops, longer walks, a wider loop.",
+  relaxed: "Relaxed: an easy stroll, about 3.6 km/h. Keep stops roughly 400 m apart on foot.",
+  steady: "Steady: a normal walking rhythm, about 4.3 km/h. Keep stops roughly 400 m apart on foot.",
+  "cover-ground":
+    "Fast: a brisk walker, about 5 km/h. Keep stops roughly 400 m apart on foot — they reach each one sooner, which is why there are more of them.",
 };
 
 const INTEREST_WORDS: Record<TourRequest["interests"][number], string> = {

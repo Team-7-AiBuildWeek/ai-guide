@@ -19,20 +19,7 @@
 import type { Detail, Pace } from "@/lib/providers/types";
 import { spokenMinutes } from "@/lib/prompts/tour-plan";
 import type { StoredTour } from "./flow";
-
-/**
- * Metres per second, actually walked, by the pace the walker asked for.
- *
- * Well under Valhalla's ~1.4 m/s, because that figure is for someone with
- * somewhere to be. These are sightseeing speeds: 3.6, 4.3 and 5 km/h. Even
- * the fastest is a brisk stroll rather than a commute, because whatever the
- * setting says, this is still a walk with a voice in your ear.
- */
-const SPEED_MPS: Record<Pace, number> = {
-  relaxed: 1.0,
-  steady: 1.2,
-  "cover-ground": 1.4,
-};
+import { WALK_SPEED_MPS } from "./shape";
 
 const DEFAULT_PACE: Pace = "steady";
 const DEFAULT_DETAIL: Detail = "story";
@@ -61,7 +48,7 @@ export function tourTiming(tour: StoredTour): TourTiming {
 
   // Falls back to the router's own seconds when there is no distance to work
   // from — a tour whose routing failed still has to say something.
-  const walking = tour.meters > 0 ? Math.round(tour.meters / SPEED_MPS[pace]) : tour.seconds;
+  const walking = tour.meters > 0 ? Math.round(tour.meters / WALK_SPEED_MPS[pace]) : tour.seconds;
   const listening = Math.round(tour.plan.stops.length * spokenMinutes(detail) * 60);
 
   /**
