@@ -18,10 +18,21 @@ function until(iso: string): string {
 }
 
 export default function PlanCard() {
-  const { status, refresh } = useWalkStatus();
+  const { status, loading, refresh } = useWalkStatus();
   const [paywallOpen, setPaywallOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Nothing known yet (a first visit): hold the card's place rather than
+  // making the page jump when it arrives. Remembered answers skip this.
+  if (loading) {
+    return (
+      <section aria-hidden="true" className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[color:var(--line)] bg-[color:var(--surface)] p-4">
+        <div className="h-3 w-20 animate-pulse rounded-full bg-[color:var(--line)]" />
+        <div className="h-4 w-3/4 animate-pulse rounded-full bg-[color:var(--line)]" />
+        <div className="h-9 w-36 animate-pulse rounded-full bg-[color:var(--line)]" />
+      </section>
+    );
+  }
   if (!status.enabled) return null;
 
   const lines: string[] = [];

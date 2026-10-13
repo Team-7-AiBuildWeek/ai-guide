@@ -283,11 +283,11 @@ export default function TourFlow({
     }
   }, []);
   /** What the next build would come out of (lib/billing) — and the paywall when nothing. */
-  const { status: walkStatus, refresh: refreshWalkStatus } = useWalkStatus();
-  const walkStatusRef = useRef(walkStatus);
+  const { status: walkStatus, fresh: walkStatusFresh, refresh: refreshWalkStatus } = useWalkStatus();
+  const walkStatusRef = useRef({ ...walkStatus, fresh: walkStatusFresh });
   useEffect(() => {
-    walkStatusRef.current = walkStatus;
-  }, [walkStatus]);
+    walkStatusRef.current = { ...walkStatus, fresh: walkStatusFresh };
+  }, [walkStatus, walkStatusFresh]);
   const [paywall, setPaywall] = useState<PaywallReason | null>(null);
 
   /**
@@ -303,8 +303,10 @@ export default function TourFlow({
     if (!again && !draft.start) return;
     // No walk left: the paywall now, rather than after a minute of building.
     // A walk-again is never stopped — it is a walk the person already has.
+    // Only a fresh answer stops a build here: a remembered one may predate a
+    // purchase. Without one, the server decides (and answers 402 at once).
     const allowance = walkStatusRef.current;
-    if (!again && allowance.enabled && !allowance.canWalk) {
+    if (!again && allowance.fresh && allowance.enabled && !allowance.canWalk) {
       setPaywall(allowance.reason ?? "no_walks");
       return;
     }
