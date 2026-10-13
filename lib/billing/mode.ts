@@ -5,8 +5,8 @@
  *  - off         nothing is recorded, nobody is stopped (the default);
  *  - shadow      every walk is recorded with what it *would* have cost, and
  *                nobody is stopped — for checking the books before charging;
- *  - developers  the paywall is real for developer accounts (DEVELOPER_EMAILS)
- *                and shadow for everyone else — for testing it on ourselves;
+ *  - developers  developer accounts (DEVELOPER_EMAILS) see the plans and walk
+ *                free, and everyone else is shadow — nobody is ever stopped;
  *  - on          the paywall is real for everyone; developers walk free.
  *
  * Server-only.
@@ -41,7 +41,7 @@ export async function developer(userId: string | null): Promise<boolean> {
 /**
  * What the paywall does for this person:
  *  - "enforce"  their walks are counted and they can be stopped;
- *  - "free"     a developer under `on`: counted as a developer walk, never stopped;
+ *  - "free"     a developer (under `developers` or `on`): counted as a developer walk, never stopped;
  *  - "shadow"   counted for the books only;
  *  - "off"      not counted at all.
  */
@@ -50,6 +50,6 @@ export async function treatmentFor(userId: string | null): Promise<"enforce" | "
   if (mode === "off") return "off";
   if (mode === "shadow") return "shadow";
   const dev = await developer(userId);
-  if (mode === "developers") return dev ? "enforce" : "shadow";
+  if (mode === "developers") return dev ? "free" : "shadow";
   return dev ? "free" : "enforce";
 }

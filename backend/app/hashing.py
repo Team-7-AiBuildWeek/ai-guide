@@ -33,9 +33,14 @@ def script_hash(*, poi_id: int, language: str, persona: str, depth_level: str,
 
 
 def audio_hash(*, script_input_hash: str, script_text: str, tts_provider: str, tts_model: str,
-               voice_id: str, lexicon_hash: str) -> str:
-    return stable_hash({
+               voice_id: str, lexicon_hash: str, delivery: str = "") -> str:
+    """`delivery` is a voice's spoken direction, where it takes one; left out of the
+    identity when empty so voices without one keep their existing hashes."""
+    identity = {
         "kind": "audio", "script": script_input_hash, "text": content_hash(script_text),
         "tts_provider": tts_provider, "tts_model": tts_model, "voice_id": voice_id,
         "lexicon": lexicon_hash,
-    })
+    }
+    if delivery:
+        identity["delivery"] = delivery
+    return stable_hash(identity)

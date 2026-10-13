@@ -129,12 +129,14 @@ export function Pill({ label, icon, on, onPress }: { label: string; icon?: strin
   );
 }
 
-/** A labelled figure: "Walks built 4", "Walking 52 min". */
+/** A figure that leads, big, with a plain label under it — the website's Stat. */
 export function Stat({ label, value }: { label: string; value: string }) {
   return (
     <View>
-      <Eyebrow>{label}</Eyebrow>
-      <Text style={[type.lead, { marginTop: 4 }]}>{value}</Text>
+      <Text style={{ fontFamily: fonts.display, fontSize: 30, lineHeight: 32, letterSpacing: -0.6, color: colors.ink, fontVariant: ["tabular-nums"] }}>
+        {value}
+      </Text>
+      <Text style={[type.caption, { marginTop: 4 }]}>{label}</Text>
     </View>
   );
 }

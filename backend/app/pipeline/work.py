@@ -105,7 +105,7 @@ def planned_segment(session: Session, script: Script, settings: Settings,
     input_hash = audio_hash(script_input_hash=script.input_hash, script_text=script.script_text,
                             tts_provider=tts.name, tts_model=tts.model,
                             voice_id=tts.voice_for(script.language, settings.voice_name),
-                            lexicon_hash=tts_input.lexicon_hash)
+                            lexicon_hash=tts_input.lexicon_hash, delivery=getattr(tts, "delivery", ""))
     return input_hash, tts_input
 
 

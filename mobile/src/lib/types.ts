@@ -98,7 +98,12 @@ export type StoredTour = {
   planSig?: string;
 };
 
-export type TourPreview = { title: string; summary: string; stops: { name: string; angle: string }[] };
+export type TourPreview = {
+  title: string;
+  summary: string;
+  /** Positions arrive with the finished walk (not the early preview), and bring photos with them. */
+  stops: { name: string; angle: string; localName?: string; lat?: number; lng?: number }[];
+};
 
 export type Point = LatLng & { label?: string };
 

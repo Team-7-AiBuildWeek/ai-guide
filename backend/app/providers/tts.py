@@ -20,12 +20,21 @@ import wave
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from app.audio import pcm_from, pcm_to_mp3
 from app.ssml import FAKE_SECONDS_PER_CHAR, Pronunciation, SsmlBuild, build_ssml, lexicon_hash, silent_mp3
 
 SPEECH_WORDS_PER_SECOND = 2.4
 SPEECH_CHARS_PER_SECOND = 12.0   # slow narration (measured ~14-15): sizes the token cap
 GEMINI_AUDIO_TOKENS_PER_SECOND = 32  # measured ~31 on gemini-3.8-flash-tts
 GEMINI_MAX_OUTPUT_TOKENS = 16_000    # ~8 minutes of audio; a stop is at most ~4
+
+# The live narration's delivery note, word for word (lib/providers/tts/google.ts).
+DELIVERY_NOTE = ("as a walking-tour guide speaking to one person beside you. "
+                 "Unhurried and warm, never announcer-like. Read only the text, and do not add any commentary")
+
+
+def delivery_prompt(language: str, text: str) -> str:
+    return f"Read the following aloud in {language}, {DELIVERY_NOTE}:\n\n{text}"
 
 
 @dataclass(frozen=True)
@@ -234,6 +243,62 @@ class GeminiBatchTTSProvider(_GeminiPricing):
             if job.display_name == display_name:
                 return job.name
         return None
+
+
+class GeminiTTSProvider(_GeminiPricing):
+    """The live narration's voice, for recordings that must sound like it.
+
+    The web app narrates live tours with gemini-2.5-flash-preview-tts and a delivery
+    note ("unhurried and warm, never announcer-like", lib/providers/tts/google.ts).
+    That model has no Batch API, and the batch models' "Charon" is audibly another
+    voice, faster and brighter, so pre-recorded stops sounded unlike live ones. This
+    calls the same model with the same note, synchronously, at the standard price.
+    """
+
+    name = "google-gemini"
+    tier = "standard"
+    mode = "sync"
+    parallel = 4  # a ~3.5-minute stop takes ~70 s; a worker pass records this many at once
+
+    def __init__(self, api_key: str, model: str = "gemini-2.5-flash-preview-tts"):
+        from google import genai
+
+        self.client = genai.Client(api_key=api_key)
+        self.model = model
+
+    @property
+    def delivery(self) -> str:
+        return DELIVERY_NOTE
+
+    def synthesize_billed(self, chunks: list[str], voice_id: str, locale: str) -> tuple[list[bytes], dict[str, int]]:
+        """MP3s for the chunks and the tokens they were billed. Raises on cut-off audio."""
+        from app.config import LANGUAGES
+        from app.pipeline.prompts import LANGUAGE_NAMES
+
+        language = LANGUAGE_NAMES[next(k for k, v in LANGUAGES.items() if v == locale)]
+        parts, units = [], {"input_token": 0, "output_token": 0}
+        for chunk in chunks:
+            response = self.client.models.generate_content(
+                model=self.model,
+                contents=[{"role": "user", "parts": [{"text": delivery_prompt(language, chunk)}]}],
+                config={
+                    "response_modalities": ["AUDIO"],
+                    "max_output_tokens": self.max_output_tokens(chunk),
+                    "speech_config": {"voice_config": {"prebuilt_voice_config": {"voice_name": voice_id}}},
+                },
+            )
+            usage = response.usage_metadata
+            units["input_token"] += (usage.prompt_token_count or 0) if usage else 0
+            units["output_token"] += (usage.candidates_token_count or 0) if usage else 0
+            candidate = response.candidates[0] if response.candidates else None
+            finish = getattr(candidate.finish_reason, "name", "") if candidate else ""
+            part = next((p for p in (candidate.content.parts if candidate and candidate.content else [])
+                         if p.inline_data), None)
+            if part is None or finish == "MAX_TOKENS":
+                raise RuntimeError(f"incomplete audio ({finish or 'no audio part'})")
+            pcm, rate = pcm_from(part.inline_data.data, part.inline_data.mime_type)
+            parts.append(pcm_to_mp3(pcm, rate))
+        return parts, units
 
 
 def _silent_wav(seconds: float, rate: int = 24000) -> bytes:

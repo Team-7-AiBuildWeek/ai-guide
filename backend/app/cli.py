@@ -4,6 +4,7 @@
   walk seed-city vienna --name Vienna ...  real POIs + facts from Wikidata/Wikipedia
   walk tour --city bratislava ...        request a tour, as POST /tours would
   walk prewarm --city bratislava --budget-usd 5
+  walk revoice --city bratislava --budget-usd 5   new audio for existing scripts
   walk worker [--once]                   process the generation queue
   walk costs                             spend, hit ratio, cost per request/tour
 """
@@ -152,6 +153,61 @@ def prewarm(
     if run and not dry_run:
         _worker(providers).drain()
         typer.echo("queue processed; see `walk costs`")
+
+
+@cli.command()
+def revoice(
+    city: Annotated[str, typer.Option(help="City slug")],
+    budget_usd: Annotated[str, typer.Option(help="Hard cap for this run, in USD, e.g. 5.00")],
+    dry_run: bool = False,
+) -> None:
+    """Re-record a city's narration in the current voice, keeping every script as it is.
+
+    Each ready script that has audio, but not in today's voice, gets a new segment
+    queued. The old recording keeps playing until the new one is ready."""
+    from datetime import UTC, datetime
+
+    from app.budget import create_budget
+    from app.models import Poi, Script, Segment
+    from app.pipeline import estimate
+    from app.pipeline.work import Funding, claim_segment, enqueue_audio, planned_segment
+    from app.tours.resolve import _ready_segment
+
+    try:
+        cap = Decimal(budget_usd)
+    except ArithmeticError as exc:
+        raise typer.BadParameter("budget must be a number, e.g. 5.00") from exc
+    providers, settings = _providers(), get_settings()
+    today = datetime.now(UTC).date()
+    with session_scope() as session:
+        city_id = _city(session, city).id
+        scripts = session.scalars(
+            select(Script).join(Poi, Poi.id == Script.poi_id)
+            .where(Poi.city_id == city_id, Script.status == "ready",
+                   Script.id.in_(select(Segment.script_id).where(Segment.status == "ready")))
+            .order_by(Script.id)).all()
+        stale = [s for s in scripts
+                 if not _ready_segment(session, planned_segment(session, s, settings, providers.tts)[0])]
+        expected = sum((estimate.audio_cost(session, providers.tts, depth_level=s.depth_level, on=today)
+                        for s in stale), Decimal(0))
+        typer.echo(f"{len(stale)} of {len(scripts)} recordings in {city} are not in the current voice "
+                   f"({providers.tts.model}); expected ${expected:.2f}")
+        if dry_run or not stale:
+            return
+        budget = create_budget(session, "prewarm_run", f"revoice {city} {datetime.now(UTC):%Y-%m-%d %H:%M}", cap)
+        queued = 0
+        for script in stale:
+            try:
+                with session.begin_nested():
+                    segment = claim_segment(session, script, settings, providers.tts)
+                    if enqueue_audio(session, segment, Funding(budget.id), settings, providers.tts, today, priority=60):
+                        queued += 1
+            except BudgetExceeded:
+                typer.echo("budget spent; run again with a bigger one for the rest")
+                break
+        session.flush()
+        session.refresh(budget)
+        typer.echo(f"queued {queued}, reserved ${budget.reserved_usd} of ${cap}")
 
 
 @cli.command()

@@ -29,6 +29,9 @@ import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
 import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
 import { ask, buildTour, cityAt, demoTour, PaywallError } from "@/lib/api";
 import Paywall from "@/components/Paywall";
+import PlaceImage from "@/components/PlaceImage";
+import TourComplete from "@/components/TourComplete";
+import * as Haptics from "expo-haptics";
 import { walkStatus } from "@/lib/billing";
 import { useDeveloper } from "@/lib/developer";
 import {
@@ -101,6 +104,15 @@ function useLiveLocation(walking: boolean): { fix: Fix | null; denied: boolean }
   return { fix, denied };
 }
 
+/** The itinerary screen's list, from a finished walk: real positions included, for photos. */
+function previewOf(built: StoredTour): TourPreview {
+  return {
+    title: built.plan.title,
+    summary: built.plan.summary,
+    stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle, localName: x.localName, lat: x.lat, lng: x.lng })),
+  };
+}
+
 export default function Flow() {
   const insets = useSafeAreaInsets();
   // Whatever the last session left behind, read once as the screen is made.
@@ -135,9 +147,15 @@ export default function Flow() {
   /** The stop the arrival card names, kept while the card slides away. */
   const [lastArrived, setLastArrived] = useState<string | null>(null);
   if (justArrived && justArrived !== lastArrived) setLastArrived(justArrived);
+  const arrivedIndex = tour && lastArrived ? tour.plan.stops.findIndex((x) => x.name === lastArrived) : -1;
+  const arrivedStop = arrivedIndex >= 0 && tour ? tour.plan.stops[arrivedIndex] : null;
   const abortRef = useRef<AbortController | null>(null);
   const cityLookup = useRef(false);
   const arrived = useRef<Set<string>>(new Set());
+  const walkStart = useRef<{ key: string; t: number } | null>(null);
+  /** The end-of-walk page (TourComplete). */
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeMinutes, setCompleteMinutes] = useState<number | null>(null);
   const pinPause = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const { fix, denied } = useLiveLocation(stage === "tour");
@@ -221,7 +239,7 @@ export default function Flow() {
       saveTour(built);
       arrived.current.clear();
       setCurrentIndex(0);
-      setPreview({ title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+      setPreview(previewOf(built));
       setPhase("done");
       setReady(true);
     } catch (err) {
@@ -276,10 +294,9 @@ export default function Flow() {
         arrived.current.clear();
         setCurrentIndex(0);
         // Stay on the itinerary: the walker reads the stops, then continues.
-        setPreview(
-          (p) =>
-            p ?? { title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) },
-        );
+        // The finished walk replaces the early preview: in walking order and on
+        // the map, so each stop can show its photograph.
+        setPreview(previewOf(built));
         setReady(true);
       } catch (err) {
         if (controller.signal.aborted) {
@@ -379,6 +396,16 @@ export default function Flow() {
     tour.plan.stops.slice(0, found.index).forEach((s) => arrived.current.add(s.id));
     if (found.index !== currentIndex) setCurrentIndex(found.index);
     setJustArrived(found.name);
+    // Felt as well as seen, like Flighty's arrivals.
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // When this walk's first stop was reached, for "Time" at the end.
+    const walkKey = tour.walkId ?? tour.plan.title;
+    if (walkStart.current?.key !== walkKey) walkStart.current = { key: walkKey, t: Date.now() };
+    // The last stop: the walk's ending, as a page of its own (TourComplete).
+    if (found.index === tour.plan.stops.length - 1) {
+      setCompleteMinutes(Math.max(1, Math.round((Date.now() - walkStart.current.t) / 60_000)));
+      setTimeout(() => setCompleteOpen(true), 2500);
+    }
   }, [fix, stage, autoAdvance, tour, currentIndex]);
 
   useEffect(() => {
@@ -574,9 +601,20 @@ export default function Flow() {
           {/* Keeps the last name while it slides away, so the card does not empty as it goes. */}
           {lastArrived ? (
             <PanelReveal open={!!justArrived} style={{ alignSelf: "stretch" }}>
-              <GlassSurface tone="dark" style={styles.arrived}>
-                <Eyebrow style={{ color: colors.onDarkMute }}>You&apos;ve arrived</Eyebrow>
-                <Text style={[styles.bannerText, { fontSize: size.lead, marginTop: 4 }]}>{lastArrived}</Text>
+              <GlassSurface tone="dark" style={[styles.arrived, { flexDirection: "row", alignItems: "center", gap: 12, paddingLeft: 10 }]}>
+                {/* The place itself, the moment you reach it. */}
+                {arrivedStop ? (
+                  <PlaceImage
+                    place={{ name: arrivedStop.name, localName: arrivedStop.localName, lat: arrivedStop.lat, lng: arrivedStop.lng, lang: tour?.req?.lang ?? draft.lang }}
+                    style={{ width: 60, height: 60, borderRadius: 16 }}
+                  />
+                ) : null}
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontFamily: fonts.display, fontSize: size.caption, color: colors.mint }}>
+                    You&apos;ve arrived{tour && arrivedIndex >= 0 ? ` · Stop ${arrivedIndex + 1} of ${tour.plan.stops.length}` : ""}
+                  </Text>
+                  <Text numberOfLines={1} style={[styles.bannerText, { fontSize: size.lead, marginTop: 2 }]}>{lastArrived}</Text>
+                </View>
               </GlassSurface>
             </PanelReveal>
           ) : null}
@@ -649,6 +687,11 @@ export default function Flow() {
                 audio={audio}
                 onExpand={() => setSheetDrag("half")}
                 onAsk={() => setAskOpen(true)}
+                photo={
+                  currentStop
+                    ? { name: currentStop.name, localName: currentStop.localName, lat: currentStop.lat, lng: currentStop.lng, lang: tour.req?.lang ?? draft.lang }
+                    : null
+                }
               />
             ) : tour ? (
               <View>
@@ -663,11 +706,19 @@ export default function Flow() {
               </View>
             ) : (
               <View>
+                {/* The city itself, before a word about it (Wikimedia). Nothing when there is no honest photo. */}
+                {draft.city ? (
+                  <PlaceImage
+                    place={{ name: draft.city.name, lat: draft.city.lat, lng: draft.city.lng, lang: draft.lang, kind: "city" }}
+                    style={{ height: 140, borderRadius: 20, marginBottom: 16 }}
+                    credit
+                  />
+                ) : null}
                 {accountsEnabled ? <Greeting /> : null}
-                <Text style={type.h3}>
+                <Text style={[type.h1, { fontSize: 38, lineHeight: 40, letterSpacing: -1 }]}>
                   {draft.city ? t("landing.walkCity", { city: draft.city.name }) : t("landing.walkAnywhere")}
                 </Text>
-                <Text style={[type.body, { marginTop: 8 }]}>{t("landing.pitch")}</Text>
+                <Text style={[type.lead, { marginTop: 8, fontFamily: fonts.body, color: colors.inkSoft }]}>{t("landing.pitch")}</Text>
                 <Btn variant="primary" large label={t("landing.build")} onPress={() => setStage("brief")} style={{ marginTop: 16 }} />
                 {cityOpen ? (
                   <View style={{ marginTop: 12 }}>
@@ -700,6 +751,7 @@ export default function Flow() {
             />
           ) : stage === "generating" ? (
             <Generating
+              lang={draft.lang}
               phase={phase}
               message={phaseMessage}
               preview={preview}
@@ -737,6 +789,8 @@ export default function Flow() {
                 total={tour.plan.stops.length}
                 lang={tour.req?.lang ?? draft.lang}
                 audio={audio}
+                chapters={tour.plan.stops.map((x) => x.name)}
+                onChapter={chooseStop}
               />
               <StopRow
                 plan={tour.plan}
@@ -749,6 +803,19 @@ export default function Flow() {
           ) : null}
         </Sheet>
       )}
+      {tour ? (
+        <TourComplete
+          open={completeOpen && stage === "tour"}
+          tour={tour}
+          minutesWalked={completeMinutes}
+          lang={tour.req?.lang ?? draft.lang}
+          onClose={() => setCompleteOpen(false)}
+          onNew={() => {
+            setCompleteOpen(false);
+            startOver();
+          }}
+        />
+      ) : null}
       <Paywall
         open={paywall !== null}
         reason={paywall?.reason ?? null}

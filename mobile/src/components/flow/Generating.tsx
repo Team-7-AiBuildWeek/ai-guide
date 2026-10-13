@@ -4,6 +4,8 @@
  * as soon as it exists so the wait has something to be spent on.
  */
 
+import PlaceImage from "@/components/PlaceImage";
+import RouteArt from "@/components/RouteArt";
 import { useEffect, useState } from "react";
 import { AccessibilityInfo, StyleSheet, Text, View } from "react-native";
 import { Btn, TextLink } from "@/components/ui";
@@ -61,7 +63,7 @@ function Elapsed({ note }: { note: string | null }) {
   return line ? <Text style={[styles.meta, { marginTop: 4 }]}>{line}</Text> : null;
 }
 
-function Intro({ preview }: { preview: TourPreview }) {
+function Intro({ preview, lang }: { preview: TourPreview; lang: string }) {
   return (
     <View>
       <Text style={type.h2}>{preview.title}</Text>
@@ -69,9 +71,19 @@ function Intro({ preview }: { preview: TourPreview }) {
       <View style={{ marginTop: 20, gap: 12 }}>
         {preview.stops.map((s, i) => (
           <View key={i} style={{ flexDirection: "row", gap: 12 }}>
-            <View style={styles.smallNode}>
-              <Text style={styles.smallNodeText}>{i + 1}</Text>
-            </View>
+            {/* Once the stop is on the map, its photograph sits behind the number. */}
+            {typeof s.lat === "number" && typeof s.lng === "number" ? (
+              <View>
+                <PlaceImage place={{ name: s.name, localName: s.localName, lat: s.lat, lng: s.lng, lang }} style={{ width: 56, height: 56, borderRadius: 16 }} />
+                <View style={[styles.smallNode, { position: "absolute", left: -6, top: -6, backgroundColor: colors.mint }]}>
+                  <Text style={[styles.smallNodeText, { color: colors.ink }]}>{i + 1}</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.smallNode}>
+                <Text style={styles.smallNodeText}>{i + 1}</Text>
+              </View>
+            )}
             <View style={{ flex: 1 }}>
               <Text style={styles.stopName}>{s.name}</Text>
               <Text style={[type.caption, { marginTop: 2 }]}>{s.angle}</Text>
@@ -92,6 +104,7 @@ export default function Generating({
   onRetry,
   onContinue,
   because,
+  lang = "en",
 }: {
   phase: string;
   message: string | null;
@@ -103,6 +116,8 @@ export default function Generating({
   onContinue?: () => void;
   /** The walker's own choices, named back to them while the tour is built. */
   because?: string;
+  /** For the stops' photo lookups. */
+  lang?: string;
 }) {
   const active = onContinue ? PHASES.length : PHASES.findIndex((p) => p.covers.includes(phase));
 
@@ -125,12 +140,16 @@ export default function Generating({
         <Text style={[styles.because, { marginBottom: -8 }]}>{t("gen.because", { picks: because })}</Text>
       ) : null}
       {preview ? (
-        <Intro preview={preview} />
+        <Intro preview={preview} lang={lang} />
       ) : (
-        <View>
-          <Text style={type.h2}>{t("gen.title")}</Text>
-          <Text style={[type.body, { marginTop: 12 }]}>{t("gen.wait")}</Text>
-        </View>
+        <>
+          {/* Something to watch for the minute this takes. */}
+          <RouteArt />
+          <View>
+            <Text style={type.h2}>{t("gen.title")}</Text>
+            <Text style={[type.body, { marginTop: 12 }]}>{t("gen.wait")}</Text>
+          </View>
+        </>
       )}
 
       <View accessibilityLiveRegion="polite">

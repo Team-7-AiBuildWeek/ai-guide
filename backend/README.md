@@ -33,8 +33,12 @@ The worker (`walk worker`) turns queued work into audio:
 
 ```
 draft (Gemini Flash, Batch API) -> fact-check against sources (Flash, Batch)
-   -> [fail: one redraft, then reject] -> Gemini 3.8 Flash TTS (Batch) -> MP3 -> R2
-   (or, with BACKEND_TTS_PROVIDER=chirp: SSML + lexicon -> Chirp 3: HD, synchronous)
+   -> [fail: one redraft, then reject] -> Gemini 2.5 Flash TTS -> MP3 -> R2
+   The voice is the live narration's (same model, voice and delivery note as the web
+   app), so a pre-recorded stop sounds like a live one. That model has no Batch API, so
+   it is called synchronously, a few stops at a time per worker pass.
+   (BACKEND_TTS_PROVIDER=gemini-batch: Gemini 3.8 Flash TTS via Batch, half price but
+   audibly another voice; =chirp: SSML + lexicon -> Chirp 3: HD, synchronous)
 German/Slovak scripts are translated from a ready English one by Flash-Lite (Batch),
 skipping the second draft and fact-check.
 ```
@@ -47,7 +51,7 @@ skipping the second draft and fact-check.
 | Concurrent requests for the same miss create one job | partial unique index `jobs_one_live` on live jobs |
 | Budget caps are a hard stop | `budgets` `CHECK (reserved_usd + spent_usd <= cap_usd)`; every paid call is reserved at its worst case *before* it is made |
 | Every paid call is recorded | `app/ledger.py` is the only spend path; one `cost_ledger` row per call; real spend beyond a reservation goes to `overrun_usd`, never dropped |
-| No generation outside the Batch API | the LLM provider interface has no synchronous method; a test fails if any code calls `generate_content` |
+| No generation outside the Batch API | the LLM provider interface has no synchronous method; a test fails if any code calls `generate_content`, except the live voice (`GeminiTTSProvider`), which has no batch |
 | No keys reach the client | the app receives object keys turned into short-lived signed URLs, nothing else |
 | Stale content is detectable | `poi_facts.content_hash`; a POI's `facts_hash` is part of its scripts' identity, so changed sources make their narration stale |
 
@@ -56,8 +60,9 @@ skipping the second draft and fact-check.
 - **Script:** poi, language, persona, depth, `SCRIPT_VERSION`, facts hash. The LLM model is
   metadata, not identity: switching models is a deliberate `SCRIPT_VERSION` bump.
 - **Audio:** script hash + script text, TTS provider/model, voice, and only the lexicon
-  entries that script actually uses. A new voice re-renders audio without paying for
-  scripts again; fixing one pronunciation re-renders only the clips containing that word.
+  entries that script actually uses, plus the voice's delivery note where it has one. A new
+  voice re-renders audio without paying for scripts again (`walk revoice --city …`); fixing
+  one pronunciation re-renders only the clips containing that word.
 
 ## Prices (verified 1 October 2026)
 
@@ -271,7 +276,7 @@ Project environment variables (shared by both services):
 | `MIGRATE_ON_START=true` | apply migrations when the API starts; serverless has no deploy hook |
 | `CRON_SECRET` | any long random string |
 | `BACKEND_LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
-| `BACKEND_TTS_PROVIDER=gemini` | uses `GEMINI_API_KEY`. For `chirp`, also `GOOGLE_CREDENTIALS_JSON` (the JSON itself, not a path) |
+| `BACKEND_TTS_PROVIDER=gemini` | the live voice; uses `GEMINI_API_KEY`. `gemini-batch` for the Batch voice. For `chirp`, also `GOOGLE_CREDENTIALS_JSON` (the JSON itself, not a path) |
 | `BACKEND_ROUTING_PROVIDER=ors` + `ORS_API_KEY`, or `straight` | `straight` estimates walking from straight-line distance, no key needed; the web app draws real directions itself |
 | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION=auto` | Cloudflare R2 |
 | `REQUEST_BUDGET_USD`, `DAILY_BUDGET_USD`, `ADMIN_TOKEN` | optional |

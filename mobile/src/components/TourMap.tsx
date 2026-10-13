@@ -96,7 +96,9 @@ export default memo(function TourMap({
       ref={map}
       style={StyleSheet.absoluteFill}
       initialRegion={{ ...coord(center), latitudeDelta: 0.03, longitudeDelta: 0.03 }}
-      mapType="mutedStandard"
+      // Apple's full-colour map (parks, water) rather than the muted one: the
+      // app's basemap cannot be recoloured, so this is its character.
+      mapType="standard"
       showsUserLocation
       showsCompass={false}
       showsMyLocationButton={false}
@@ -110,8 +112,11 @@ export default memo(function TourMap({
     >
       {route.length > 1 ? (
         <>
-          <Polyline coordinates={routeCoords} strokeColor="#ffffff" strokeWidth={8} lineCap="round" lineJoin="round" />
-          <Polyline coordinates={routeCoords} strokeColor={colors.mintInk} strokeWidth={5} lineCap="round" lineJoin="round" />
+          {/* The route as the hero, as on the website: a soft mint glow, a
+              white casing, a deep-green line. */}
+          <Polyline coordinates={routeCoords} strokeColor="rgba(94,218,155,0.35)" strokeWidth={18} lineCap="round" lineJoin="round" />
+          <Polyline coordinates={routeCoords} strokeColor="#ffffff" strokeWidth={10} lineCap="round" lineJoin="round" />
+          <Polyline coordinates={routeCoords} strokeColor={colors.mintInk} strokeWidth={6} lineCap="round" lineJoin="round" />
         </>
       ) : null}
       {rideLines.map((r) => (
@@ -132,7 +137,7 @@ export default memo(function TourMap({
             zIndex={current ? 2 : 1}
           >
             <View style={[styles.node, current && styles.nodeCurrent, done && styles.nodeDone]}>
-              <Text style={[styles.nodeText, current && { color: colors.mint }, done && { color: colors.mintInk }]}>
+              <Text style={[styles.nodeText, current && { color: colors.ink, fontSize: 16 }, done && { color: colors.mintInk }]}>
                 {i + 1}
               </Text>
             </View>
@@ -158,13 +163,25 @@ const styles = StyleSheet.create({
     width: 30,
     height: 30,
     borderRadius: 15,
-    backgroundColor: colors.mint,
-    borderWidth: 2,
+    backgroundColor: colors.mintInk,
+    borderWidth: 3,
     borderColor: "#ffffff",
     alignItems: "center",
     justifyContent: "center",
+    shadowColor: "#111827",
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
   },
-  nodeCurrent: { backgroundColor: colors.ink, width: 36, height: 36, borderRadius: 18 },
+  nodeCurrent: {
+    backgroundColor: colors.mint,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    shadowColor: colors.mintInk,
+    shadowOpacity: 0.5,
+    shadowRadius: 8,
+  },
   nodeDone: { backgroundColor: colors.mintWash },
-  nodeText: { fontFamily: fonts.display, fontSize: 14, color: colors.ink, fontVariant: ["tabular-nums"] },
+  nodeText: { fontFamily: fonts.display, fontSize: 14, color: "#ffffff", fontVariant: ["tabular-nums"] },
 });

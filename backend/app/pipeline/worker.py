@@ -17,7 +17,9 @@ import json
 import logging
 import os
 import socket
+import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from decimal import Decimal
@@ -43,6 +45,7 @@ from app.storage import Storage
 log = logging.getLogger("walk.worker")
 WORKER_ID = f"{socket.gethostname()}:{os.getpid()}"
 PENDING_PREFIX = "pending:"
+SYNC_PASS_SECONDS = 30
 MAX_DRAFTS = 2
 BUDGET_RETRY_DELAY = timedelta(minutes=2)
 
@@ -62,7 +65,7 @@ class Worker:
 
     def run_once(self) -> dict[str, int]:
         stats = {
-            "recovered": self.recover_pending_submissions(),
+            "recovered": self.recover_pending_submissions() + self.recover_stuck_audio(),
             "submitted": self.submit_script_batches(),
             "advanced": self.poll_script_batches(),
             "audio": self.run_audio_jobs(),
@@ -167,6 +170,17 @@ class Worker:
                     recovered += 1
         return recovered
 
+    def recover_stuck_audio(self, older_than: timedelta = timedelta(minutes=10)) -> int:
+        """Sync audio jobs left 'running' by a request that was cut off mid-recording."""
+        with self.sessions.begin() as session:
+            stuck = session.scalars(select(Job).where(
+                Job.job_type == "audio", Job.status == "running", Job.external_batch_id.is_(None),
+                Job.locked_at < datetime.now(UTC) - older_than,
+            ).with_for_update(skip_locked=True)).all()
+            for job in stuck:
+                self._retry_or_fail(session, job, "recording interrupted")
+            return len(stuck)
+
     # -------------------------------------------------------- 2. poll batches
 
     def poll_script_batches(self) -> int:
@@ -270,14 +284,27 @@ class Worker:
         voices (Chirp) are synthesised here, one segment at a time."""
         if self.providers.tts.mode == "batch":
             return self.submit_audio_batches()
-        done = 0
-        for _ in range(limit):
-            claimed = self._claim_audio_job()
-            if claimed is None:
+        # A slow voice (Gemini, ~70 s a stop) records `parallel` at a time, and a pass
+        # stops starting new rounds after SYNC_PASS_SECONDS so it fits in a request.
+        parallel = max(1, getattr(self.providers.tts, "parallel", 1))
+        started, done, empty = time.monotonic(), 0, False
+        while done < limit and not empty and time.monotonic() - started < SYNC_PASS_SECONDS:
+            claims = []
+            while len(claims) < min(parallel, limit - done):
+                claimed = self._claim_audio_job()
+                if claimed is None:
+                    empty = True
+                    break
+                if claimed:
+                    claims.append(claimed)
+            if not claims:
                 break
-            if claimed:
-                self._synthesize(*claimed)
-                done += 1
+            if len(claims) == 1:
+                self._synthesize(*claims[0])
+            else:
+                with ThreadPoolExecutor(len(claims)) as pool:
+                    list(pool.map(lambda c: self._synthesize(*c), claims))
+            done += len(claims)
         return done
 
     def _claim_audio_job(self) -> tuple[int, int, Decimal] | bool | None:
@@ -312,7 +339,10 @@ class Worker:
             segment = session.get(Segment, segment_id)
             chunks, voice_id, language = segment.ssml.split("\n"), segment.voice_id, segment.language
         try:
-            parts = tts.synthesize(chunks, voice_id, LANGUAGES[language])
+            if hasattr(tts, "synthesize_billed"):  # billed in tokens, by what came back
+                parts, units = tts.synthesize_billed(chunks, voice_id, LANGUAGES[language])
+            else:  # billed in characters, by what was sent
+                parts, units = tts.synthesize(chunks, voice_id, LANGUAGES[language]), None
         except Exception as exc:
             log.exception("tts failed for segment %s", segment_id)
             with self.sessions.begin() as session:
@@ -322,7 +352,7 @@ class Worker:
         with self.sessions.begin() as session:  # record spend before anything else can fail
             record(session, job=session.get(Job, job_id), provider=tts.name, pricing_provider=tts.pricing_provider,
                    model=tts.model, tier=tts.tier, operation="tts",
-                   units={"character": billed}, on=self.today(), segment_id=segment_id)
+                   units=units or {"character": billed}, on=self.today(), segment_id=segment_id)
         audio = b"".join(parts)
         duration_ms = round(mutagen.mp3.MP3(io.BytesIO(audio)).info.length * 1000)
         with self.sessions.begin() as session:
@@ -330,7 +360,8 @@ class Worker:
             key = f"audio/{segment.language}/{segment.input_hash}.mp3"
             self.storage.put(key, audio, "audio/mpeg")
             segment.audio_key, segment.audio_bytes, segment.duration_ms = key, len(audio), duration_ms
-            segment.billed_chars, segment.status, segment.updated_at = billed, "ready", func.now()
+            segment.billed_chars = billed if units is None else None
+            segment.status, segment.updated_at = "ready", func.now()
             self._finish(session, session.get(Job, job_id), "done")
 
     def submit_audio_batches(self) -> int:

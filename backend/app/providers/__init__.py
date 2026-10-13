@@ -10,7 +10,7 @@ from app.config import Settings
 from app.providers.llm import FakeLLMProvider, GeminiBatchProvider, LLMBatchProvider
 from app.providers.routing import (FakeRoutingProvider, OpenRouteServiceProvider, RoutingProvider,
                                    StraightLineRoutingProvider)
-from app.providers.tts import ChirpTTSProvider, FakeTTSProvider, GeminiBatchTTSProvider, TTSProvider
+from app.providers.tts import ChirpTTSProvider, FakeTTSProvider, GeminiBatchTTSProvider, GeminiTTSProvider, TTSProvider
 
 
 @dataclass
@@ -33,9 +33,12 @@ def build_providers(settings: Settings) -> Providers:
         tts: TTSProvider = FakeTTSProvider()
     elif settings.tts_provider == "chirp":
         tts = ChirpTTSProvider(settings.tts_model or "chirp3-hd", settings.google_credentials_json)
-    else:
+    elif settings.tts_provider == "gemini-batch":
         tts = GeminiBatchTTSProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY"),
                                      settings.tts_model or "gemini-3.8-flash-tts")
+    else:  # "gemini": the live narration's voice (GeminiTTSProvider)
+        tts = GeminiTTSProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY"),
+                                settings.tts_model or "gemini-2.5-flash-preview-tts")
     if settings.routing_provider == "fake":
         routing: RoutingProvider = FakeRoutingProvider(settings.walking_speed_m_s)
     elif settings.routing_provider == "straight":

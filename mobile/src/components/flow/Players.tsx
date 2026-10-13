@@ -6,7 +6,9 @@
 
 import { SymbolView } from "expo-symbols";
 import { useEffect, useState } from "react";
-import { Image, Linking, Pressable, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
+import { Image, Linking, Pressable, ScrollView, StyleSheet, Text, View, type GestureResponderEvent } from "react-native";
+import PlaceImage from "@/components/PlaceImage";
+import type { Place } from "@/lib/placePhoto";
 import { Btn, Eyebrow } from "@/components/ui";
 import { stopPhoto } from "@/lib/api";
 import type { Narration } from "@/lib/narration";
@@ -36,6 +38,7 @@ export function MiniPlayer({
   audio,
   onExpand,
   onAsk,
+  photo,
 }: {
   stopName: string;
   index: number;
@@ -43,6 +46,8 @@ export function MiniPlayer({
   audio: Narration;
   onExpand: () => void;
   onAsk: () => void;
+  /** The stop, for its photograph as the player's artwork. */
+  photo?: Place | null;
 }) {
   const pct = audio.duration > 0 ? Math.min(100, (audio.position / audio.duration) * 100) : 0;
   return (
@@ -54,6 +59,12 @@ export function MiniPlayer({
           <Icon ios={audio.playing ? "pause.fill" : "play.fill"} glyph={audio.playing ? "❚❚" : "▶"} />
         )}
       </Btn>
+      {/* Artwork, like a music player's: the place you are listening about. */}
+      {photo ? (
+        <Pressable onPress={onExpand} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+          <PlaceImage place={photo} style={styles.miniArt} />
+        </Pressable>
+      ) : null}
       <Pressable
         onPress={onExpand}
         style={{ flex: 1 }}
@@ -136,12 +147,17 @@ export function Player({
   total,
   lang,
   audio,
+  chapters,
+  onChapter,
 }: {
   stop: Stop;
   index: number;
   total: number;
   lang: string;
   audio: Narration;
+  /** Every stop's name, for the chapter row; tapping one goes to it. */
+  chapters?: string[];
+  onChapter?: (index: number) => void;
 }) {
   const [showText, setShowText] = useState(false);
   const [trackWidth, setTrackWidth] = useState(1);
@@ -165,13 +181,42 @@ export function Player({
       ) : null}
       <StopPhoto stop={stop} lang={lang} />
       <View style={styles.titleRow}>
-        <Text numberOfLines={1} style={[type.lead, { flex: 1 }]}>
+        <Text numberOfLines={1} style={[type.h3, { flex: 1 }]}>
           {stop.name}
         </Text>
         <Text style={styles.count}>
           {index + 1} / {total}
         </Text>
       </View>
+
+      {/* Chapters, the way a podcast player lists them: every stop, the ones
+          behind you ticked, this one lit. A tap goes there. */}
+      {chapters && chapters.length > 1 ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chapters}>
+          {chapters.map((name, i) => {
+            const state = i < index ? "done" : i === index ? "now" : "next";
+            return (
+              <Pressable
+                key={`${i}-${name}`}
+                onPress={() => onChapter?.(i)}
+                accessibilityRole="button"
+                accessibilityLabel={`Stop ${i + 1}, ${name}`}
+                accessibilityState={{ selected: state === "now" }}
+                style={[styles.chip, state === "now" && styles.chipNow]}
+              >
+                <View style={[styles.chipNum, state === "done" && styles.chipNumDone, state === "now" && styles.chipNumNow]}>
+                  <Text style={[styles.chipNumText, state === "done" && { color: colors.mintInk }, state === "now" && { color: colors.ink }]}>
+                    {state === "done" ? "✓" : i + 1}
+                  </Text>
+                </View>
+                <Text numberOfLines={1} style={[styles.chipName, state === "now" && { color: "#fff" }, state === "done" && { color: colors.inkMute }]}>
+                  {name}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
+      ) : null}
 
       <View>
         <Pressable
@@ -259,8 +304,38 @@ const styles = StyleSheet.create({
   miniTrack: { marginTop: 6, height: 6, borderRadius: 3, backgroundColor: colors.line, overflow: "hidden" },
   miniFill: { height: 6, borderRadius: 3, backgroundColor: colors.mintInk },
 
-  photo: { borderWidth: 1, borderColor: colors.line, borderRadius: radius.card, overflow: "hidden" },
-  photoImage: { width: "100%", aspectRatio: 16 / 9, backgroundColor: colors.canvas },
+  // Artwork, the way a player shows an album cover: big, rounded, lifted.
+  photo: {
+    borderRadius: 22,
+    overflow: "hidden",
+    backgroundColor: colors.surface,
+    shadowColor: "#111827",
+    shadowOpacity: 0.28,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 12 },
+  },
+  photoImage: { width: "100%", aspectRatio: 16 / 10, backgroundColor: colors.canvas },
+  miniArt: { width: 44, height: 44, borderRadius: 12 },
+  chapters: { gap: 8, paddingVertical: 2 },
+  chip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    maxWidth: 210,
+    minHeight: 40,
+    paddingLeft: 5,
+    paddingRight: 13,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  chipNow: { borderColor: colors.ink, backgroundColor: colors.ink },
+  chipNum: { width: 28, height: 28, borderRadius: 14, alignItems: "center", justifyContent: "center", backgroundColor: colors.canvas },
+  chipNumDone: { backgroundColor: colors.mintWash },
+  chipNumNow: { backgroundColor: colors.mint },
+  chipNumText: { fontFamily: fonts.display, fontSize: size.caption, color: colors.inkMute },
+  chipName: { flexShrink: 1, fontFamily: fonts.displayMedium, fontSize: size.caption, color: colors.inkSoft },
   photoCaption: { paddingHorizontal: 12, paddingVertical: 8 },
   titleRow: { flexDirection: "row", alignItems: "baseline", gap: 12 },
   count: { fontFamily: fonts.body, fontSize: size.caption, color: colors.inkMute, fontVariant: ["tabular-nums"] },

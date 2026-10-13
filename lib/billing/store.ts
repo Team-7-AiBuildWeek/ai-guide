@@ -272,7 +272,7 @@ export async function consumeWalk(who: Who, walkId: string, treatment: "enforce"
   await ensureSchema();
   const q = sql();
 
-  // A developer under PAYWALL_MODE=on: booked, never stopped.
+  // A developer: booked, never stopped.
   if (treatment === "free") {
     await q`INSERT INTO walk_ledger (walk_id, user_id, person_hash, source) VALUES (${walkId}, ${who.userId}, ${who.person}, 'dev')`;
     return "dev";

@@ -27,7 +27,7 @@ export async function GET(request: Request) {
       enabled: true,
       signedIn: !!who.userId,
       ...status,
-      // A developer under PAYWALL_MODE=on is never stopped.
+      // A developer is never stopped.
       canWalk: treatment === "free" ? true : status.canWalk,
     });
   } catch (err) {

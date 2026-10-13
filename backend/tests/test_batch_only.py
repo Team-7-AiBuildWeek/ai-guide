@@ -15,7 +15,18 @@ def test_llm_interface_has_no_synchronous_generation():
     assert GeminiBatchProvider.tier == "batch"
 
 
+# The one exception: the live narration's voice has no Batch API (GeminiTTSProvider).
+SYNC_ALLOWED = {APP / "providers" / "tts.py"}
+
+
 def test_no_code_calls_gemini_generate_content():
-    offenders = [str(p) for p in APP.rglob("*.py")
-                 if re.search(r"generate_content|models\.generate|\.interactions\.create", p.read_text())]
+    offenders = [str(p) for p in APP.rglob("*.py") if p not in SYNC_ALLOWED
+                 and re.search(r"generate_content|models\.generate|\.interactions\.create", p.read_text())]
     assert offenders == []
+
+
+def test_tts_generate_content_is_only_the_live_voice():
+    source = (APP / "providers" / "tts.py").read_text()
+    assert source.count("generate_content") == 1
+    from app.providers.tts import GeminiTTSProvider
+    assert GeminiTTSProvider.mode == "sync" and GeminiTTSProvider.tier == "standard"

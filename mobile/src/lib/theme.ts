@@ -78,6 +78,8 @@ export const type = StyleSheet.create({
     textTransform: "uppercase",
     color: colors.inkMute,
   },
+  /** A section heading inside a screen: sentence case and ink, not a grey uppercase label. */
+  section: { fontFamily: fonts.display, fontSize: 18, letterSpacing: -0.2, color: colors.ink },
   link: {
     fontFamily: fonts.displayMedium,
     fontSize: size.body,

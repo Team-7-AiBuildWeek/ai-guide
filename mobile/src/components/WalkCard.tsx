@@ -7,7 +7,8 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import SwipeRow from "@/components/SwipeRow";
-import { Btn, Eyebrow, LanguageSelect, Stat } from "@/components/ui";
+import PlaceImage from "@/components/PlaceImage";
+import { Btn, LanguageSelect, Stat } from "@/components/ui";
 import { canWalkAgain, formatKm, formatWhen, planFor, saveRebuild, type WalkRecord } from "@/lib/history";
 import { languageName } from "@/lib/languages";
 import { t } from "@/lib/strings";
@@ -26,6 +27,8 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
   };
 
   const again = canWalkAgain(walk);
+  const first = walk.stops?.[0];
+  const cover = first ? { name: first.name, localName: first.localName, lat: first.lat, lng: first.lng, lang: walk.lang } : null;
 
   return (
     <SwipeRow
@@ -35,6 +38,16 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
       ]}
       onCommit={onForget}
     >
+    {/* The walk's first stop, as a photograph — what it looked like, not just what it was called. */}
+    {cover ? (
+      <PlaceImage place={cover} style={styles.cover}>
+        {walk.city ? (
+          <View style={styles.cityChip}>
+            <Text style={styles.cityChipText}>{walk.city}</Text>
+          </View>
+        ) : null}
+      </PlaceImage>
+    ) : null}
     <View style={styles.body}>
       <Pressable onPress={() => setOpen((v) => !v)} accessibilityRole="button" accessibilityState={{ expanded: open }} style={styles.walkHead}>
         <View style={{ flex: 1 }}>
@@ -53,7 +66,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
             <Stat label={t("brief.language")} value={languageName(walk.lang)} />
           </View>
           {walk.freeText ? <Text style={styles.quote}>“{walk.freeText}”</Text> : null}
-          <Eyebrow style={{ marginTop: 16 }}>{t("profile.theStops")}</Eyebrow>
+          <Text style={[type.section, { marginTop: 16 }]}>{t("profile.theStops")}</Text>
           <View style={{ marginTop: 8, gap: 4 }}>
             {walk.stopNames.map((name, i) => (
               <Text key={i} style={[type.caption, { color: colors.inkSoft }]}>
@@ -79,6 +92,9 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
 }
 
 const styles = StyleSheet.create({
+  cover: { width: "100%", height: 140 },
+  cityChip: { position: "absolute", left: 12, bottom: 10, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 3, backgroundColor: "rgba(255,255,255,0.88)" },
+  cityChipText: { fontFamily: fonts.display, fontSize: 12, color: colors.ink },
   body: { padding: 16 },
   stats: { flexDirection: "row", flexWrap: "wrap", gap: 24 },
   walkHead: { flexDirection: "row", alignItems: "flex-start", gap: 12 },
