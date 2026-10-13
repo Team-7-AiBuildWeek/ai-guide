@@ -20,8 +20,13 @@ import { useEffect } from "react";
 import { accountsEnabled, welcomed } from "@/lib/accounts/client";
 import { useLoadOnce } from "@/lib/useLoadOnce";
 
-/** Pages anyone may open directly: the door itself, and the privacy policy. */
-const OPEN = ["/welcome", "/privacy"];
+/**
+ * Pages anyone may open directly: the door itself, the privacy policy and the
+ * terms — and the page Stripe sends a buyer back to, which must confirm their
+ * payment even in a browser session that never saw the welcome screen (the
+ * iPhone app's in-app browser, for one).
+ */
+const OPEN = ["/welcome", "/privacy", "/terms", "/billing/done"];
 
 function useDoor(signedIn: boolean | null): boolean | null {
   const path = usePathname();
