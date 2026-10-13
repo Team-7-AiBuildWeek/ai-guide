@@ -354,7 +354,7 @@ export default function Player({
           >
             <div
               id="narration-text"
-              className="rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3"
+              className="read-pane rounded-[var(--radius-control)] border border-[color:var(--line)] bg-[color:var(--canvas)] p-3"
             >
               <p className="u-eyebrow">{speedrun ? "Quick summary" : "What you are hearing"}</p>
               <div className="mt-2 flex flex-col gap-3">

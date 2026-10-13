@@ -601,6 +601,19 @@ pre {
   background: rgb(255 255 255 / 0.72);
   border-color: rgb(255 255 255 / 0.9);
 }
+/* The player on glass: stop chips and the narration text as lighter panes.
+   The chip you are on stays solid ink, it is the one that matters. */
+.sheet--glass-read .chapters__chip:not([data-state="now"]) {
+  background: rgb(255 255 255 / 0.5);
+  border-color: rgb(255 255 255 / 0.85);
+}
+.sheet--glass-read .chapters__chip:not([data-state="now"]):not([data-state="done"]) .chapters__num {
+  background: rgb(255 255 255 / 0.7);
+}
+.sheet--glass-read .read-pane {
+  background: rgb(255 255 255 / 0.55);
+  border-color: rgb(255 255 255 / 0.85);
+}
 .sheet--glass-read .sheet__footer {
   background: transparent;
 }
@@ -640,7 +653,9 @@ pre {
     backdrop-filter: none;
   }
   .sheet--glass-read .ask-chip,
-  .sheet--glass-read .prompt-bar__field {
+  .sheet--glass-read .prompt-bar__field,
+  .sheet--glass-read .read-pane,
+  .sheet--glass-read .chapters__chip:not([data-state="now"]) {
     background: var(--canvas);
     border-color: var(--line-strong);
   }

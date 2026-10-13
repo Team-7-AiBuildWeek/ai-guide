@@ -1126,7 +1126,9 @@ export default function TourFlow({
           // are already the whole screen, and dragging one down would uncover
           // the landing screen behind it.
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
-          glass={stage === "tour" && askOpen}
+          // A walk's sheet raised over the map (Ask anything, or the player) is
+          // glass too, the reading kind.
+          glass={stage === "tour"}
           title={
             stage === "brief"
               ? t("brief.title")

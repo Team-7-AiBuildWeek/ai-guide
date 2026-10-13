@@ -227,7 +227,7 @@ export default function TourStep({
         <button
           type="button"
           onClick={onToggleExpand}
-          className="min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--canvas)] px-4 py-3 text-left"
+          className="ask-chip min-w-0 flex-1 rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--canvas)] px-4 py-3 text-left"
         >
           <span className="block truncate font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
             Ask anything
