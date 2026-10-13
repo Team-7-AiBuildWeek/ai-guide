@@ -72,7 +72,32 @@ class Worker:
         }
         with self.sessions.begin() as session:
             stats["tours_ready"] = finalize_tours(session)
+        try:  # housekeeping: never let it stop the queue
+            stats["retired"] = self.retire_replaced_audio()
+        except Exception:
+            log.exception("retiring replaced audio failed")
         return stats
+
+    def retire_replaced_audio(self, limit: int = 50) -> int:
+        """Delete recordings a newer one of the same script has replaced (a new voice).
+
+        Only once no tour points at them and the replacement has been ready longer than
+        a signed URL lives, so nobody mid-walk is left holding a link to a deleted file.
+        The row stays, as 'retired', because the cost ledger refers to it."""
+        grace = timedelta(seconds=self.settings.signed_url_ttl_s)
+        with self.sessions.begin() as session:
+            old = session.scalars(select(Segment).where(
+                Segment.status == "ready",
+                text("""
+                    EXISTS (SELECT 1 FROM segments n WHERE n.script_id = segments.script_id
+                            AND n.id > segments.id AND n.status = 'ready' AND n.updated_at < :cutoff)
+                    AND NOT EXISTS (SELECT 1 FROM tour_stops ts WHERE ts.segment_id = segments.id)
+                """).bindparams(cutoff=datetime.now(UTC) - grace),
+            ).order_by(Segment.id).limit(limit).with_for_update(skip_locked=True)).all()
+            for segment in old:
+                self.storage.delete(segment.audio_key)
+                segment.status, segment.audio_key, segment.updated_at = "retired", None, func.now()
+            return len(old)
 
     def drain(self, max_rounds: int = 20) -> None:
         """Run until no work moves. Fake providers finish in one poll; for real batches use
@@ -500,6 +525,26 @@ def finalize_tours(session: Session) -> int:
               WHERE status = 'ready' ORDER BY script_id, id DESC) s
         WHERE ts.segment_id IS NULL AND ts.script_id = s.script_id
     """))
+    # A re-recording (new voice, `walk revoice`) replaces the one a tour was built
+    # with: point the stop at the newer rendering of the same script, and re-add
+    # the tour's length, so tours made before the change stop playing the old one.
+    moved = session.execute(text("""
+        UPDATE tour_stops ts SET segment_id = s.id
+        FROM (SELECT DISTINCT ON (script_id) id, script_id FROM segments
+              WHERE status = 'ready' ORDER BY script_id, id DESC) s
+        WHERE ts.script_id = s.script_id AND ts.segment_id IS NOT NULL AND ts.segment_id < s.id
+        RETURNING ts.tour_id
+    """)).scalars().all()
+    if moved:
+        session.execute(text("""
+            UPDATE tours t SET updated_at = now(),
+                total_duration_ms = (
+                    SELECT sum(sg.duration_ms) FROM tour_stops ts JOIN segments sg ON sg.id = ts.segment_id
+                    WHERE ts.tour_id = t.id)
+                  + (SELECT coalesce(sum(wl.duration_s), 0) * 1000 FROM tour_stops ts
+                     JOIN walking_legs wl ON wl.id = ts.leg_to_next_id WHERE ts.tour_id = t.id)
+            WHERE t.id = ANY(:ids) AND t.status = 'ready'
+        """), {"ids": list(set(moved))})
     session.execute(text("""
         UPDATE tours t SET status = 'failed', updated_at = now()
         WHERE t.status = 'pending' AND EXISTS (

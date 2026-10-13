@@ -20,6 +20,7 @@ from app.config import Settings, get_settings
 
 class Storage(Protocol):
     def put(self, key: str, data: bytes, content_type: str) -> None: ...
+    def delete(self, key: str) -> None: ...
     def exists(self, key: str) -> bool: ...
     def signed_url(self, key: str) -> str: ...
 
@@ -49,6 +50,9 @@ class S3Storage:
         self.client.put_object(Bucket=self.bucket, Key=key, Body=data, ContentType=content_type,
                                CacheControl="public, max-age=31536000, immutable")
 
+    def delete(self, key: str) -> None:
+        self.client.delete_object(Bucket=self.bucket, Key=key)
+
     def exists(self, key: str) -> bool:
         try:
             self.client.head_object(Bucket=self.bucket, Key=key)
@@ -70,6 +74,9 @@ class MemoryStorage:
 
     def put(self, key: str, data: bytes, content_type: str) -> None:
         self.objects[key] = (data, content_type)
+
+    def delete(self, key: str) -> None:
+        self.objects.pop(key, None)
 
     def exists(self, key: str) -> bool:
         return key in self.objects
@@ -96,6 +103,9 @@ class LocalStorage:
         path = self.root / key
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
+
+    def delete(self, key: str) -> None:
+        (self.root / key).unlink(missing_ok=True)
 
     def exists(self, key: str) -> bool:
         return (self.root / key).exists()
