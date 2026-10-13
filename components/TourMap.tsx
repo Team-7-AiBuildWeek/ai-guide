@@ -29,6 +29,37 @@ const ACCURACY = "gps-accuracy";
 const ROUTE = "tour-route";
 const RIDES = "tour-rides";
 
+/**
+ * WalkDots' own colours on the default basemap (Stadia "Alidade Smooth"),
+ * which out of the box is nearly all one grey: warm paper land, clear soft
+ * water, parks leaning mint, warm stone buildings. Characterful but quiet, so
+ * the route and the stops still lead. Only this style is tinted; satellite and
+ * the others are left as their makers drew them, and a layer that is missing
+ * is simply skipped.
+ */
+const BASEMAP_TINT: Record<string, [string, string]> = {
+  background: ["background-color", "#f4f1ea"],
+  landuse_residential: ["fill-color", "#eeebe3"],
+  park_fill: ["fill-color", "#d3ecd9"],
+  landcover_park: ["fill-color", "#cbe8d3"],
+  landcover_wood: ["fill-color", "#c4e2cc"],
+  water: ["fill-color", "#a8d2ea"],
+  building: ["fill-color", "#e8e3da"],
+};
+
+function tintBasemap(map: MapLibreMap) {
+  const style = map.getStyle();
+  if (!style?.name || !/alidade smooth$/i.test(style.name)) return;
+  for (const [id, [prop, color]] of Object.entries(BASEMAP_TINT)) {
+    if (!map.getLayer(id)) continue;
+    try {
+      map.setPaintProperty(id, prop as never, color);
+    } catch {
+      /* a layer of another type under the same id: leave it */
+    }
+  }
+}
+
 /** How long a lost WebGL context may take to come back before the map is rebuilt. */
 const CONTEXT_GRACE_MS = 2_000;
 /** How long the first style may take to arrive before the map is rebuilt. */
@@ -257,6 +288,7 @@ export default function TourMap({
     // has to be callable again — not just once on first load.
     const addOurLayers = () => {
       styleReady.current = true;
+      tintBasemap(map);
       // Already there — a style rebuilt after a lost WebGL context keeps our
       // sources, but with whatever they held when it was lost. Bring them up
       // to date from the refs, which kept listening in the meantime.
@@ -272,20 +304,29 @@ export default function TourMap({
         type: "geojson",
         data: routeRef.current ?? { type: "FeatureCollection", features: [] },
       });
-      // Casing under the line so it stays readable over any basemap colour.
+      // The route is the hero of the map (Citymapper, Strava): a soft mint
+      // glow under it, a white casing so it reads over any basemap colour,
+      // and a deep-green line on top.
+      map.addLayer({
+        id: "route-glow",
+        type: "line",
+        source: ROUTE,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: { "line-color": "#5eda9b", "line-width": 20, "line-blur": 10, "line-opacity": 0.5 },
+      });
       map.addLayer({
         id: "route-casing",
         type: "line",
         source: ROUTE,
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#ffffff", "line-width": 9, "line-opacity": 0.9 },
+        paint: { "line-color": "#ffffff", "line-width": 11 },
       });
       map.addLayer({
         id: "route-line",
         type: "line",
         source: ROUTE,
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#1e7a52", "line-width": 5 },
+        paint: { "line-color": "#1e7a52", "line-width": 6 },
       });
 
       /**
@@ -659,14 +700,18 @@ export default function TourMap({
         @keyframes gps-pulse { 0% { transform: scale(.6); opacity: .9 } 100% { transform: scale(1.6); opacity: 0 } }
 
         .stop-pin { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 999px;
-          background: #fff; color: #111827; border: 2px solid #1e7a52;
+          background: #1e7a52; color: #fff; border: 3px solid #fff;
           font-family: var(--font-space-grotesk), sans-serif; font-size: 15px; font-weight: 600;
           font-variant-numeric: tabular-nums; box-shadow: 0 2px 6px rgba(17,24,39,.3); cursor: pointer;
           padding: 0; -webkit-tap-highlight-color: transparent; touch-action: manipulation;
           transition: transform 120ms ease; }
         .stop-pin:active { transform: scale(0.92); }
-        .stop-pin--current { background: #111827; color: #5eda9b; border-color: #5eda9b;
-          width: 36px; height: 36px; font-size: 17px; }
+        .stop-pin--current { background: #5eda9b; color: #111827; border-color: #fff;
+          width: 38px; height: 38px; font-size: 17px; position: relative;
+          box-shadow: 0 3px 10px rgba(30,122,82,.45); }
+        .stop-pin--current::after { content: ""; position: absolute; inset: -9px; border-radius: 999px;
+          border: 2px solid #5eda9b; animation: gps-pulse 2.2s ease-out infinite; pointer-events: none; }
+        @media (prefers-reduced-motion: reduce) { .stop-pin--current::after { animation: none; opacity: .5; } }
 
         /* drop-shadow rather than box-shadow: the pin is a needle and a head,
            and a rectangular shadow around them would give away that it is a

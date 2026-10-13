@@ -194,6 +194,17 @@ pre {
   color: var(--ink-mute);
 }
 
+/* A section heading inside a screen: sentence case and ink, not a grey
+   uppercase form label (.u-eyebrow stays for true eyebrows, like
+   "Step 1 of 2" above a title). */
+.u-section {
+  font-family: var(--font-space-grotesk), sans-serif;
+  font-size: 1.125rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
 .u-measure {
   max-width: var(--measure);
 }
@@ -2514,4 +2525,253 @@ body[data-immersive] .tabbar {
   text-align: center;
   font-size: var(--text-caption);
   color: var(--ink-mute);
+}
+
+/* The arrival card (TourFlow): it lands with a small pop, not just a slide —
+   reaching a stop is one of the two moments a walk is remembered by. */
+.arrival[data-open="true"] {
+  animation: arrival-pop 420ms cubic-bezier(0.34, 1.4, 0.64, 1);
+}
+@keyframes arrival-pop {
+  0% {
+    transform: translateY(-8px) scale(0.96);
+  }
+  100% {
+    transform: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .arrival[data-open="true"] {
+    animation: none;
+  }
+}
+
+/* ------------------------------------------------------- walk complete ---
+   components/TourComplete.tsx: the end of a walk as an occasion. The paywall
+   hero's dark ink and mint glow, the route drawn as a picture, big numbers,
+   then the places you saw. */
+
+.complete {
+  position: fixed;
+  inset: 0;
+  z-index: 55;
+  background: var(--canvas);
+  transform: translateY(100%);
+  visibility: hidden;
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 460ms;
+}
+.complete[data-open="true"] {
+  transform: none;
+  visibility: visible;
+  transition: transform 460ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+}
+.complete__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.complete__hero {
+  padding: max(1.5rem, calc(var(--safe-top) + 1rem)) 1.25rem 1.75rem;
+  color: #fff;
+  text-align: center;
+  background:
+    radial-gradient(120% 70% at 85% 0%, rgb(94 218 155 / 0.42), transparent 60%),
+    radial-gradient(90% 60% at 0% 40%, rgb(37 99 235 / 0.25), transparent 65%),
+    linear-gradient(180deg, #0b1220 0%, #111827 70%, #1a2a24 100%);
+  border-radius: 0 0 32px 32px;
+}
+.complete__eyebrow {
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--mint);
+}
+.complete__title {
+  max-width: 26rem;
+  margin: 0.4rem auto 0;
+  color: #fff;
+  font-size: clamp(1.75rem, 7vw, 2.3rem);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.complete__art {
+  display: block;
+  width: 100%;
+  max-width: 24rem;
+  height: auto;
+  margin: 1rem auto 0;
+}
+.complete__route {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 0 8px rgb(94 218 155 / 0.7));
+}
+.complete[data-open="true"] .complete__route {
+  animation: complete-draw 1.8s cubic-bezier(0.65, 0, 0.35, 1) 0.3s forwards;
+}
+@keyframes complete-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.complete__stop {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.complete[data-open="true"] .complete__stop {
+  animation: paywall-pop 420ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
+}
+.complete__stats {
+  display: flex;
+  justify-content: center;
+  gap: 1.75rem;
+  margin-top: 1.25rem;
+}
+.complete__stats dt {
+  font-size: var(--text-caption);
+  color: rgb(255 255 255 / 0.6);
+}
+.complete__stats dd {
+  margin-top: 0.15rem;
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+}
+.complete__body {
+  max-width: 32rem;
+  margin: 0 auto;
+  padding: 1.5rem 1.25rem max(2rem, var(--safe-bottom));
+}
+.complete__places {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+}
+.complete__places li span:last-child {
+  display: block;
+  margin-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.25;
+}
+@media (prefers-reduced-motion: reduce) {
+  .complete__route {
+    stroke-dashoffset: 0;
+  }
+  .complete__stop {
+    opacity: 1;
+  }
+}
+
+/* The generating screen's route art (components/RouteArt.tsx, `live`): the
+   route keeps drawing itself while the walk is being built, and the stops pop
+   in along it — something to watch for the minute it takes. */
+.route-art--live .paywall-art__route {
+  animation: route-art-loop 3.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+@keyframes route-art-loop {
+  0% {
+    stroke-dashoffset: 420;
+  }
+  65%,
+  85% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -420;
+  }
+}
+.route-art--live .paywall-art__stop {
+  animation: paywall-pop 420ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
+}
+.gen-hero {
+  border-radius: 24px;
+  padding: 0.5rem 0.75rem 0.75rem;
+  background:
+    radial-gradient(120% 80% at 85% 0%, rgb(94 218 155 / 0.38), transparent 60%),
+    radial-gradient(90% 70% at 0% 50%, rgb(37 99 235 / 0.25), transparent 65%),
+    linear-gradient(180deg, #0b1220 0%, #111827 70%, #1a2a24 100%);
+  box-shadow: 0 18px 40px -22px rgb(17 24 39 / 0.7);
+}
+.gen-hero .paywall-art {
+  margin-top: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-art--live .paywall-art__route {
+    animation: none;
+    stroke-dashoffset: 0;
+  }
+}
+
+/* The player's chapter row (components/flow/Player.tsx): every stop as a
+   chip, the walked ones ticked and quiet, this one in mint. Scrolls sideways. */
+.chapters {
+  display: flex;
+  gap: 0.5rem;
+  margin: 0 -1rem;
+  padding: 0.15rem 1rem 0.35rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.chapters::-webkit-scrollbar {
+  display: none;
+}
+.chapters__chip {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  gap: 0.45rem;
+  max-width: 13rem;
+  min-height: 40px;
+  padding: 0.3rem 0.85rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  font-family: var(--font-display);
+  font-size: var(--text-caption);
+  font-weight: 500;
+  color: var(--ink-soft);
+  transition: background-color 200ms ease, border-color 200ms ease, color 200ms ease;
+}
+.chapters__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 999px;
+  background: var(--canvas);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink-mute);
+}
+.chapters__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.chapters__chip[data-state="done"] {
+  color: var(--ink-mute);
+}
+.chapters__chip[data-state="done"] .chapters__num {
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+}
+.chapters__chip[data-state="now"] {
+  border-color: transparent;
+  background: var(--ink);
+  color: #fff;
+}
+.chapters__chip[data-state="now"] .chapters__num {
+  background: var(--mint);
+  color: var(--ink);
 }

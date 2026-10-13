@@ -11,6 +11,8 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { useT } from "@/lib/i18n/ui";
+import PlaceImage from "../PlaceImage";
+import RouteArt from "../RouteArt";
 
 /** How long each word waits before the next one lights. */
 const WORD_MS = 150;
@@ -119,7 +121,8 @@ function Elapsed({ children }: { children: (seconds: number) => React.ReactNode 
 export type TourPreview = {
   title: string;
   summary: string;
-  stops: { name: string; angle: string }[];
+  /** Positions arrive with the finished walk (not with the early preview), and bring photos with them. */
+  stops: { name: string; angle: string; localName?: string; lat?: number; lng?: number }[];
 };
 
 /**
@@ -135,7 +138,7 @@ export type TourPreview = {
  * The progress spine stays, underneath, smaller. It is still the honest answer
  * to "is this stuck", and this screen can still take a minute.
  */
-function Intro({ preview }: { preview: TourPreview }) {
+function Intro({ preview, lang }: { preview: TourPreview; lang: string }) {
   return (
     <div>
       <h2 className="text-[length:var(--text-h2)]">{preview.title}</h2>
@@ -145,12 +148,26 @@ function Intro({ preview }: { preview: TourPreview }) {
         {preview.stops.map((s, i) => (
           <li key={i} className="flex gap-3">
             {/* Numbered, because the walk is walked in this order and the
-                number is the instruction rather than decoration. */}
-            <span
-              aria-hidden="true"
-              className="mt-[2px] grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[color:var(--mint-wash)] text-[length:var(--text-caption)] font-semibold tabular-nums text-[color:var(--mint-ink)]"
-            >
-              {i + 1}
+                number is the instruction rather than decoration. Once the
+                stop is on the map, its photograph sits behind the number. */}
+            <span className="relative shrink-0">
+              {typeof s.lat === "number" && typeof s.lng === "number" ? (
+                <PlaceImage
+                  place={{ name: s.name, localName: s.localName, lat: s.lat, lng: s.lng, lang }}
+                  className="rise-in h-14 w-14 rounded-2xl"
+                  sizes="56px"
+                />
+              ) : null}
+              <span
+                aria-hidden="true"
+                className={
+                  typeof s.lat === "number"
+                    ? "absolute -left-1.5 -top-1.5 grid h-6 w-6 place-items-center rounded-full bg-[color:var(--mint)] text-[length:var(--text-caption)] font-semibold tabular-nums text-[color:var(--ink)] shadow-[var(--shadow-card)]"
+                    : "mt-[2px] grid h-6 w-6 place-items-center rounded-full bg-[color:var(--mint-wash)] text-[length:var(--text-caption)] font-semibold tabular-nums text-[color:var(--mint-ink)]"
+                }
+              >
+                {i + 1}
+              </span>
             </span>
             <span className="min-w-0">
               <span className="block font-[family-name:var(--font-display)] font-semibold text-[color:var(--ink)]">
@@ -171,6 +188,7 @@ export default function GeneratingStep({
   phase,
   message,
   preview = null,
+  lang = "en",
   error,
   onCancel,
   onRetry,
@@ -180,6 +198,8 @@ export default function GeneratingStep({
   phase: string;
   message: string | null;
   preview?: TourPreview | null;
+  /** For the stops' photo captions and lookups. */
+  lang?: string;
   error: string | null;
   onCancel: () => void;
   onRetry: () => void;
@@ -224,12 +244,19 @@ export default function GeneratingStep({
         <p className="u-eyebrow -mb-2" style={{ color: "var(--mint-ink)" }}>{t("gen.because", { picks: because })}</p>
       ) : null}
       {preview ? (
-        <Intro preview={preview} />
+        <Intro preview={preview} lang={lang} />
       ) : (
-        <div>
-          <h2 className="text-[length:var(--text-h2)]">{t("gen.title")}</h2>
-          <p className="u-measure mt-3">{t("gen.wait")}</p>
-        </div>
+        <>
+          {/* Something to watch for the minute this takes: the walk drawing
+              itself, over and over, until the real one arrives. */}
+          <div className="gen-hero">
+            <RouteArt live />
+          </div>
+          <div>
+            <h2 className="text-[length:var(--text-h2)]">{t("gen.title")}</h2>
+            <p className="u-measure mt-3">{t("gen.wait")}</p>
+          </div>
+        </>
       )}
 
       <ol className="spine">

@@ -8,6 +8,7 @@
  */
 
 import { useState } from "react";
+import PlaceImage from "./PlaceImage";
 import Stat from "./Stat";
 import SwipeRow, { TrashIcon } from "./SwipeRow";
 import { LANGUAGES, languageName } from "@/lib/i18n/languages";
@@ -29,6 +30,8 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
    */
   const [againLang, setAgainLang] = useState(walk.lang);
   const again = canWalkAgain(walk);
+  const first = walk.stops?.[0];
+  const cover = first ? { name: first.name, localName: first.localName, lat: first.lat, lng: first.lng, lang: walk.lang } : null;
 
   const walkAgain = () => {
     const plan = planFor(walk);
@@ -57,6 +60,18 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
         ]}
         onCommit={onForget}
       >
+      {/* The walk's first stop, as a photograph — what the walk looked like,
+          not just what it was called. A card with no photo stays text. */}
+      {cover ? (
+        <PlaceImage place={cover} className="h-36 w-full" sizes="(max-width: 512px) 100vw, 512px">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-transparent" />
+          {walk.city ? (
+            <span className="absolute bottom-2 left-3 rounded-full bg-white/85 px-2.5 py-0.5 font-[family-name:var(--font-display)] text-[12px] font-semibold text-[color:var(--ink)] backdrop-blur-sm">
+              {walk.city}
+            </span>
+          ) : null}
+        </PlaceImage>
+      ) : null}
       <div className="p-4">
       <button
         type="button"
@@ -98,7 +113,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
             </p>
           ) : null}
 
-          <p className="u-eyebrow mt-4">{t("profile.theStops")}</p>
+          <p className="u-section mt-4">{t("profile.theStops")}</p>
           <ol className="mt-2 flex flex-col gap-1">
             {walk.stopNames.map((name, i) => (
               <li key={i} className="text-[length:var(--text-caption)] text-[color:var(--ink-soft)]">
@@ -114,7 +129,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
           {again ? (
             <div className="mt-4 rounded-[var(--radius-control)] bg-[color:var(--canvas)] p-3">
               <label className="flex items-center justify-between gap-3">
-                <span className="u-eyebrow">{t("brief.language")}</span>
+                <span className="u-section">{t("brief.language")}</span>
                 <select
                   value={againLang}
                   onChange={(e) => setAgainLang(e.target.value)}
@@ -127,7 +142,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
                   ))}
                 </select>
               </label>
-              <button type="button" onClick={walkAgain} className="btn btn--filled mt-3 w-full">
+              <button type="button" onClick={walkAgain} className="btn btn--primary mt-3 w-full">
                 {t("profile.walkAgain")}
               </button>
               <p className="mt-2 text-[length:var(--text-caption)] text-[color:var(--ink-mute)]">

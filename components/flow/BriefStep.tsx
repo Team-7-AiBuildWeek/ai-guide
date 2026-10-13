@@ -222,7 +222,7 @@ export default function BriefStep({
       {/* Tap options rather than a stepper, like GetYourGuide's duration
           filter: seven lengths fit on screen, and every one is visible. */}
       <section>
-        <h3 className="u-eyebrow">{t("brief.howLong")}</h3>
+        <h3 className="u-section">{t("brief.howLong")}</h3>
         <div role="group" aria-label={t("brief.howLong")} className="mt-2 flex flex-wrap gap-2">
           {DURATIONS.map((d) => (
             <button
@@ -249,7 +249,7 @@ export default function BriefStep({
 
       <section>
         <div className="flex items-baseline justify-between gap-3">
-          <h3 className="u-eyebrow">{t("brief.interests")}</h3>
+          <h3 className="u-section">{t("brief.interests")}</h3>
           {picked > 0 ? (
             <span className="shrink-0 text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
               {t("brief.interestsCount", { n: picked })}
@@ -265,7 +265,7 @@ export default function BriefStep({
       </section>
 
       <section className="flex flex-col gap-3">
-        <h3 className="u-eyebrow">{t("brief.style")}</h3>
+        <h3 className="u-section">{t("brief.style")}</h3>
         <Segmented
           label={t("brief.detail")}
           options={DETAILS.map((d) => ({ value: d.value, label: t(`detail.${d.value}`) }))}
@@ -288,7 +288,7 @@ export default function BriefStep({
           rather than a whole sentence, so they shape what is written instead
           of replacing it, and tapping one again takes its words back out. */}
       <section>
-        <label htmlFor="brief" className="u-eyebrow block">
+        <label htmlFor="brief" className="u-section block">
           {t("brief.anythingElse")}
         </label>
         <textarea
@@ -325,7 +325,7 @@ export default function BriefStep({
       </section>
 
       <div className="flex items-center justify-between gap-3 border-t border-[color:var(--line)] pt-4">
-        <label htmlFor="tour-lang" className="u-eyebrow">
+        <label htmlFor="tour-lang" className="u-section">
           {t("brief.narration")}
         </label>
         <select

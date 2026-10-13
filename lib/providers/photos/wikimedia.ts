@@ -306,3 +306,24 @@ export async function findStopPhoto(stop: {
 
   return null;
 }
+
+/**
+ * A photograph of a whole city, for the landing screen.
+ *
+ * A stop's rules do not fit: a city's article is pinned to its town hall or
+ * its geometric centre, kilometres from wherever the walker's city centre was
+ * put, so the 500 m test refuses every one. Here the title has to match the
+ * city's name, and the article only has to be within 30 km — near enough
+ * that "Vienna" is not Vienna, Virginia, far enough for any real city.
+ */
+const CITY_NEAR_M = 30_000;
+
+export async function findCityPhoto(city: { name: string; lat: number; lng: number; lang: string }): Promise<StopPhoto | null> {
+  const lang = normaliseLang(city.lang);
+  const at = { lat: city.lat, lng: city.lng };
+  for (const w of [...new Set([lang, "en"])]) {
+    const hit = (await resolve(w, [city.name], at, CITY_NEAR_M))[0];
+    if (hit) return toPhoto(hit);
+  }
+  return null;
+}

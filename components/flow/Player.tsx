@@ -65,6 +65,8 @@ function mmss(s: number) {
 
 export default function Player({
   stopName,
+  chapters,
+  onChapter,
   index,
   total,
   playing,
@@ -90,6 +92,9 @@ export default function Player({
   onRetry,
 }: {
   stopName: string;
+  /** Every stop's name, for the chapter row; tapping one goes to it. */
+  chapters?: string[];
+  onChapter?: (index: number) => void;
   index: number;
   total: number;
   playing: boolean;
@@ -181,13 +186,34 @@ export default function Player({
       {/* Keyed by the stop, so moving on rolls the new name in rather than
           swapping the letters in place. */}
       <div key={index} className="rise-in flex items-baseline justify-between gap-3">
-        <p className="min-w-0 truncate font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold text-[color:var(--ink)]">
+        <p className="min-w-0 truncate font-[family-name:var(--font-display)] text-[length:var(--text-h3)] font-semibold leading-tight tracking-[-0.02em] text-[color:var(--ink)]">
           {stopName}
         </p>
         <p className="shrink-0 text-[length:var(--text-caption)] tabular-nums text-[color:var(--ink-mute)]">
           {index + 1} / {total}
         </p>
       </div>
+
+      {/* Chapters, the way a podcast player lists them: every stop, the ones
+          behind you ticked, this one lit. A tap goes there. */}
+      {chapters && chapters.length > 1 ? (
+        <div className="chapters" role="list" aria-label="Stops">
+          {chapters.map((name, i) => (
+            <button
+              key={`${i}-${name}`}
+              type="button"
+              role="listitem"
+              onClick={() => onChapter?.(i)}
+              aria-current={i === index ? "true" : undefined}
+              data-state={i < index ? "done" : i === index ? "now" : "next"}
+              className="chapters__chip"
+            >
+              <span className="chapters__num">{i < index ? "✓" : i + 1}</span>
+              <span className="chapters__name">{name}</span>
+            </button>
+          ))}
+        </div>
+      ) : null}
 
       {/* Scrubber. A range input rather than a bar, because a walker who
           missed a sentence wants to go back ten seconds, not restart.

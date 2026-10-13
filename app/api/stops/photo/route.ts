@@ -11,7 +11,7 @@
  */
 
 import { normaliseLang } from "@/lib/i18n/languages";
-import { findStopPhoto, type StopPhoto } from "@/lib/providers/photos/wikimedia";
+import { findCityPhoto, findStopPhoto, type StopPhoto } from "@/lib/providers/photos/wikimedia";
 
 export const dynamic = "force-dynamic";
 
@@ -31,10 +31,12 @@ export async function GET(request: Request) {
     return Response.json({ error: "Coordinates are required." }, { status: 400 });
   }
 
-  const key = [lang, localName ?? name, lat.toFixed(4), lng.toFixed(4)].join("|");
+  // ?kind=city: a whole city for the landing screen, matched by name within 30 km.
+  const city = url.searchParams.get("kind") === "city";
+  const key = [city ? "city" : "stop", lang, localName ?? name, lat.toFixed(4), lng.toFixed(4)].join("|");
   if (CACHE.has(key)) return Response.json({ photo: CACHE.get(key) });
 
-  const photo = await findStopPhoto({ name, localName, lat, lng, lang });
+  const photo = city ? await findCityPhoto({ name, lat, lng, lang }) : await findStopPhoto({ name, localName, lat, lng, lang });
   CACHE.set(key, photo);
   while (CACHE.size > MAX_ENTRIES) {
     const oldest = CACHE.keys().next().value;

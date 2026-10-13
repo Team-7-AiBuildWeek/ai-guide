@@ -22,6 +22,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import type { StopPhoto as Photo } from "@/lib/providers/photos/wikimedia";
+import { tintOf } from "@/lib/imageTint";
 
 const EASE = [0.22, 1, 0.36, 1] as const;
 
@@ -54,6 +55,8 @@ export default function StopPhoto({
 
   /** The picture fades in once it has arrived, not while it is drawing. */
   const [loaded, setLoaded] = useState<string | null>(null);
+  /** The photo's own colour, for the glow around it (lib/imageTint.ts). */
+  const [tint, setTint] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -90,10 +93,15 @@ export default function StopPhoto({
           transition={reduce ? { duration: 0 } : { duration: 0.36, ease: EASE }}
           className="overflow-hidden"
         >
-          <figure className="overflow-hidden rounded-[var(--radius-card)] border border-[color:var(--line)]">
+          {/* Artwork, the way a player shows an album cover: big, rounded,
+              lifted on a glow in the photo's own colour. */}
+          <figure
+            className="overflow-hidden rounded-[22px] bg-[color:var(--surface)] transition-shadow duration-700"
+            style={{ boxShadow: `0 22px 44px -22px ${tint ?? "rgb(17 24 39 / 0.35)"}, 0 1px 0 rgb(17 24 39 / 0.04)` }}
+          >
             {/* A wide crop: the sheet is short, and a portrait photograph of a
                 tower would push the controls off the screen. */}
-            <div className="relative aspect-[16/9] w-full bg-[color:var(--canvas)]">
+            <div className="relative aspect-[16/10] w-full bg-[color:var(--canvas)]">
               {photo ? (
                 <Image
                   key={photo.url}
@@ -101,7 +109,13 @@ export default function StopPhoto({
                   alt={name}
                   fill
                   sizes="(max-width: 512px) 100vw, 512px"
-                  onLoad={() => setLoaded(photo.url)}
+                  // Wikimedia allows it, and without it the canvas that reads the
+                  // photo's colour is blocked as cross-origin (lib/imageTint.ts).
+                  crossOrigin="anonymous"
+                  onLoad={(e) => {
+                    setLoaded(photo.url);
+                    setTint(tintOf(e.currentTarget));
+                  }}
                   className={`object-cover transition-opacity duration-500 ease-out ${loaded === photo.url ? "opacity-100" : "opacity-0"}`}
                 />
               ) : null}

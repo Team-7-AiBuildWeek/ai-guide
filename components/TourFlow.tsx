@@ -61,6 +61,8 @@ import type { City, MapStyle, TourRequest } from "@/lib/providers/types";
 import { cityAt } from "@/lib/tour/city";
 import { rememberWalk } from "@/lib/tour/history";
 import Paywall from "./Paywall";
+import PlaceImage from "./PlaceImage";
+import TourComplete from "./TourComplete";
 import { flushCompletions, reportCompletion, walkComplete, type Visit } from "@/lib/billing/completion";
 import { useWalkStatus } from "@/lib/billing/useWalkStatus";
 import type { PaywallReason } from "@/lib/billing/store";
@@ -77,6 +79,15 @@ const CITY_RADIUS_M = 30_000;
 /** How long the map stays uncovered after a pin lands, so the walker can see
  *  where it went before the sheet slides back over it. */
 const PIN_PAUSE_MS = 1000;
+
+/** The itinerary screen's list, from a finished walk: real positions included, for photos. */
+function previewOf(built: StoredTour): TourPreview {
+  return {
+    title: built.plan.title,
+    summary: built.plan.summary,
+    stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle, localName: x.localName, lat: x.lat, lng: x.lng })),
+  };
+}
 
 export default function TourFlow({
   styleUrl,
@@ -275,7 +286,7 @@ export default function TourFlow({
       setTour(built);
       saveTour(built);
       setCurrentIndex(0);
-      setPreview({ title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+      setPreview(previewOf(built));
       setPhase("done");
       setReady(true);
     } catch (err) {
@@ -432,7 +443,9 @@ export default function TourFlow({
             void refreshWalkStatus();
             setCurrentIndex(0);
             // Stay on the itinerary: the walker reads the stops, then continues.
-            setPreview((p) => p ?? { title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
+            // The finished walk replaces the early preview: same names, now in
+            // walking order and on the map, so each one can show its photograph.
+            setPreview(previewOf(built));
             setReady(true);
           }
         }
@@ -627,11 +640,18 @@ export default function TourFlow({
    */
   const visitsRef = useRef<Map<number, Visit>>(new Map());
   const visitsFor = useRef<string | null>(null);
+  /** The end-of-walk page (TourComplete), and what it shows. */
+  const [completeOpen, setCompleteOpen] = useState(false);
+  const [completeMinutes, setCompleteMinutes] = useState<number | null>(null);
+  const [completePoints, setCompletePoints] = useState(0);
+  const walkStart = useRef<{ key: string; t: number } | null>(null);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
   /** The stop the arrival card names, kept while the card slides away. */
   const [lastArrived, setLastArrived] = useState<string | null>(null);
   if (justArrived && justArrived !== lastArrived) setLastArrived(justArrived);
+  const arrivedIndex = tour && lastArrived ? tour.plan.stops.findIndex((x) => x.name === lastArrived) : -1;
+  const arrivedStop = arrivedIndex >= 0 ? tour!.plan.stops[arrivedIndex] : null;
 
   useEffect(() => {
     if (stage !== "tour" || !autoAdvance || !tour) return;
@@ -660,6 +680,9 @@ export default function TourFlow({
 
     if (arrival.index !== currentIndex) setCurrentIndex(arrival.index);
     setJustArrived(arrival.name);
+    // Felt as well as seen (Flighty's arrivals are the model): a short tap on
+    // phones that can, so a walker with the phone in hand notices without looking.
+    if (typeof navigator !== "undefined" && "vibrate" in navigator) navigator.vibrate?.([18, 40, 18]);
 
     // Points: a real arrival, kept per walk; reported once the walk counts as done.
     if (tour.walkId && fix) {
@@ -671,8 +694,19 @@ export default function TourFlow({
         visitsRef.current.set(arrival.index, { i: arrival.index, t: Date.now(), lat: fix.lat, lng: fix.lng, acc: fix.accuracy });
       }
       if (walkComplete(visitsRef.current, tour.plan.stops.length)) {
-        void reportCompletion(tour.walkId, [...visitsRef.current.values()], simulating);
+        void reportCompletion(tour.walkId, [...visitsRef.current.values()], simulating).then((p) => {
+          if (p > 0) setCompletePoints(p);
+        });
       }
+    }
+    // When this walk's first stop was reached, for "Time" at the end — every
+    // walk, not only the ones booked for points.
+    const walkKey = tour.walkId ?? tour.plan.title;
+    if (walkStart.current?.key !== walkKey) walkStart.current = { key: walkKey, t: Date.now() };
+    // The last stop: the walk's ending, as a page of its own (TourComplete).
+    if (arrival.index === tour.plan.stops.length - 1) {
+      setCompleteMinutes(Math.max(1, Math.round((Date.now() - walkStart.current.t) / 60_000)));
+      window.setTimeout(() => setCompleteOpen(true), 2500); // after the arrival card has had its moment
     }
   }, [fix, stage, autoAdvance, tour, currentIndex, simulating]);
 
@@ -1019,14 +1053,29 @@ export default function TourFlow({
               <div
                 data-open={!!justArrived}
                 aria-hidden={!justArrived}
-                className="t-panel-slide panel-dark panel--glass w-full px-4 py-3"
+                className="arrival t-panel-slide panel-dark panel--glass flex w-full items-center gap-3 p-2.5 pr-4"
               >
-                <p className="u-eyebrow" style={{ color: "var(--on-dark-mute)" }}>
-                  You&apos;ve arrived
-                </p>
-                <p className="mt-1 font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold">
-                  {lastArrived}
-                </p>
+                {/* The place itself, the moment you reach it. */}
+                {arrivedStop ? (
+                  <PlaceImage
+                    place={{ name: arrivedStop.name, localName: arrivedStop.localName, lat: arrivedStop.lat, lng: arrivedStop.lng, lang: draft.lang }}
+                    className="h-16 w-16 shrink-0 rounded-2xl"
+                    sizes="64px"
+                    fallback={
+                      <span className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-[color:var(--mint)] font-[family-name:var(--font-display)] text-2xl font-semibold text-[color:var(--ink)]">
+                        {arrivedIndex + 1}
+                      </span>
+                    }
+                  />
+                ) : null}
+                <div className="min-w-0">
+                  <p className="text-[length:var(--text-caption)] font-semibold text-[color:var(--mint)]">
+                    You&apos;ve arrived{tour && arrivedIndex >= 0 ? ` · Stop ${arrivedIndex + 1} of ${tour.plan.stops.length}` : ""}
+                  </p>
+                  <p className="mt-0.5 truncate font-[family-name:var(--font-display)] text-[length:var(--text-lead)] font-semibold">
+                    {lastArrived}
+                  </p>
+                </div>
               </div>
             ) : null}
             {/* A setting, not an action — it should read as smaller than the
@@ -1124,6 +1173,11 @@ export default function TourFlow({
                 onToggle={audio.toggle}
                 onExpand={() => setSheetDrag("half")}
                 onAsk={() => setAskOpen(true)}
+                photo={
+                  currentStop
+                    ? { name: currentStop.name, localName: currentStop.localName, lat: currentStop.lat, lng: currentStop.lng, lang: draft.lang }
+                    : null
+                }
               />
             ) : tour ? (
               // Backing out of a tour is not the same as ending it. The walk is
@@ -1155,13 +1209,23 @@ export default function TourFlow({
               </>
             ) : (
               <>
+                {/* The city itself, before a word about it: a real photograph
+                    (Wikimedia) of where this walk would be. Nothing at all when
+                    there is no honest one. */}
+                {draft.city ? (
+                  <PlaceImage
+                    place={{ name: draft.city.name, lat: draft.city.lat, lng: draft.city.lng, lang: draft.lang, kind: "city" }}
+                    className="mb-4 h-36 rounded-[20px] shadow-[var(--shadow-card)]"
+                    credit
+                  />
+                ) : null}
                 {accountsEnabled ? <Greeting /> : null}
-                <h1 className="text-[length:var(--text-h3)]">
+                <h1 className="text-[clamp(2.1rem,8vw,2.6rem)] leading-[1.05] tracking-[-0.03em]">
                   {draft.city
                     ? t("landing.walkCity", { city: draft.city.name })
                     : t("landing.walkAnywhere")}
                 </h1>
-                <p className="mt-2 text-[color:var(--ink-soft)]">
+                <p className="mt-2 text-[length:var(--text-lead)] leading-snug text-[color:var(--ink-soft)]">
                   {t("landing.pitch")}
                 </p>
                 <button
@@ -1219,6 +1283,7 @@ export default function TourFlow({
               phase={phase}
               message={phaseMessage}
               preview={preview}
+              lang={draft.lang}
               error={genError}
               onCancel={() => {
                 abortRef.current?.abort("cancelled");
@@ -1264,6 +1329,8 @@ export default function TourFlow({
             <div className="rise-in flex flex-col gap-4">
               <Player
                 stopName={currentStop?.name ?? ""}
+                chapters={tour.plan.stops.map((x) => x.name)}
+                onChapter={chooseStop}
                 index={currentIndex}
                 total={tour.plan.stops.length}
                 playing={audio.playing}
@@ -1307,6 +1374,21 @@ export default function TourFlow({
           ) : null}
         </BottomSheet>
       )}
+
+      {tour ? (
+        <TourComplete
+          open={completeOpen && stage === "tour"}
+          tour={tour}
+          minutesWalked={completeMinutes}
+          points={completePoints}
+          lang={draft.lang}
+          onClose={() => setCompleteOpen(false)}
+          onNew={() => {
+            setCompleteOpen(false);
+            startOver();
+          }}
+        />
+      ) : null}
 
       <Paywall
         open={paywall !== null}

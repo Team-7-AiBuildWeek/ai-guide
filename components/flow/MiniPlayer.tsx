@@ -9,6 +9,9 @@
  * ask. Everything else is one tap away.
  */
 
+import PlaceImage from "../PlaceImage";
+import type { Place } from "@/lib/usePlacePhoto";
+
 function mmss(s: number) {
   if (!Number.isFinite(s) || s < 0) s = 0;
   return `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
@@ -26,6 +29,7 @@ export default function MiniPlayer({
   onToggle,
   onExpand,
   onAsk,
+  photo,
 }: {
   stopName: string;
   index: number;
@@ -39,6 +43,8 @@ export default function MiniPlayer({
   onToggle: () => void;
   onExpand: () => void;
   onAsk: () => void;
+  /** The stop, for its photograph as the player's artwork. */
+  photo?: Place | null;
 }) {
   const pct = duration > 0 ? Math.min(100, (position / duration) * 100) : 0;
 
@@ -70,6 +76,12 @@ export default function MiniPlayer({
 
       {/* The whole middle is the expand target — a bigger hit area than a
           chevron, and the obvious thing to press to see more. */}
+      {/* Artwork, like a music player's: the place you are listening about. */}
+      {photo ? (
+        <button type="button" onClick={onExpand} tabIndex={-1} aria-hidden="true" className="shrink-0">
+          <PlaceImage place={photo} className="h-11 w-11 rounded-xl" sizes="44px" />
+        </button>
+      ) : null}
       <button
         type="button"
         onClick={onExpand}
