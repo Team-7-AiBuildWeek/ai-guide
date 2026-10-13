@@ -60,7 +60,17 @@
     },
     "extra": {
       "apiBaseUrl": "https://ai-guide-phi.vercel.app",
-      "clerkPublishableKey": "pk_test_bm9ibGUtbW9vc2UtNjUyMS5jbGVyay5hY2NvdW50cy5kZXYk"
+      "clerkPublishableKey": "pk_test_bm9ibGUtbW9vc2UtNjUyMS5jbGVyay5hY2NvdW50cy5kZXYk",
+      "eas": {
+        "projectId": "4b54971a-03eb-435c-b43a-7445a8c9c6d6"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "owner": "jurajkolesar",
+    "updates": {
+      "url": "https://u.expo.dev/4b54971a-03eb-435c-b43a-7445a8c9c6d6"
     }
   }
 }
