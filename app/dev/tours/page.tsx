@@ -105,7 +105,7 @@ export default function SavedToursPage() {
             <table className="w-full text-left text-[length:var(--text-caption)]">
               <thead className="bg-[color:var(--canvas)] text-[color:var(--ink-mute)]">
                 <tr>
-                  {["When", "Tour", "City", "Asked for", "Interests", "Lang", "Stops", "Typed"].map((h) => (
+                  {["When", "Tour", "City", "Asked for", "Interests", "Lang", "Stops", "Cost (est.)", "Typed"].map((h) => (
                     <th key={h} className="whitespace-nowrap px-3 py-2 font-semibold">
                       {h}
                     </th>
@@ -127,6 +127,9 @@ export default function SavedToursPage() {
                     <td className="px-3 py-2">{t.interests.join(", ") || "—"}</td>
                     <td className="px-3 py-2">{t.lang ?? "—"}</td>
                     <td className="px-3 py-2 tabular-nums">{t.stops}</td>
+                    <td className="whitespace-nowrap px-3 py-2 tabular-nums">
+                      <CostCell tour={t} />
+                    </td>
                     <td className="max-w-[16rem] px-3 py-2 italic text-[color:var(--ink-soft)]">{t.freeText ? `“${t.freeText}”` : ""}</td>
                   </tr>
                 ))}
@@ -137,6 +140,17 @@ export default function SavedToursPage() {
         </>
       ) : null}
     </main>
+  );
+}
+
+/** A tour's estimated cost, with what it is made of on hover. Demos cost nothing. */
+function CostCell({ tour }: { tour: SavedTourSummary }) {
+  if (tour.demo) return <span className="text-[color:var(--ink-mute)]">$0.00</span>;
+  const c = estimateTourCost(tour.stops, (tour.detail as Detail) ?? "story");
+  return (
+    <span title={`Writing ${usd(c.writing)} + voice ${usd(c.voice)} (${Math.round(c.audioMinutes)} min of audio)`}>
+      ≈ {usd(c.total)}
+    </span>
   );
 }
 
