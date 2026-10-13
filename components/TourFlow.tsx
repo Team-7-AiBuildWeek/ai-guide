@@ -14,7 +14,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { accountsEnabled } from "@/lib/accounts/client";
 import Greeting from "./Greeting";
-import { ABOVE_TAB_BAR, TAB_BAR_PX } from "./TabBar";
+import { TAB_BAR_PX } from "./TabBar";
 import MapBoundary from "./MapBoundary";
 import TourMap, { type MapPin } from "./TourMap";
 import BottomSheet, { type SheetHeight } from "./BottomSheet";
@@ -1119,7 +1119,8 @@ export default function TourFlow({
         <BottomSheet
           height={sheetHeight}
           // Sits on the tab bar rather than under it.
-          lift={showTabs ? ABOVE_TAB_BAR : undefined}
+          // Reaches under the see-through tab bar: one pane of glass with it.
+          underlay={showTabs ? `${TAB_BAR_PX}px` : undefined}
           // Only the walk resizes. The landing screen's whole content is the
           // collapsed row, so pulling it open showed an empty panel; the forms
           // are already the whole screen, and dragging one down would uncover

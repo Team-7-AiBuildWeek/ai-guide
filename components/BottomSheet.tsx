@@ -87,8 +87,15 @@ export default function BottomSheet({
   footer,
   collapsedContent,
   lift,
+  underlay,
   glass = false,
 }: {
+  /**
+   * Instead of `lift`: reach down to the bottom edge, behind a see-through tab
+   * bar this tall, so sheet and bar are one pane of glass (two blurred panes
+   * side by side always show an edge, each blurring only what is behind it).
+   */
+  underlay?: string;
   /** Frosted when raised too (a chat over the map), a little more opaque for reading. */
   glass?: boolean;
   /** A CSS length to sit above the bottom edge, for a tab bar underneath. */
@@ -421,7 +428,11 @@ export default function BottomSheet({
       // any tab bar), else above the tab bar.
       style={
         height === "collapsed"
-          ? { bottom: keyboard > 0 ? keyboard : lift }
+          ? keyboard > 0
+            ? { bottom: keyboard }
+            : underlay
+              ? { bottom: 0, paddingBottom: underlay }
+              : { bottom: lift }
           : keyboard > 0
             ? raisedAboveKeyboard(height, keyboard)
             : undefined

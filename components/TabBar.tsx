@@ -4,8 +4,11 @@
  * The bar along the bottom: Explore, Tours, Account — the same three tabs as
  * the iPhone app.
  *
- * Laid out like Airbnb's: white, a hairline on top, an icon over each label,
- * and the tab you are on in the one green that may be text (mint-ink). It sits
+ * Laid out like Airbnb's: an icon over each label, and the tab you are on in
+ * the one green that may be text (mint-ink). Frosted glass, like the sheets:
+ * on Explore it continues the landing sheet's pane with no seam, so sheet and
+ * bar are one surface over the map; elsewhere it is a lighter pane the page
+ * scrolls under. It sits
  * on the three home screens only, drawn once by the layout so it stays put
  * between them and the pill can slide; building a tour and walking one take
  * the whole screen, the way a booking does (TourFlow marks the page
@@ -65,7 +68,10 @@ export default function TabBar() {
   return (
     <nav
       aria-label="Main"
-      className="tabbar fixed inset-x-0 bottom-0 z-40 border-t border-[color:var(--line)] bg-[color:var(--surface)] pb-[var(--safe-bottom)]"
+      // Frosted (see .tabbar in globals.css). On Explore it carries on the
+      // landing sheet's glass above it, so the two read as one pane over the map.
+      data-over-map={path === "/" ? "" : undefined}
+      className="tabbar fixed inset-x-0 bottom-0 z-40 pb-[var(--safe-bottom)]"
     >
       <ul className="relative mx-auto flex w-full max-w-lg" style={{ height: TAB_BAR_PX }}>
         {/* The pill behind the tab you are on. Tabs are equal widths, so its
