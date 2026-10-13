@@ -24,6 +24,22 @@ export type Product = {
   perWalk: string;
   /** Stripe Checkout mode. */
   mode: "payment" | "subscription";
+  /** The paywall card (components/Paywall.tsx): who it is for, the big price, two lines on what it gives. */
+  card: {
+    badge: string;
+    tagline: string;
+    /** The big number and what it is per. */
+    headline: string;
+    per: string;
+    /** Under the price. */
+    small: string;
+    /**
+     * Against buying the same walks one by one at €4.99, if every walk is used —
+     * hence "up to". Null where there is nothing honest to compare.
+     */
+    saving: string | null;
+    features: { icon: "infinity" | "calendar" | "renew" | "clock" | "sparkle" | "pin"; text: string }[];
+  };
   /** What a paid checkout grants (lib/billing/fulfil.ts). */
   grants: { credits?: number; passSeconds?: number; passKind?: "city72h" | "trip7d"; subscription?: true };
 };
@@ -38,6 +54,18 @@ export const PRODUCTS: Product[] = [
     perWalk: "€4.99 a walk",
     mode: "payment",
     grants: { credits: 1 },
+    card: {
+      badge: "JUST ONE MORE",
+      tagline: "One more walk, written for wherever you are.",
+      headline: "€4.99",
+      per: "/ walk",
+      small: "Use it whenever you like",
+      saving: null,
+      features: [
+        { icon: "clock", text: "Never expires" },
+        { icon: "sparkle", text: "Every stop written for you" },
+      ],
+    },
   },
   {
     id: "city72h",
@@ -48,6 +76,18 @@ export const PRODUCTS: Product[] = [
     perWalk: "from €1.11 a walk",
     mode: "payment",
     grants: { passSeconds: 72 * 3600, passKind: "city72h" },
+    card: {
+      badge: "BEST FOR A CITY BREAK",
+      tagline: "See a city your way, three days of walks.",
+      headline: "€9.99",
+      per: "/ 72 hours",
+      small: "from €1.11 a walk",
+      saving: "SAVE UP TO 78%",
+      features: [
+        { icon: "calendar", text: "Up to 3 walks a day for 72 hours" },
+        { icon: "renew", text: "One payment — doesn't renew" },
+      ],
+    },
   },
   {
     id: "trip7d",
@@ -58,6 +98,18 @@ export const PRODUCTS: Product[] = [
     perWalk: "from €0.71 a walk",
     mode: "payment",
     grants: { passSeconds: 7 * 24 * 3600, passKind: "trip7d" },
+    card: {
+      badge: "BEST FOR A WEEK AWAY",
+      tagline: "A whole trip of walks, wherever it takes you.",
+      headline: "€14.99",
+      per: "/ 7 days",
+      small: "from €0.71 a walk",
+      saving: "SAVE UP TO 86%",
+      features: [
+        { icon: "calendar", text: "Up to 3 walks a day for 7 days" },
+        { icon: "renew", text: "One payment — doesn't renew" },
+      ],
+    },
   },
   {
     id: "annual",
@@ -68,6 +120,18 @@ export const PRODUCTS: Product[] = [
     perWalk: "from €0.33 a walk",
     mode: "subscription",
     grants: { subscription: true },
+    card: {
+      badge: "FOR LOCALS & REGULARS",
+      tagline: "Walks all year — at home and on every trip.",
+      headline: "€3.33",
+      per: "/ month",
+      small: "€39.99 billed yearly",
+      saving: "SAVE UP TO 93%",
+      features: [
+        { icon: "infinity", text: "Up to 10 walks every month" },
+        { icon: "pin", text: "Any city — cancel any time" },
+      ],
+    },
   },
 ];
 

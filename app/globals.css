@@ -1895,3 +1895,415 @@ body[data-immersive] .tabbar {
     animation-duration: 2.4s;
   }
 }
+
+/* ------------------------------------------------------------ paywall ---
+   components/Paywall.tsx: a full page that rises over the app. A dark hero
+   that shows a walk in progress (route + player), then large plan cards in a
+   sideways rail, the next one peeking in. Flighty's paywall was the model;
+   the colours are WalkDots' own: ink and mint. */
+
+.paywall {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: var(--canvas);
+  transform: translateY(100%);
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s linear 420ms;
+  visibility: hidden;
+}
+.paywall[data-open="true"] {
+  transform: none;
+  visibility: visible;
+  transition: transform 420ms cubic-bezier(0.22, 1, 0.36, 1), visibility 0s;
+}
+.paywall__scroll {
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.paywall__hero {
+  position: relative;
+  padding: max(1rem, var(--safe-top)) 1rem 5.5rem;
+  color: #fff;
+  background:
+    radial-gradient(120% 70% at 85% 0%, rgb(94 218 155 / 0.45), transparent 60%),
+    radial-gradient(90% 60% at 0% 35%, rgb(37 99 235 / 0.28), transparent 65%),
+    linear-gradient(180deg, #0b1220 0%, #111827 62%, #1a2a24 100%);
+  overflow: hidden;
+}
+.paywall__hero::after {
+  /* The hero melts into the page, so the first card can sit across the seam. */
+  content: "";
+  position: absolute;
+  inset: auto 0 0 0;
+  height: 7rem;
+  background: linear-gradient(180deg, transparent, var(--canvas));
+  pointer-events: none;
+}
+.paywall__top {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 32rem;
+  margin: 0 auto;
+}
+.paywall__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.35rem 0.4rem 0.35rem 0.85rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.12);
+  backdrop-filter: blur(12px);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+.paywall__brand b {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  background: #0b1220;
+  color: var(--mint);
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+}
+.paywall__close {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.16);
+  color: #fff;
+  backdrop-filter: blur(12px);
+  transition: background-color 150ms ease, transform 100ms ease;
+}
+.paywall__close:active {
+  transform: scale(0.94);
+}
+
+.paywall-art {
+  position: relative;
+  z-index: 1;
+  max-width: 22rem;
+  margin: 1.25rem auto 0;
+}
+.paywall-art__map {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.paywall-art__route {
+  stroke-dasharray: 420;
+  stroke-dashoffset: 420;
+  filter: drop-shadow(0 0 10px rgb(94 218 155 / 0.6));
+}
+.paywall[data-open="true"] .paywall-art__route {
+  animation: paywall-draw 1.6s cubic-bezier(0.65, 0, 0.35, 1) 0.2s forwards;
+}
+@keyframes paywall-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+.paywall-art__stop {
+  opacity: 0;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.paywall[data-open="true"] .paywall-art__stop {
+  animation: paywall-pop 420ms cubic-bezier(0.34, 1.5, 0.64, 1) both;
+}
+@keyframes paywall-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+.paywall-art__player {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin: -0.5rem 1.25rem 0;
+  padding: 0.6rem 0.8rem;
+  border-radius: 18px;
+  background: rgb(17 24 39 / 0.72);
+  border: 1px solid rgb(255 255 255 / 0.1);
+  box-shadow: 0 12px 30px -10px rgb(0 0 0 / 0.6);
+  backdrop-filter: blur(14px);
+}
+.paywall-art__play {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  background: var(--mint);
+  color: #0b1220;
+}
+.paywall-art__bar {
+  display: block;
+  height: 4px;
+  margin-top: 0.4rem;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 0.15);
+  overflow: hidden;
+}
+.paywall-art__bar span {
+  display: block;
+  width: 42%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--mint);
+}
+.paywall-art__wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 22px;
+}
+.paywall-art__wave i {
+  display: block;
+  width: 3px;
+  height: 100%;
+  border-radius: 2px;
+  background: var(--mint);
+  transform-origin: center;
+  animation: paywall-wave 900ms ease-in-out infinite alternate;
+}
+@keyframes paywall-wave {
+  from {
+    transform: scaleY(0.25);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.paywall__why {
+  position: relative;
+  z-index: 1;
+  max-width: 32rem;
+  margin: 1.5rem auto 0;
+  text-align: center;
+}
+.paywall__why h2 {
+  color: #fff;
+  font-size: var(--text-h2);
+}
+.paywall__why p {
+  margin-top: 0.4rem;
+  color: rgb(255 255 255 / 0.72);
+}
+
+/* The rail: cards snap, and the next one shows its edge. */
+.paywall__rail {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  gap: 12px;
+  margin-top: -4rem;
+  padding: 0 1rem 0.5rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-inline: 1rem;
+  scrollbar-width: none;
+}
+.paywall__rail::-webkit-scrollbar {
+  display: none;
+}
+.paywall__card {
+  flex: 0 0 min(calc(100% - 2.75rem), 26rem);
+  scroll-snap-align: start;
+  display: flex;
+  flex-direction: column;
+  padding: 1.5rem;
+  border-radius: 28px;
+  border: 1px solid var(--line);
+  background: linear-gradient(180deg, rgb(255 255 255 / 0.97), var(--surface));
+  box-shadow: var(--shadow-lift);
+}
+.paywall__card--single {
+  position: relative;
+  z-index: 2;
+  max-width: 26rem;
+  margin: -4rem auto 0;
+  width: calc(100% - 2rem);
+}
+@media (min-width: 1000px) {
+  /* Wide screens have room for all four side by side. Centred with auto
+     margins on the ends, not justify-content, which would push the first
+     card out of reach to the left of a scrolling row. */
+  .paywall__card {
+    flex-basis: 20rem;
+  }
+  .paywall__rail > :first-child {
+    margin-left: auto;
+  }
+  .paywall__rail > :last-child {
+    margin-right: auto;
+  }
+}
+.paywall__badge {
+  align-self: flex-start;
+  padding: 0.4rem 0.85rem;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+}
+.paywall__title {
+  margin-top: 1rem;
+  font-size: var(--text-h3);
+}
+.paywall__tagline {
+  margin-top: 0.35rem;
+  color: var(--ink-mute);
+}
+.paywall__price {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+  margin-top: 1.25rem;
+}
+.paywall__price p:first-child {
+  white-space: nowrap;
+}
+.paywall__amount {
+  font-family: var(--font-display);
+  font-size: 2rem;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+}
+.paywall__per {
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  color: var(--ink);
+}
+.paywall__small {
+  color: var(--ink-mute);
+}
+.paywall__saving {
+  flex: none;
+  padding: 0.4rem 0.7rem;
+  border-radius: 10px;
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+  font-family: var(--font-display);
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  text-align: center;
+}
+.paywall__cta {
+  margin-top: 1.25rem;
+  min-height: 56px;
+  border-radius: 18px;
+  /* Mint fill means press this — the app's one rule for buttons. */
+  background: var(--mint);
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-size: 1.15rem;
+  font-weight: 600;
+  box-shadow: 0 12px 24px -12px rgb(30 122 82 / 0.55);
+  transition: transform 100ms ease, opacity 150ms ease;
+}
+.paywall__cta:hover {
+  background: var(--mint-press);
+}
+.paywall__cta:active {
+  transform: scale(0.98);
+}
+.paywall__cta:disabled {
+  opacity: 0.6;
+}
+.paywall__features {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+.paywall__features li {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  color: var(--ink-soft);
+}
+.paywall__features svg {
+  flex: none;
+  color: var(--mint-ink);
+}
+
+.paywall__dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.paywall__dots button {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--line-strong);
+  transition: width 200ms ease, background-color 200ms ease;
+}
+.paywall__dots button[data-on="true"] {
+  width: 22px;
+  background: var(--ink);
+}
+@media (min-width: 1000px) {
+  .paywall__dots {
+    display: none;
+  }
+}
+
+.paywall__foot {
+  max-width: 26rem;
+  margin: 1.5rem auto 0;
+  padding: 0 1rem max(1.5rem, var(--safe-bottom));
+  text-align: center;
+  font-size: var(--text-caption);
+  color: var(--ink-mute);
+}
+.paywall__error {
+  margin-bottom: 0.75rem;
+  color: var(--danger);
+}
+.paywall__later {
+  margin-top: 0.75rem;
+  min-height: 44px;
+  padding: 0 1rem;
+  font-family: var(--font-display);
+  font-weight: 500;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .paywall-art__route {
+    stroke-dashoffset: 0;
+  }
+  .paywall-art__stop {
+    opacity: 1;
+  }
+  .paywall-art__wave i {
+    animation: none;
+  }
+}
