@@ -11,13 +11,24 @@
  * moment: it is built again from scratch, and everything on top of it carries
  * on.
  *
+ * The map can also ask for this itself (MapRebuild, below) when it has stopped
+ * drawing without anything throwing — the commonest failure of all on Safari.
+ *
  * Rebuilt a few times with a growing pause, then left as a plain background
  * with a button, so a map that cannot be drawn on this device does not spin in
  * a loop of rebuilding it. Every catch is reported to /api/client-error, so a
  * failure that is being hidden from the walker is not hidden from us.
  */
 
-import { Component, type ReactNode } from "react";
+import { Component, createContext, type ReactNode } from "react";
+
+/**
+ * Asks for the map to be thrown away and built again, for failures that do not
+ * throw: a WebGL context the browser never gives back, a style that never
+ * arrives. The map is alive but draws nothing, so there is no error to catch —
+ * the map has to say so itself (see TourMap).
+ */
+export const MapRebuild = createContext<(reason: string) => void>(() => {});
 
 /** Rebuilds tried before giving up until asked. */
 const MAX_REBUILDS = 3;
@@ -39,6 +50,17 @@ export default class MapBoundary extends Component<{ children: ReactNode }, Stat
   }
 
   componentDidCatch(error: Error) {
+    this.fail(error.message, error.stack);
+  }
+
+  /** The map is alive but not drawing; rebuild it as if it had thrown. */
+  private requestRebuild = (reason: string) => {
+    if (this.state.failed) return;
+    this.setState({ failed: true });
+    this.fail(reason);
+  };
+
+  private fail(message: string, stack?: string) {
     const now = Date.now();
     this.attempt = now - this.lastFailAt > FORGIVE_MS ? 1 : this.attempt + 1;
     this.lastFailAt = now;
@@ -47,8 +69,8 @@ export default class MapBoundary extends Component<{ children: ReactNode }, Stat
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
-        message: error.message,
-        stack: error.stack?.split("\n").slice(0, 6).join("\n"),
+        message,
+        stack: stack?.split("\n").slice(0, 6).join("\n"),
         path: location.pathname,
         agent: navigator.userAgent,
         where: `map (rebuild ${attempt}${attempt > MAX_REBUILDS ? ", gave up" : ""})`,
@@ -79,7 +101,13 @@ export default class MapBoundary extends Component<{ children: ReactNode }, Stat
     if (!this.state.failed) {
       // Keyed by the attempt, so a rebuild is a fresh map rather than the
       // broken one handed back.
-      return <div key={this.state.generation} className="contents">{this.props.children}</div>;
+      return (
+        <MapRebuild.Provider value={this.requestRebuild}>
+          <div key={this.state.generation} className="contents">
+            {this.props.children}
+          </div>
+        </MapRebuild.Provider>
+      );
     }
     return (
       <div className="flex h-full w-full items-start justify-center bg-[color:var(--canvas)] pt-[max(5rem,calc(var(--safe-top)+4rem))]">

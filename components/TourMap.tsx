@@ -8,7 +8,7 @@
  * map down and paying for the tiles again.
  */
 
-import { useEffect, useMemo, useRef } from "react";
+import { useContext, useEffect, useMemo, useRef } from "react";
 import {
   Map as MapLibreMap,
   Marker,
@@ -18,6 +18,7 @@ import {
   type MapMouseEvent,
 } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { MapRebuild } from "./MapBoundary";
 import type { Fix } from "@/lib/tour/useLiveLocation";
 import type { MapStyle, TourRide } from "@/lib/providers/types";
 
@@ -27,6 +28,11 @@ export type MapPin = { kind: "start" | "end"; lat: number; lng: number };
 const ACCURACY = "gps-accuracy";
 const ROUTE = "tour-route";
 const RIDES = "tour-rides";
+
+/** How long a lost WebGL context may take to come back before the map is rebuilt. */
+const CONTEXT_GRACE_MS = 2_000;
+/** How long the first style may take to arrive before the map is rebuilt. */
+const STYLE_GRACE_MS = 20_000;
 
 /**
  * One of our GeoJSON sources, or undefined when the map has no style to ask.
@@ -203,6 +209,12 @@ export default function TourMap({
   styleId?: string;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  /** Held in a ref so the map, built once, always reaches the current boundary. */
+  const rebuild = useContext(MapRebuild);
+  const rebuildRef = useRef(rebuild);
+  useEffect(() => {
+    rebuildRef.current = rebuild;
+  }, [rebuild]);
   const mapRef = useRef<MapLibreMap | null>(null);
   const gpsMarker = useRef<Marker | null>(null);
   const stopMarkers = useRef<Marker[]>([]);
@@ -336,6 +348,57 @@ export default function TourMap({
       styleReady.current = false;
     });
 
+    /**
+     * A map that has stopped drawing is replaced, not waited on.
+     *
+     * The context coming back is up to the browser, and Safari often never
+     * gives it back — a tab left overnight woke to a blank map with only the
+     * GPS dot and the zoom buttons on it, and stayed that way until a reload.
+     * Nothing throws in that state, so nothing caught it. Likewise a style
+     * that never arrives (the network was down when the tab woke) leaves an
+     * empty map that never tries again.
+     *
+     * So: a lost context gets a short grace period to come back, a style gets
+     * a generous one to load, and coming back to the tab or back online checks
+     * the map is actually drawing. Failing any of them, the map is thrown
+     * away and built again from scratch (MapBoundary) — a reload of the map
+     * alone. Never while the tab is hidden: a new context made in the
+     * background is the first thing Safari takes away again.
+     */
+    let disposed = false;
+    let rebuildWhenVisible: string | null = null;
+    const replace = (reason: string) => {
+      if (disposed) return;
+      if (document.visibilityState === "hidden") {
+        rebuildWhenVisible = reason;
+        return;
+      }
+      disposed = true;
+      rebuildRef.current(reason);
+    };
+    const contextLost = () => {
+      const canvas = map.getCanvas();
+      const gl = (canvas.getContext("webgl2") ?? canvas.getContext("webgl")) as WebGLRenderingContext | null;
+      return !gl || gl.isContextLost();
+    };
+    let lostTimer: number | undefined;
+    map.on("webglcontextlost", () => {
+      window.clearTimeout(lostTimer);
+      lostTimer = window.setTimeout(() => replace("WebGL context lost and not restored"), CONTEXT_GRACE_MS);
+    });
+    map.on("webglcontextrestored", () => window.clearTimeout(lostTimer));
+    const styleTimer = window.setTimeout(() => {
+      if (!styleReady.current) replace("map style did not load");
+    }, STYLE_GRACE_MS);
+    const wake = () => {
+      if (document.visibilityState !== "visible") return;
+      if (rebuildWhenVisible) replace(rebuildWhenVisible);
+      else if (contextLost()) replace("map not drawing on return (context lost)");
+    };
+    document.addEventListener("visibilitychange", wake);
+    window.addEventListener("online", wake);
+    window.addEventListener("pageshow", wake);
+
     const click = (e: MapMouseEvent) => {
       if (!pickingRef.current) return;
       onPickRef.current?.({ lat: e.lngLat.lat, lng: e.lngLat.lng });
@@ -360,6 +423,12 @@ export default function TourMap({
     resizer.observe(containerRef.current);
 
     return () => {
+      disposed = true;
+      window.clearTimeout(lostTimer);
+      window.clearTimeout(styleTimer);
+      document.removeEventListener("visibilitychange", wake);
+      window.removeEventListener("online", wake);
+      window.removeEventListener("pageshow", wake);
       resizer.disconnect();
       map.remove();
       mapRef.current = null;
