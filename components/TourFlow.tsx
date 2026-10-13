@@ -53,12 +53,17 @@ import {
   saveTour,
   takeRebuild,
   type Draft,
+  type Rebuild,
   type Stage,
   type StoredTour,
 } from "@/lib/tour/flow";
-import type { City, MapStyle, TourPlan, TourRequest } from "@/lib/providers/types";
+import type { City, MapStyle, TourRequest } from "@/lib/providers/types";
 import { cityAt } from "@/lib/tour/city";
 import { rememberWalk } from "@/lib/tour/history";
+import Paywall from "./Paywall";
+import { flushCompletions, reportCompletion, walkComplete, type Visit } from "@/lib/billing/completion";
+import { useWalkStatus } from "@/lib/billing/useWalkStatus";
+import type { PaywallReason } from "@/lib/billing/store";
 
 /** Roughly how much of the map each sheet state covers. */
 const INSET_MINI = 120;
@@ -175,7 +180,7 @@ export default function TourFlow({
    * it needs a version of `generate` that is not the one captured on the first
    * render. A ref is the seam between the two.
    */
-  const generateRef = useRef<(again?: { req: TourRequest; plan: TourPlan }) => void>(() => {});
+  const generateRef = useRef<(again?: Rebuild) => void>(() => {});
 
   // Restore whatever the last session left behind.
   // The pause after a pin lands outlives nothing: if this screen goes away
@@ -277,6 +282,14 @@ export default function TourFlow({
       setGenError((err as Error).message);
     }
   }, []);
+  /** What the next build would come out of (lib/billing) — and the paywall when nothing. */
+  const { status: walkStatus, refresh: refreshWalkStatus } = useWalkStatus();
+  const walkStatusRef = useRef(walkStatus);
+  useEffect(() => {
+    walkStatusRef.current = walkStatus;
+  }, [walkStatus]);
+  const [paywall, setPaywall] = useState<PaywallReason | null>(null);
+
   /**
    * Build a tour and walk to it.
    *
@@ -286,8 +299,15 @@ export default function TourFlow({
    * an argument rather than read from state because the ask arrives on the
    * same tick as the navigation, well before any draft has been set from it.
    */
-  const generate = useCallback(async (again?: { req: TourRequest; plan: TourPlan }) => {
+  const generate = useCallback(async (again?: Rebuild) => {
     if (!again && !draft.start) return;
+    // No walk left: the paywall now, rather than after a minute of building.
+    // A walk-again is never stopped — it is a walk the person already has.
+    const allowance = walkStatusRef.current;
+    if (!again && allowance.enabled && !allowance.canWalk) {
+      setPaywall(allowance.reason ?? "no_walks");
+      return;
+    }
     demoRun.current = false;
     setStage("generating");
     setReady(false);
@@ -334,9 +354,18 @@ export default function TourFlow({
         headers: { "content-type": "application/json" },
         // The itinerary rides along only when there is one to reuse; without
         // it the server chooses the stops as it always has.
-        body: JSON.stringify(again ? { ...body, plan: again.plan } : body),
+        body: JSON.stringify(again ? { ...body, plan: again.plan, planSig: again.planSig } : body),
         signal: controller.signal,
       });
+      // The server's paywall, when its count disagrees with ours (another
+      // device used the last walk): back to the button, with the paywall up.
+      if (res.status === 402) {
+        const b = (await res.json().catch(() => ({}))) as { paywall?: { reason?: PaywallReason } };
+        setStage("points");
+        setPaywall(b.paywall?.reason ?? "no_walks");
+        void refreshWalkStatus();
+        return;
+      }
       if (!res.ok || !res.body) throw new Error(`Server said ${res.status}.`);
 
       // Parse the SSE stream by hand — EventSource cannot POST.
@@ -362,6 +391,7 @@ export default function TourFlow({
             data?: StoredTour;
             preview?: TourPreview;
             opening?: string;
+            paywall?: { reason: PaywallReason };
           };
           // The first stop's first words, written moments ago: start the voice
           // now, so it is ready by the time the walk begins.
@@ -373,6 +403,15 @@ export default function TourFlow({
           // gives the remaining wait something to be spent on.
           if (evt.preview) setPreview(evt.preview);
 
+          // Lost the last walk to a build on another device mid-way: the
+          // server gave it back and says so as the paywall, not as a failure.
+          if (evt.phase === "error" && evt.paywall) {
+            controller.abort("cancelled");
+            setStage("points");
+            setPaywall(evt.paywall.reason);
+            void refreshWalkStatus();
+            return;
+          }
           if (evt.phase === "error") throw new Error(evt.message ?? "Generation failed.");
           if (evt.phase === "done" && evt.data) {
             sawDone = true;
@@ -387,6 +426,8 @@ export default function TourFlow({
             // looking for "that tour I made in Vienna" means the one they
             // made, not the one they completed.
             rememberWalk(built);
+            // One walk fewer (or the free one gone): the next "Build" should know.
+            void refreshWalkStatus();
             setCurrentIndex(0);
             // Stay on the itinerary: the walker reads the stops, then continues.
             setPreview((p) => p ?? { title: built.plan.title, summary: built.plan.summary, stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle })) });
@@ -417,7 +458,7 @@ export default function TourFlow({
     } finally {
       window.clearTimeout(timeout);
     }
-  }, [draft]);
+  }, [draft, refreshWalkStatus]);
   generateRef.current = generate;
 
   // ------------------------------------------------------------------ city --
@@ -577,6 +618,13 @@ export default function TourFlow({
    * and stepping back toward the previous one drags the tour backwards.
    */
   const arrivedRef = useRef<Set<string>>(new Set());
+  /**
+   * Stops actually reached on foot, by index, with where and when — for
+   * points (lib/billing/completion.ts). Only arrivals detected below, never
+   * stops skipped or chosen on the map.
+   */
+  const visitsRef = useRef<Map<number, Visit>>(new Map());
+  const visitsFor = useRef<string | null>(null);
   const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
   /** The stop the arrival card names, kept while the card slides away. */
@@ -610,7 +658,26 @@ export default function TourFlow({
 
     if (arrival.index !== currentIndex) setCurrentIndex(arrival.index);
     setJustArrived(arrival.name);
-  }, [fix, stage, autoAdvance, tour, currentIndex]);
+
+    // Points: a real arrival, kept per walk; reported once the walk counts as done.
+    if (tour.walkId && fix) {
+      if (visitsFor.current !== tour.walkId) {
+        visitsRef.current = new Map();
+        visitsFor.current = tour.walkId;
+      }
+      if (!visitsRef.current.has(arrival.index)) {
+        visitsRef.current.set(arrival.index, { i: arrival.index, t: Date.now(), lat: fix.lat, lng: fix.lng, acc: fix.accuracy });
+      }
+      if (walkComplete(visitsRef.current, tour.plan.stops.length)) {
+        void reportCompletion(tour.walkId, [...visitsRef.current.values()], simulating);
+      }
+    }
+  }, [fix, stage, autoAdvance, tour, currentIndex, simulating]);
+
+  // A walk finished without signal still counts: try queued reports on opening.
+  useEffect(() => {
+    void flushCompletions();
+  }, []);
 
   /**
    * Tapping a numbered stop on the map goes to it.
@@ -1239,6 +1306,22 @@ export default function TourFlow({
         </BottomSheet>
       )}
 
+      <Paywall
+        open={paywall !== null}
+        reason={paywall}
+        status={walkStatus}
+        onClose={() => setPaywall(null)}
+        onStatus={() => {
+          // Signing in may be all it took (the free walk behind a shared
+          // connection): carry straight on to building when it was.
+          void refreshWalkStatus().then((next) => {
+            if (next.canWalk) {
+              setPaywall(null);
+              void generateRef.current();
+            }
+          });
+        }}
+      />
     </div>
   );
 }

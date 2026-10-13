@@ -52,6 +52,10 @@ export type WalkRecord = {
    * already checked against the real map, so a rebuild needs no geocoding.
    */
   stops?: Stop[];
+  /** The walk it was booked as, when the paywall was keeping books. */
+  walkId?: string;
+  /** The server's signature on `stops`; a walk-again sends it back. */
+  planSig?: string;
 };
 
 /** A walk that kept enough of itself to be walked again. */
@@ -118,6 +122,8 @@ export function rememberWalk(tour: StoredTour): void {
       void walkingCueToHere;
       return rest;
     }),
+    walkId: tour.walkId ?? undefined,
+    planSig: tour.planSig,
   };
   save([record, ...loadWalks()]);
 }

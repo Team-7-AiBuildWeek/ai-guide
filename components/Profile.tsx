@@ -7,6 +7,8 @@
  */
 
 import AccountMenu from "./AccountMenu";
+import PlanCard from "./PlanCard";
+import PointsCard from "./PointsCard";
 import { ABOVE_TAB_BAR } from "./TabBar";
 import { useState } from "react";
 import Stat from "./Stat";
@@ -54,6 +56,9 @@ export default function Profile() {
         <Stat label={t("profile.stops")} value={String(stops)} />
         <Stat label={t("profile.distance")} value={formatDistance(walked)} />
       </section>
+
+      <PlanCard />
+      <PointsCard />
 
       <AccountMenu lang={lang} onLang={setDefaultLang} onWalks={setWalks} />
     </main>

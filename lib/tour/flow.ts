@@ -189,6 +189,10 @@ export type StoredTour = {
   rides?: TourRide[];
   /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
   demo?: boolean;
+  /** The walk this was booked as (lib/billing), for completing it and earning points. */
+  walkId?: string | null;
+  /** The server's signature on these stops, so the walk can be walked again (lib/billing/planSig.ts). */
+  planSig?: string;
 };
 
 export function loadTour(): StoredTour | null {
@@ -237,7 +241,12 @@ const REBUILD_KEY = "btour:rebuild:v1";
  * Consumed exactly once — `takeRebuild` reads and deletes in one go, so a
  * reload of the flow does not build the same walk a second time.
  */
-export type Rebuild = { req: TourRequest; plan: TourPlan };
+export type Rebuild = {
+  req: TourRequest;
+  plan: TourPlan;
+  /** The server's signature on the stops, so the replay is accepted as one it handed out. */
+  planSig?: string;
+};
 
 export function saveRebuild(r: Rebuild) {
   try {

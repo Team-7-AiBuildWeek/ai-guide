@@ -4,8 +4,9 @@
  * settings sidebar (small grey section headings, an icon and a label per row,
  * a soft highlight under the finger).
  *
- * Only rows that do something: WalkDots has no billing, notifications or themes,
- * and a row that leads nowhere is worse than no row (Apple agrees).
+ * Only rows that do something: WalkDots has no notifications or themes, and a
+ * row that leads nowhere is worse than no row (Apple agrees). Buying walks
+ * happens on the website's checkout (lib/billing.ts), from the paywall.
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
  *   Support   Contact us · About WalkDots · Privacy policy

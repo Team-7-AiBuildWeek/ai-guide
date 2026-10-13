@@ -19,6 +19,21 @@ export const CLERK_PUBLISHABLE_KEY =
 
 export const accountsEnabled = CLERK_PUBLISHABLE_KEY !== null;
 
+/**
+ * The signed-in account, for requests outside /api/me that still need to know
+ * who is asking — building a tour, whose free walk and paid walks belong to the
+ * account (the website's lib/billing). Empty when nobody is signed in.
+ */
+export async function authHeader(): Promise<Record<string, string>> {
+  if (!accountsEnabled) return {};
+  try {
+    const token = await getClerkInstance({ publishableKey: CLERK_PUBLISHABLE_KEY! }).session?.getToken();
+    return token ? { authorization: `Bearer ${token}` } : {};
+  } catch {
+    return {};
+  }
+}
+
 /** A request to /api/me, or null when nobody is signed in. */
 async function me(path: string, init?: RequestInit): Promise<Response | null> {
   if (!accountsEnabled) return null;

@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * when it last did.
  */
 
-const UPDATED = "12 October 2026";
+const UPDATED = "13 October 2026";
 const CONTACT = "jurajkolesar1976@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -42,7 +42,7 @@ export default function PrivacyPage() {
         <p>
           WalkDots builds audio walking tours on the website and in the iPhone app. This page says what
           it does with your information. The short version: no tracking and no advertising, and an
-          account is optional. To build a tour, your starting point and what you asked for are sent
+          account is optional — you need one only to buy walks or collect points. To build a tour, your starting point and what you asked for are sent
           to the services that write and voice it. Your walks are kept on your own device, and, if
           you sign in, with your account so your other devices have them too.
         </p>
@@ -74,8 +74,8 @@ export default function PrivacyPage() {
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Your email address, if you sign in.</strong>{" "}
-            Signing in is optional and uses a one-time code sent to your email; there is no
-            password. When you sign up you can also tell WalkDots what to call you and what you like to
+            Signing in is optional — it is needed only to buy walks or collect points — and uses a
+            one-time code sent to your email; there is no password. When you sign up you can also tell WalkDots what to call you and what you like to
             see (interests and how much detail); both are optional. With an account, these and your
             past walks are kept with it so the website and the iPhone app start from the same place.
           </li>
@@ -87,7 +87,9 @@ export default function PrivacyPage() {
         </ul>
         <p>
           The legal basis is that you asked for this: WalkDots cannot build or guide a tour without it
-          (GDPR Article 6(1)(b)). WalkDots does not use your information for anything else, does not sell
+          (GDPR Article 6(1)(b)). The same goes for walks you buy: WalkDots needs to know what you
+          bought to give it to you. Records of sales are kept because accounting law requires it
+          (Article 6(1)(c)). WalkDots does not use your information for anything else, does not sell
           it, and does not build a profile of you.
         </p>
       </Section>
@@ -104,6 +106,13 @@ export default function PrivacyPage() {
           <li>
             <strong className="text-[color:var(--ink)]">Clerk.</strong> Runs sign-in if you create an
             account: it holds your email address (and, if you gave them, your name and preferences), sends the sign-in codes, and keeps you signed in.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">Stripe.</strong> Takes payment if you buy
+            walks. On Stripe&apos;s own checkout page you give it your card or wallet, email address and
+            country; it uses them to take the payment, prevent fraud and work out VAT, under its own
+            privacy policy. WalkDots receives only a customer number, what you bought, the amount
+            and whether it was paid or refunded — never your card details.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Stadia Maps.</strong> Map tiles on the
@@ -181,6 +190,21 @@ export default function PrivacyPage() {
             everything kept with it, on the website and in the app.
           </li>
           <li>
+            <strong className="text-[color:var(--ink)]">Your walks, purchases and points.</strong>{" "}
+            To give everyone one free walk and no more, WalkDots keeps a mark that the free walk has
+            been used, under one-way codes made from your browser&apos;s random ID, your account (if
+            signed in) and your internet address. This mark stays even if you delete your account, so
+            a new account is not a second free walk (legitimate interest, Article 6(1)(f)). For each
+            new tour WalkDots notes when it was built, what it was paid with, its stops&apos; positions
+            and the city, linked to your account if you are signed in. If you buy walks, the purchase
+            (what, when, how much, and its Stripe reference) and what you have left are kept with your
+            account. If you collect points, WalkDots records your balance, which walks you completed
+            and in which cities; when you finish a walk your arrival positions are checked against the
+            stops and then discarded, not stored. Deleting your account cancels any plan and deletes
+            what is left on it and your points; records of sales are kept for ten years for the
+            accounts, under a one-way code instead of your account.
+          </li>
+          <li>
             <strong className="text-[color:var(--ink)]">Every tour, on WalkDots&apos;s servers.</strong>{" "}
             Each tour is kept when it is built — what you asked for (including anything typed in your
             own words), the starting point, the stops and the route — together with the stories
@@ -211,7 +235,8 @@ export default function PrivacyPage() {
           No advertising, no tracking across sites, and no analytics beyond the anonymous visit
           counts and page speed above. No selling or renting of your data. The only cookies are the
           ones that keep you signed in, once you sign in, and the random ID behind the usage limits
-          above. Fonts are
+          and the free walk above — plus, if you buy walks, Stripe&apos;s own on its checkout page.
+          Fonts are
           part of the site and the app, not fetched from a third party.
         </p>
       </Section>

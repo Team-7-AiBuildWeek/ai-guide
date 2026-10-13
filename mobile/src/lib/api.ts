@@ -7,6 +7,7 @@ import Constants from "expo-constants";
 import { fetch as streamingFetch } from "expo/fetch";
 import { File } from "expo-file-system";
 import * as Location from "expo-location";
+import { authHeader } from "./accounts";
 import { audioDir } from "./store";
 import type { City, Place, Stop, StopPhoto, StoredTour, TourPlan, TourPreview, TourRequest } from "./types";
 
@@ -41,7 +42,23 @@ export type TourEvent = {
   data?: StoredTour;
   preview?: TourPreview;
   opening?: string;
+  paywall?: { reason: string };
 };
+
+/**
+ * The website's paywall said no (lib/billing there): no walk left to build
+ * with. Its own words, and why, so the screen can say it plainly rather than
+ * as a failed build.
+ */
+export class PaywallError extends Error {
+  constructor(
+    message: string,
+    readonly reason: string,
+  ) {
+    super(message);
+    this.name = "PaywallError";
+  }
+}
 
 /**
  * Build a tour: the website's /api/tours stream, read event by event.
@@ -52,15 +69,21 @@ export async function buildTour(
   plan: TourPlan | undefined,
   onEvent: (e: TourEvent) => void,
   signal: AbortSignal,
+  /** The website's signature on `plan`, from when it was first built. */
+  planSig?: string,
 ): Promise<StoredTour> {
   const started = Date.now();
   let lastPhase = "stops";
   const res = await streamingFetch(`${BASE}/api/tours`, {
     method: "POST",
-    headers: { "content-type": "application/json", accept: "text/event-stream" },
-    body: JSON.stringify(plan ? { ...req, plan } : req),
+    headers: { "content-type": "application/json", accept: "text/event-stream", ...(await authHeader()) },
+    body: JSON.stringify(plan ? { ...req, plan, planSig } : req),
     signal,
   });
+  if (res.status === 402) {
+    const b = (await res.json().catch(() => ({}))) as { error?: string; paywall?: { reason?: string } };
+    throw new PaywallError(b.error ?? "You've used your walks.", b.paywall?.reason ?? "no_walks");
+  }
   if (!res.ok || !res.body) throw new Error(`Server said ${res.status}.`);
 
   const reader = res.body.getReader();
@@ -79,6 +102,9 @@ export async function buildTour(
       const evt = JSON.parse(chunk.slice(5).trim()) as TourEvent;
       lastPhase = evt.phase;
       onEvent(evt);
+      if (evt.phase === "error" && evt.paywall) {
+        throw new PaywallError(evt.message ?? "You've used your walks.", evt.paywall.reason);
+      }
       if (evt.phase === "error") throw new Error(evt.message ?? "Generation failed.");
       if (evt.phase === "done" && evt.data) return { ...evt.data, req };
     }

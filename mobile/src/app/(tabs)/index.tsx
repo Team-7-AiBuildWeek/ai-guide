@@ -27,7 +27,9 @@ import Headphones from "@/components/flow/Headphones";
 import { MiniPlayer, Player } from "@/components/flow/Players";
 import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
 import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
-import { ask, buildTour, cityAt, demoTour } from "@/lib/api";
+import { ask, buildTour, cityAt, demoTour, PaywallError } from "@/lib/api";
+import Paywall from "@/components/Paywall";
+import { walkStatus } from "@/lib/billing";
 import { useDeveloper } from "@/lib/developer";
 import {
   clearTour,
@@ -44,12 +46,12 @@ import {
 import { distanceMeters, inCity, nextTurn, routePoints, TRUSTED_M } from "@/lib/geo";
 import Greeting from "@/components/Greeting";
 import { accountsEnabled } from "@/lib/accounts";
-import { rememberWalk, takeRebuild } from "@/lib/history";
+import { rememberWalk, takeRebuild, type Rebuild } from "@/lib/history";
 import { normaliseLang, speechLocale } from "@/lib/languages";
 import { prefetchSpeech, useNarration } from "@/lib/narration";
 import { t } from "@/lib/strings";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
-import type { City, Draft, Fix, Stage, StoredTour, TourPlan, TourPreview, TourRequest } from "@/lib/types";
+import type { City, Draft, Fix, Stage, StoredTour, TourPreview, TourRequest } from "@/lib/types";
 
 /** Bratislava, until the walker is found. */
 const DEFAULT_CENTER = { lat: 48.1435, lng: 17.1077 };
@@ -118,6 +120,8 @@ export default function Flow() {
   const [phaseMessage, setPhaseMessage] = useState<string | null>(null);
   const [preview, setPreview] = useState<TourPreview | null>(null);
   const [genError, setGenError] = useState<string | null>(null);
+  /** Set when the website's paywall stopped a build (lib/billing). */
+  const [paywall, setPaywall] = useState<{ reason: string; signedIn: boolean } | null>(null);
   /** Built, with the itinerary still on screen until "Continue to tour". */
   const [ready, setReady] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(restored.index);
@@ -152,7 +156,7 @@ export default function Flow() {
   const playerOpen = stage === "tour" && !askOpen && sheetHeight !== "collapsed";
 
   // ------------------------------------------------------------ restore --
-  const generateRef = useRef<(again?: { req: TourRequest; plan: TourPlan }) => void>(() => {});
+  const generateRef = useRef<(again?: Rebuild) => void>(() => {});
 
   useEffect(
     () => () => {
@@ -226,7 +230,7 @@ export default function Flow() {
   }, []);
 
   const generate = useCallback(
-    async (again?: { req: TourRequest; plan: TourPlan }) => {
+    async (again?: Rebuild) => {
       if (!again && !draft.start) return;
       demoRun.current = false;
       setStage("generating");
@@ -264,6 +268,7 @@ export default function Flow() {
             if (evt.preview) setPreview(evt.preview);
           },
           controller.signal,
+          again?.planSig,
         );
         setTour(built);
         saveTour(built);
@@ -279,6 +284,13 @@ export default function Flow() {
       } catch (err) {
         if (controller.signal.aborted) {
           if (controller.signal.reason !== "cancelled") setGenError("Generation took too long and was stopped.");
+          return;
+        }
+        // The website's paywall: back to the button, with the paywall up.
+        if (err instanceof PaywallError) {
+          setStage("points");
+          const s = await walkStatus();
+          setPaywall({ reason: err.reason, signedIn: s.signedIn });
           return;
         }
         setGenError(err instanceof Error ? err.message : "Could not build the tour.");
@@ -737,6 +749,16 @@ export default function Flow() {
           ) : null}
         </Sheet>
       )}
+      <Paywall
+        open={paywall !== null}
+        reason={paywall?.reason ?? null}
+        signedIn={paywall?.signedIn ?? false}
+        onClose={() => setPaywall(null)}
+        onBought={() => {
+          // Back from Stripe: if a walk is available now, the paywall goes.
+          void walkStatus().then((s) => s.canWalk && setPaywall(null));
+        }}
+      />
     </View>
   );
 }

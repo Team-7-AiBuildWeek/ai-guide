@@ -4,6 +4,7 @@ import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Inter, Space_Grotesk } from "next/font/google";
 import Splash from "@/components/Splash";
+import ReferralCapture from "@/components/ReferralCapture";
 import TabBar from "@/components/TabBar";
 import WelcomeGate from "@/components/WelcomeGate";
 import "./globals.css";
@@ -25,7 +26,7 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "WalkDots — audio tours anywhere",
   description:
-    "A free audio walking tour of wherever you are, built around what you want to see.",
+    "An audio walking tour of wherever you are, built around what you want to see. Your first walk is free.",
   manifest: "/manifest.webmanifest",
   appleWebApp: {
     capable: true,
@@ -66,6 +67,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         {/* Plays on every full load, before any script; gone by itself in about 1.8s. */}
         <Splash />
+        <ReferralCapture />
         {/* Accounts are optional: without Clerk's key the site runs as it always has. */}
         {process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY ? (
           <ClerkProvider>

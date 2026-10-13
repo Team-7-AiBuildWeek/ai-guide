@@ -20,7 +20,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
   const walkAgain = () => {
     const plan = planFor(walk);
     if (!walk.req || !plan) return;
-    saveRebuild({ req: { ...walk.req, lang: againLang }, plan });
+    saveRebuild({ req: { ...walk.req, lang: againLang }, plan, planSig: walk.planSig });
     // Explore picks this up when it comes into view and builds it.
     router.navigate("/");
   };

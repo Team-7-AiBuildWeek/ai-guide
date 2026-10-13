@@ -33,7 +33,7 @@ export default function WalkCard({ walk, onForget }: { walk: WalkRecord; onForge
   const walkAgain = () => {
     const plan = planFor(walk);
     if (!walk.req || !plan) return;
-    saveRebuild({ req: { ...walk.req, lang: againLang }, plan });
+    saveRebuild({ req: { ...walk.req, lang: againLang }, plan, planSig: walk.planSig });
     // A full navigation rather than a client one: the flow reads the ask on
     // mount, and a soft push would land on a TourFlow that has already
     // mounted and already looked.

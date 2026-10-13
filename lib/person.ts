@@ -19,12 +19,19 @@
 
 export const PERSON_COOKIE = "wd_person";
 export const PERSON_HEADER = "x-walkdots-person";
+/**
+ * The browser, always — signed in or not. The person header names the account
+ * when there is one, which hides the device; the paywall needs both, so that
+ * the free walk taken signed out is still "used" after signing in, and the
+ * other way round (lib/billing/store.ts).
+ */
+export const DEVICE_HEADER = "x-walkdots-device";
 
 function secret(): string {
   return process.env.RATE_LIMIT_SALT ?? process.env.CLERK_SECRET_KEY ?? process.env.DATABASE_URL ?? "walkdots";
 }
 
-async function hmac(value: string): Promise<string> {
+export async function hmac(value: string): Promise<string> {
   const key = await crypto.subtle.importKey(
     "raw",
     new TextEncoder().encode(secret()),

@@ -92,6 +92,10 @@ export type StoredTour = {
   rides?: TourRide[];
   /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
   demo?: boolean;
+  /** The walk this was booked as on the website (lib/billing there). */
+  walkId?: string | null;
+  /** The website's signature on these stops, so the walk can be walked again. */
+  planSig?: string;
 };
 
 export type TourPreview = { title: string; summary: string; stops: { name: string; angle: string }[] };

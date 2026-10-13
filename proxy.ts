@@ -10,12 +10,20 @@
 
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse, type NextFetchEvent, type NextRequest } from "next/server";
-import { PERSON_COOKIE, PERSON_HEADER, signPerson, validDeviceId } from "@/lib/person";
+import { DEVICE_HEADER, PERSON_COOKIE, PERSON_HEADER, signPerson, validDeviceId } from "@/lib/person";
 
 /** The routes that call the model or the voice, and so are rate-limited. Keep in step with `matcher`. */
 const PAID = ["/api/ask", "/api/tours", "/api/stops/script", "/api/audio"];
 
-const isPaid = (path: string) => PAID.some((p) => path === p || path.startsWith(`${p}/`));
+/**
+ * Routes that need to know who is asking without spending anything: what this
+ * person is entitled to, and buying more of it. They get the same signed
+ * headers. The Stripe webhook is deliberately not here — Stripe is not a
+ * person, and its requests are verified by signature instead.
+ */
+const PERSONAL = ["/api/billing"];
+
+const needsPerson = (path: string) => [...PAID, ...PERSONAL].some((p) => path === p || path.startsWith(`${p}/`));
 
 /**
  * Passes the request on with the person it is from, signed. Any header of
@@ -24,9 +32,11 @@ const isPaid = (path: string) => PAID.some((p) => path === p || path.startsWith(
 async function withPerson(request: NextRequest, userId: string | null): Promise<NextResponse> {
   const headers = new Headers(request.headers);
   headers.delete(PERSON_HEADER);
+  headers.delete(DEVICE_HEADER);
   const cookie = request.cookies.get(PERSON_COOKIE)?.value;
   const device = validDeviceId(cookie) ? cookie : crypto.randomUUID();
   headers.set(PERSON_HEADER, await signPerson(userId ? `u:${userId}` : `d:${device}`));
+  headers.set(DEVICE_HEADER, await signPerson(`d:${device}`));
   const res = NextResponse.next({ request: { headers } });
   if (device !== cookie) {
     // Only the paid routes ever read it, so it is only sent to /api.
@@ -44,7 +54,7 @@ async function withPerson(request: NextRequest, userId: string | null): Promise<
 const withClerk =
   process.env.CLERK_SECRET_KEY && process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY
     ? clerkMiddleware(async (auth, request) => {
-        if (!isPaid(request.nextUrl.pathname)) return undefined;
+        if (!needsPerson(request.nextUrl.pathname)) return undefined;
         const { userId } = await auth();
         return withPerson(request, userId);
       })
@@ -52,11 +62,20 @@ const withClerk =
 
 export function proxy(request: NextRequest, event: NextFetchEvent) {
   if (withClerk) return withClerk(request, event);
-  return isPaid(request.nextUrl.pathname) ? withPerson(request, null) : NextResponse.next();
+  return needsPerson(request.nextUrl.pathname) ? withPerson(request, null) : NextResponse.next();
 }
 
 export const config = {
   // /api/dev/tts too: it is developer-only, and Clerk's session has to be read
   // to know who is asking.
-  matcher: ["/api/me", "/api/me/(.*)", "/api/dev/tts", "/api/ask", "/api/tours", "/api/stops/script", "/api/audio"],
+  matcher: [
+    "/api/me",
+    "/api/me/(.*)",
+    "/api/dev/tts",
+    "/api/ask",
+    "/api/tours",
+    "/api/stops/script",
+    "/api/audio",
+    "/api/billing/(.*)",
+  ],
 };

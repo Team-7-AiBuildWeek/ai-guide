@@ -21,7 +21,14 @@ export type WalkRecord = {
   freeText?: string;
   req?: TourRequest;
   stops?: Stop[];
+  /** The walk it was booked as on the website (lib/billing there). */
+  walkId?: string;
+  /** The website's signature on `stops`; walking it again sends it back. */
+  planSig?: string;
 };
+
+/** A walk asked for again from the profile, waiting for the flow to pick it up. */
+export type Rebuild = { req: TourRequest; plan: TourPlan; planSig?: string };
 
 const KEY = "history-v1";
 const KEEP = 30;
@@ -48,6 +55,8 @@ export function rememberWalk(tour: StoredTour): void {
     freeText: tour.req?.freeText,
     req: tour.req,
     stops: tour.plan.stops.map(({ script: _s, walkingCueToHere: _c, ...rest }) => rest),
+    walkId: tour.walkId ?? undefined,
+    planSig: tour.planSig,
   };
   save([record, ...loadWalks()]);
 }
@@ -78,12 +87,12 @@ export function planFor(w: WalkRecord): TourPlan | null {
 /** A walk asked for again from the profile, picked up once by the flow. */
 const REBUILD_KEY = "rebuild-v1";
 
-export function saveRebuild(r: { req: TourRequest; plan: TourPlan }) {
+export function saveRebuild(r: Rebuild) {
   writeJson(REBUILD_KEY, r);
 }
 
-export function takeRebuild(): { req: TourRequest; plan: TourPlan } | null {
-  const r = readJson<{ req: TourRequest; plan: TourPlan }>(REBUILD_KEY);
+export function takeRebuild(): Rebuild | null {
+  const r = readJson<Rebuild>(REBUILD_KEY);
   if (r) removeJson(REBUILD_KEY);
   return r?.req?.start && r?.plan?.stops?.length ? r : null;
 }

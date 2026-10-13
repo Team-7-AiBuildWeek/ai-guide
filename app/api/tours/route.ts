@@ -25,6 +25,17 @@ import { orderStops, walkLength } from "@/lib/tour/order";
 import { writeStopScript } from "@/lib/tour/scriptCache";
 import { spend } from "@/lib/rateLimit";
 import { saveTour } from "@/lib/tour/saved";
+import { treatmentFor } from "@/lib/billing/mode";
+import { planSigValid, signPlan } from "@/lib/billing/planSig";
+import {
+  consumeWalk,
+  markDelivered,
+  recordShadowWalk,
+  refundWalk,
+  walkStatus,
+  whoIs,
+  type PaywallReason,
+} from "@/lib/billing/store";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -66,7 +77,34 @@ type TourEvent = {
    * straight away, so it is ready when the walk begins.
    */
   opening?: string;
+  /** Set on an error that is the paywall, not a failure: the app shows the paywall instead. */
+  paywall?: { reason: PaywallReason };
 };
+
+/** No walk left to build with — said as the paywall, not as a failed build. */
+class PaywallStop extends Error {
+  constructor(readonly reason: PaywallReason) {
+    super(PAYWALL_WORDS[reason]);
+  }
+}
+
+const PAYWALL_WORDS: Record<PaywallReason, string> = {
+  signin_for_free: "Sign in to get your free walk.",
+  signin: "You've used your free walk. Sign in to get more walks.",
+  no_walks: "You've used your walks. Get more to build another.",
+  fair_use_pass: "That's today's three walks on your pass. More tomorrow.",
+  fair_use_annual: "That's this month's walks on your plan.",
+};
+
+/**
+ * Old walks in people's history have no signature. Until this date they are
+ * still walked again without one (and logged), so nobody loses a walk they
+ * already have the day the paywall goes on.
+ */
+function legacyReplayAllowed(): boolean {
+  const until = Date.parse(process.env.PAYWALL_LEGACY_REPLAY_UNTIL ?? "");
+  return Number.isNaN(until) || Date.now() < until;
+}
 
 function sse(event: TourEvent): Uint8Array {
   return new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`);
@@ -86,11 +124,14 @@ export async function POST(request: Request) {
    * the parts that genuinely differ.
    */
   let given: TourPlan | null = null;
+  /** The signature that came with `given`, from when it was first built. */
+  let givenSig: string | undefined;
   try {
-    const body = (await request.json()) as TourRequest & { plan?: TourPlan };
-    const { plan, ...rest } = body;
+    const body = (await request.json()) as TourRequest & { plan?: TourPlan; planSig?: string };
+    const { plan, planSig, ...rest } = body;
     req = rest as TourRequest;
     given = plan ?? null;
+    givenSig = planSig;
   } catch {
     return Response.json({ error: "Body must be JSON." }, { status: 400 });
   }
@@ -102,6 +143,36 @@ export async function POST(request: Request) {
   }
   // An unknown code would otherwise reach the prompt verbatim and be written in.
   req.lang = normaliseLang(req.lang);
+
+  /**
+   * The paywall (lib/billing). Only a fresh itinerary is a walk: walking one
+   * again and walks the backend already recorded cost nothing, so they are
+   * never stopped — but a walk-again must be one this server handed out.
+   */
+  const who = await whoIs(request.headers);
+  const treatment = who ? await treatmentFor(who.userId) : "off";
+  if (given && treatment === "enforce" && !(await planSigValid(given.stops, givenSig))) {
+    if (!legacyReplayAllowed()) {
+      return Response.json({ error: "This walk can't be walked again — build it fresh." }, { status: 403 });
+    }
+    console.warn("[paywall] unsigned walk-again accepted (legacy grace period)");
+  }
+  /** Looked up early only when the paywall would stop a fresh build: a recorded walk is still free. */
+  let early: Awaited<ReturnType<typeof backendPlanFor>> | undefined;
+  if (!given && who && treatment === "enforce") {
+    const status = await walkStatus(who);
+    if (!status.canWalk) {
+      early = await backendPlanFor(req);
+      if (!early) {
+        return Response.json(
+          { error: PAYWALL_WORDS[status.reason ?? "no_walks"], paywall: { reason: status.reason ?? "no_walks" } },
+          { status: 402 },
+        );
+      }
+    }
+  }
+  /** The walk this build is booked as, once the paid work starts. */
+  let walkId: string | null = null;
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -118,7 +189,7 @@ export async function POST(request: Request) {
         let plan: TourPlan;
         // Pre-recorded stops from walk-backend, when it serves this brief.
         // Null means "write it live", which is also what any backend failure means.
-        const recorded = given ? null : await backendPlanFor(req);
+        const recorded = given ? null : early !== undefined ? early : await backendPlanFor(req);
         if (recorded) {
           plan = recorded.plan;
           // Keep recording the rest of the walk after this response has gone.
@@ -153,6 +224,23 @@ export async function POST(request: Request) {
           });
         } else {
           send({ phase: "stops", message: "Choosing your stops" });
+          // The walk is taken before the paid call and given back if the
+          // build fails (the catch below). In shadow mode it is only booked.
+          if (who && treatment !== "off") {
+            const id = crypto.randomUUID();
+            if (treatment === "shadow") {
+              await recordShadowWalk(who, id).catch((err) => console.error("[paywall] shadow booking failed:", err));
+              walkId = id;
+            } else {
+              const source = await consumeWalk(who, id, treatment);
+              if (!source) {
+                // Lost a race for the last walk since the check above.
+                const status = await walkStatus(who);
+                throw new PaywallStop(status.reason ?? "no_walks");
+              }
+              walkId = id;
+            }
+          }
           // The paid call. Over the limit, this throws a plain sentence that
           // reaches the walker as the build's error (see the catch below).
           await spend(request.headers, "tour");
@@ -291,7 +379,14 @@ export async function POST(request: Request) {
           if (ready) plan.stops[0] = { ...firstStop, ...ready };
         }
 
-        send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides } });
+        // Signed for every path, so any walk handed out can be walked again.
+        const planSig = await signPlan(plan.stops);
+        if (walkId) {
+          await markDelivered(walkId, plan, req, meters, rides).catch((err) =>
+            console.error("[paywall] could not mark the walk delivered:", err),
+          );
+        }
+        send({ phase: "done", data: { plan, route, meters, seconds, maneuvers, rides, walkId, planSig } });
         // Kept, once the walker has it: every tour goes in the database, so any
         // of them can be played back later (the demo tour is one). A plan that
         // arrived with all its words is a replay, already kept.
@@ -300,10 +395,17 @@ export async function POST(request: Request) {
           after(() => saveTour(built));
         }
       } catch (err) {
-        send({
-          phase: "error",
-          message: err instanceof Error ? err.message : "Could not build the tour.",
-        });
+        // Nothing was delivered: whatever walk this was booked as goes back.
+        if (walkId) await refundWalk(walkId).catch((e) => console.error("[paywall] refund failed:", e));
+        try {
+          send({
+            phase: "error",
+            message: err instanceof Error ? err.message : "Could not build the tour.",
+            ...(err instanceof PaywallStop ? { paywall: { reason: err.reason } } : {}),
+          });
+        } catch {
+          // The walker has gone (the stream was cancelled); the refund above is what mattered.
+        }
       } finally {
         controller.close();
       }

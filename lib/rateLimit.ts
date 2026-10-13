@@ -82,7 +82,7 @@ export function rateLimitedResponse(err: RateLimited): Response {
   );
 }
 
-function hashed(value: string): string {
+export function hashed(value: string): string {
   const salt = process.env.RATE_LIMIT_SALT ?? process.env.CLERK_SECRET_KEY ?? process.env.DATABASE_URL ?? "walkdots";
   return createHash("sha256").update(`${salt}|${value}`).digest("hex").slice(0, 32);
 }

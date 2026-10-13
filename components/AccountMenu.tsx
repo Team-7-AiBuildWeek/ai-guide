@@ -5,12 +5,13 @@
  * can be done here — laid out like a settings sidebar (small grey section
  * headings, an icon and a label per row, a soft highlight under the finger).
  *
- * Only rows that do something: WalkDots has no billing, notifications or themes,
- * and a row that leads nowhere is worse than no row.
+ * Only rows that do something: WalkDots has no notifications or themes, and a
+ * row that leads nowhere is worse than no row. Walks and plans live in their
+ * own card above this menu (PlanCard), shown only while the paywall is on.
  *
  *   Account   Profile (or Sign in) · Language · Sign out · Delete account
  *   Developer Saved tours · Phone view · what the server runs on (developers only)
- *   Support   Contact us · About WalkDots · Privacy policy
+ *   Support   Contact us · About WalkDots · Privacy policy · Terms
  */
 
 import { useClerk, useUser } from "@clerk/nextjs";
@@ -200,6 +201,7 @@ function Card({ account }: { account: ReactNode }) {
         <Row icon="contact" label="Contact us" href={`mailto:${CONTACT}?subject=WalkDots`} />
         <Row icon="about" label="About WalkDots" href={`${SITE}/about.html`} />
         <Row icon="privacy" label="Privacy policy" href={`${SITE}/privacy.html`} />
+        <Row icon="about" label="Terms" href="/terms" />
       </Section>
     </nav>
   );
