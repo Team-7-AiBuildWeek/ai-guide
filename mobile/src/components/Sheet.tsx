@@ -42,9 +42,16 @@ export default function Sheet({
   collapsedContent,
   children,
   flush,
+  underlay,
 }: {
   /** Sitting on a tab bar: no room left for the home indicator. */
   flush?: boolean;
+  /**
+   * Collapsed: reach this far further down, behind a clear tab bar, so the
+   * sheet's glass and the bar are one pane (two glass panes side by side
+   * always show an edge between them).
+   */
+  underlay?: number;
   height: SheetHeight;
   onHeightChange?: (h: SheetHeight) => void;
   title?: string;
@@ -155,7 +162,7 @@ export default function Sheet({
               setCollapsedPx(e.nativeEvent.layout.height);
               anim.setValue(e.nativeEvent.layout.height);
             }}
-            style={{ paddingBottom: flush ? 16 : Math.max(16, insets.bottom) }}
+            style={{ paddingBottom: underlay ? 16 + underlay : flush ? 16 : Math.max(16, insets.bottom) }}
           >
             {bar}
             <View style={styles.collapsedBody}>{collapsedContent}</View>

@@ -18,9 +18,11 @@ import { SymbolView } from "expo-symbols";
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { GlassSurface } from "@/components/Glass";
 import { accountsEnabled } from "@/lib/accounts";
 import { welcomed } from "@/lib/auth";
 import { EASE, TAB_SLIDE_MS, useReduceMotion } from "@/lib/motion";
+import { TAB_BAR_TOP_PAD, TAB_ROW_PX } from "@/lib/tabBar";
 import { colors, fonts } from "@/lib/theme";
 
 /** What Expo Router hands a custom tab bar. */
@@ -54,8 +56,12 @@ function TabBar({ state, navigation, descriptors }: BottomTabBarProps) {
 
   const focused = descriptors[state.routes[state.index].key]?.options;
   if ((focused?.tabBarStyle as { display?: string } | undefined)?.display === "none") return null;
-  return (
-    <View style={[styles.bar, { paddingBottom: Math.max(8, insets.bottom) }]} accessibilityRole="tablist">
+  // Floats over the screens. On Explore it is clear, drawn on the landing
+  // sheet's glass that runs on beneath it (Sheet `underlay`): one pane over the
+  // map. Elsewhere it is its own pane of glass the page scrolls under.
+  const overMap = state.routes[state.index].name === "index";
+  const content = (
+    <>
       <View style={styles.row} onLayout={(e) => setTabWidth(e.nativeEvent.layout.width / state.routes.length)}>
         <Animated.View pointerEvents="none" style={[styles.pill, { width: tabWidth, transform: [{ translateX: x }] }]}>
           <View style={styles.pillFill} />
@@ -88,7 +94,20 @@ function TabBar({ state, navigation, descriptors }: BottomTabBarProps) {
           );
         })}
       </View>
-    </View>
+    </>
+  );
+  const pad = { paddingBottom: Math.max(8, insets.bottom) };
+  if (overMap) {
+    return (
+      <View style={[styles.bar, styles.clear, pad]} accessibilityRole="tablist">
+        {content}
+      </View>
+    );
+  }
+  return (
+    <GlassSurface style={[styles.bar, styles.pane, pad]}>
+      <View accessibilityRole="tablist">{content}</View>
+    </GlassSurface>
   );
 }
 
@@ -116,14 +135,19 @@ function TabsNavigator() {
 }
 
 const styles = StyleSheet.create({
-  bar: {
-    backgroundColor: colors.surface,
+  bar: { position: "absolute", left: 0, right: 0, bottom: 0, paddingTop: TAB_BAR_TOP_PAD },
+  clear: { backgroundColor: "transparent" },
+  /** Its own glass; square corners, a hairline on top, no lift shadow under a bar. */
+  pane: {
+    borderRadius: 0,
+    borderWidth: 0,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: colors.lineStrong,
-    paddingTop: 8,
+    shadowOpacity: 0,
+    elevation: 0,
   },
   row: { flexDirection: "row" },
-  tab: { flex: 1, alignItems: "center", gap: 3, minHeight: 52, justifyContent: "center" },
+  tab: { flex: 1, alignItems: "center", gap: 3, minHeight: TAB_ROW_PX, justifyContent: "center" },
   /** Behind the tab you are on: the website's pale-mint pill. */
   pill: { position: "absolute", top: 0, bottom: 0, left: 0 },
   pillFill: { flex: 1, marginHorizontal: 12, borderRadius: 999, backgroundColor: colors.mintWash },

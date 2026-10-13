@@ -32,6 +32,7 @@ import Paywall from "@/components/Paywall";
 import PlaceImage from "@/components/PlaceImage";
 import TourComplete from "@/components/TourComplete";
 import * as Haptics from "expo-haptics";
+import { useTabBarSpace } from "@/lib/tabBar";
 import { walkStatus } from "@/lib/billing";
 import { useDeveloper } from "@/lib/developer";
 import {
@@ -115,6 +116,7 @@ function previewOf(built: StoredTour): TourPreview {
 
 export default function Flow() {
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   // Whatever the last session left behind, read once as the screen is made.
   const [restored] = useState(() => {
     const saved = loadTour();
@@ -645,8 +647,8 @@ export default function Flow() {
       {sheetHidden ? null : (
         <Sheet
           height={sheetHeight}
-          // On the tab bar, the home indicator is the bar's to clear, not the sheet's.
-          flush={showTabs}
+          // Reaches under the clear tab bar: one pane of glass with it.
+          underlay={showTabs ? tabBarSpace : undefined}
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
           title={
             stage === "brief"

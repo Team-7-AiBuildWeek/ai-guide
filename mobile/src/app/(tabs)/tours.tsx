@@ -5,6 +5,7 @@
 
 import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
+import { useTabBarSpace } from "@/lib/tabBar";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import WalkCard from "@/components/WalkCard";
@@ -18,6 +19,7 @@ import type { StoredTour } from "@/lib/types";
 
 export default function ToursTab() {
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const [walks, setWalks] = useState<WalkRecord[]>([]);
   const [current, setCurrent] = useState<StoredTour | null>(null);
 
@@ -33,7 +35,7 @@ export default function ToursTab() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.canvas }}
-      contentContainerStyle={{ padding: 16, paddingTop: Math.max(16, insets.top), paddingBottom: 32, gap: 24 }}
+      contentContainerStyle={{ padding: 16, paddingTop: Math.max(16, insets.top), paddingBottom: tabBarSpace + 32, gap: 24 }}
     >
       <Text style={type.h2}>Tours</Text>
 
