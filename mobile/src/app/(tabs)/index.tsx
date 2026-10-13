@@ -649,6 +649,8 @@ export default function Flow() {
           height={sheetHeight}
           // Reaches under the clear tab bar: one pane of glass with it.
           underlay={showTabs ? tabBarSpace : undefined}
+          // A walk's sheet raised over the map (player, Ask anything) is glass too.
+          glass={stage === "tour"}
           onHeightChange={stage === "tour" && !askOpen ? setSheetDrag : undefined}
           title={
             stage === "brief"

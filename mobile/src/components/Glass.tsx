@@ -62,6 +62,25 @@ export function GlassSurface({
   return <View style={[tone === "dark" ? styles.dark : styles.light, shadow.lift, style]}>{children}</View>;
 }
 
+/**
+ * A sheet's glass for reading (the walk's raised sheet: player, Ask anything):
+ * a backdrop layer, more opaque than the controls' so paragraphs stay easy to
+ * read. Draws nothing where glass is off; the sheet keeps its solid colour.
+ */
+export function ReadingGlass() {
+  const glass = useGlass();
+  if (!glass) return null;
+  return (
+    <GlassView
+      pointerEvents="none"
+      style={StyleSheet.absoluteFill}
+      glassEffectStyle="regular"
+      colorScheme="light"
+      tintColor="rgba(255,255,255,0.7)"
+    />
+  );
+}
+
 const styles = StyleSheet.create({
   light: { backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.lineStrong },
   dark: { backgroundColor: colors.dark },

@@ -23,7 +23,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { GlassSurface } from "./Glass";
+import { GlassSurface, ReadingGlass, useGlass } from "./Glass";
 import { colors, radius, shadow, type } from "@/lib/theme";
 
 export type SheetHeight = "collapsed" | "half" | "full";
@@ -43,6 +43,7 @@ export default function Sheet({
   children,
   flush,
   underlay,
+  glass = false,
 }: {
   /** Sitting on a tab bar: no room left for the home indicator. */
   flush?: boolean;
@@ -52,6 +53,8 @@ export default function Sheet({
    * always show an edge between them).
    */
   underlay?: number;
+  /** Raised, still glass (the reading kind) rather than solid: a walk's sheet over the map. */
+  glass?: boolean;
   height: SheetHeight;
   onHeightChange?: (h: SheetHeight) => void;
   title?: string;
@@ -62,6 +65,7 @@ export default function Sheet({
   collapsedContent?: ReactNode;
   children?: ReactNode;
 }) {
+  const glassOn = useGlass();
   const { height: screen } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const [collapsedPx, setCollapsedPx] = useState(160);
@@ -173,8 +177,10 @@ export default function Sheet({
   }
 
   const full = height === "full";
+  const frosted = glass && glassOn;
   return (
-    <Animated.View style={[styles.dock, styles.sheet, full && styles.sheetFull, { height: anim }]}>
+    <Animated.View style={[styles.dock, styles.sheet, frosted && styles.sheetGlass, full && styles.sheetFull, { height: anim }]}>
+      {frosted ? <ReadingGlass /> : null}
       <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View {...responder.panHandlers} style={[styles.header, full && { paddingTop: Math.max(4, insets.top) }]}>
           {bar}
@@ -203,7 +209,7 @@ export default function Sheet({
         >
           {children}
         </ScrollView>
-        {footer ? <View style={[styles.footer, { paddingBottom: Math.max(16, insets.bottom) }]}>{footer}</View> : null}
+        {footer ? <View style={[styles.footer, frosted && styles.footerGlass, { paddingBottom: Math.max(16, insets.bottom) }]}>{footer}</View> : null}
       </KeyboardAvoidingView>
     </Animated.View>
   );
@@ -230,6 +236,8 @@ const styles = StyleSheet.create({
     ...shadow.lift,
   },
   sheetFull: { borderTopLeftRadius: 0, borderTopRightRadius: 0 },
+  sheetGlass: { backgroundColor: "transparent", borderColor: "rgba(255,255,255,0.6)" },
+  footerGlass: { backgroundColor: "transparent" },
   bar: { alignItems: "center", justifyContent: "center", paddingVertical: 12 },
   grabber: { width: 40, height: 4, borderRadius: 2, backgroundColor: colors.lineStrong },
   chevron: { position: "absolute", right: 8, width: 44, height: 44, alignItems: "center", justifyContent: "center" },
