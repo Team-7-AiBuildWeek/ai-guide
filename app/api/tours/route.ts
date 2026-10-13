@@ -261,10 +261,19 @@ export async function POST(request: Request) {
           try {
             const snapped = await snapStopsToRealPlaces(maps, plan.stops, req.start);
             plan.stops = snapped.stops;
-            if (snapped.unmatched.length) {
+            if (snapped.dropped.length) {
+              console.info("[tours] dropped stops nothing could place:", snapped.dropped.join(", "));
+            }
+            if (snapped.unmatched.length || snapped.dropped.length) {
               send({
                 phase: "locating",
-                message: `${snapped.corrected} placed exactly · ${snapped.unmatched.length} kept as estimated`,
+                message: [
+                  `${snapped.corrected} placed exactly`,
+                  snapped.dropped.length ? `${snapped.dropped.length} left out (not found on the map)` : "",
+                  snapped.unmatched.length ? `${snapped.unmatched.length} kept as estimated` : "",
+                ]
+                  .filter(Boolean)
+                  .join(" · "),
               });
             }
           } catch {

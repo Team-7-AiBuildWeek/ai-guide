@@ -197,13 +197,13 @@ export function backendSegment(id: string): Promise<BackendAudio & { transcript:
  * Vercel Cron. Concurrent nudges are safe — the backend claims work with
  * SKIP LOCKED — and a failed nudge only means the next one does the work.
  */
-export async function kickWorker(rounds = 3): Promise<Record<string, number> | null> {
+export async function kickWorker(rounds = 3, timeoutMs = 55_000): Promise<Record<string, number> | null> {
   if (!backendEnabled() || !config.workerSecret) return null;
   try {
     return await call<Record<string, number>>(
       `/internal/worker/tick?rounds=${rounds}`,
       { method: "POST", headers: { authorization: `Bearer ${config.workerSecret}` } },
-      55_000,
+      timeoutMs,
     );
   } catch (err) {
     console.info("[backend] worker nudge failed", err instanceof Error ? err.message : err);

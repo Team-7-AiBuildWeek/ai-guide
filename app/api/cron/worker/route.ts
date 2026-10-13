@@ -16,9 +16,12 @@ export async function GET(request: Request) {
   if (!config.workerSecret || request.headers.get("authorization") !== `Bearer ${config.workerSecret}`) {
     return Response.json({ error: "Unauthorized" }, { status: 401 });
   }
+  // A pass that records narration takes ~75 s (four stops at ~70 s each, side by
+  // side), so give each one room and stop starting new ones before maxDuration.
+  const started = Date.now();
   const passes = [];
-  for (let i = 0; i < 4; i++) {
-    const stats = await kickWorker(10);
+  for (let i = 0; i < 4 && Date.now() - started < 150_000; i++) {
+    const stats = await kickWorker(10, 140_000);
     passes.push(stats);
     if (!stats || !Object.values(stats).some(Boolean)) break;
   }
