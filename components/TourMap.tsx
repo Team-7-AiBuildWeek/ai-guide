@@ -47,9 +47,13 @@ const BASEMAP_TINT: Record<string, [string, string]> = {
   building: ["fill-color", "#e8e3da"],
 };
 
-function tintBasemap(map: MapLibreMap) {
-  const style = map.getStyle();
-  if (!style?.name || !/alidade smooth$/i.test(style.name)) return;
+/**
+ * `style` is the chosen style's id, or the URL it was loaded from. Not the
+ * style's own name: Stadia names its dark style "Alidade Smooth" as well, and
+ * tinting it painted the land, water and buildings light under dark roads.
+ */
+function tintBasemap(map: MapLibreMap, style: string) {
+  if (!/(^|\/)alidade_smooth(\.json|$|\?)/.test(style)) return;
   for (const [id, [prop, color]] of Object.entries(BASEMAP_TINT)) {
     if (!map.getLayer(id)) continue;
     try {
@@ -302,7 +306,7 @@ export default function TourMap({
     // has to be callable again — not just once on first load.
     const addOurLayers = () => {
       styleReady.current = true;
-      tintBasemap(map);
+      tintBasemap(map, currentStyleRef.current ?? styleUrl);
       // Already there — a style rebuilt after a lost WebGL context keeps our
       // sources, but with whatever they held when it was lost. Bring them up
       // to date from the refs, which kept listening in the meantime.
