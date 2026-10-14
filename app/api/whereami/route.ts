@@ -4,11 +4,10 @@
  * location first and only falls back to this.
  *
  * Vercel puts the request's approximate place in headers (x-vercel-ip-*), so
- * the address is never sent anywhere and nothing is kept. Connections are
- * often placed in a village or suburb, so the answer is the nearest city of
- * 100,000 people or more (OpenStreetMap), and the country's capital when there
- * is none near. Checked against the map so it comes back as a proper city with
- * its centre.
+ * the address is never sent anywhere and nothing is kept. The answer is the
+ * place the connection is in, however small; only when it names none, the
+ * nearest city of 100,000 people or more (OpenStreetMap), then the country's
+ * capital. Checked against the map so it comes back with its centre.
  */
 
 import { normaliseLang } from "@/lib/i18n/languages";
@@ -48,10 +47,11 @@ export async function GET(request: Request) {
   const lng = Number(header(request, "x-vercel-ip-longitude"));
   const near = Number.isFinite(lat) && Number.isFinite(lng) && (lat !== 0 || lng !== 0) ? { lat, lng } : null;
 
-  // A connection often places you in a village or suburb, which has no walk
-  // worth trying. The nearest big city, then; failing that, the capital.
-  const big = near ? await bigCityNear(near, lang) : null;
-  const name = big ?? (country ? CAPITALS[country] : null) ?? ipCity;
+  // The place you are in, however small: a walk of somewhere you know is the
+  // point, and the capital can be the far side of the country. Only with no
+  // place at all, the nearest big city, then the capital.
+  const big = !ipCity && near ? await bigCityNear(near, lang) : null;
+  const name = ipCity ?? big ?? (country ? CAPITALS[country] : null);
   if (!name) return Response.json({ city: null });
 
   try {
@@ -60,9 +60,11 @@ export async function GET(request: Request) {
       lang,
       // The coordinates steer the lookup to the right Springfield; for a
       // capital, the country's capital is unambiguous.
-      ...(big && near ? { focus: near } : {}),
+      ...((ipCity || big) && near ? { focus: near } : {}),
     });
-    if (place) return Response.json({ city: toCity(place), from: big ? "nearby-city" : "capital" });
+    if (place) {
+      return Response.json({ city: toCity(place), from: ipCity ? "ip-city" : big ? "nearby-city" : "capital" });
+    }
   } catch {
     // fall through
   }

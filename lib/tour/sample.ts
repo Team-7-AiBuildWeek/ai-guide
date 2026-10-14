@@ -19,6 +19,7 @@ import { getLLM, getMaps } from "@/lib/providers/factory";
 import type { City, TourRequest } from "@/lib/providers/types";
 import type { StoredTour } from "@/lib/tour/flow";
 import { orderStops } from "@/lib/tour/order";
+import { distanceMeters } from "@/lib/tour/route";
 import { routeWithRides } from "@/lib/tour/rides";
 import { loadSample, saveSample } from "@/lib/tour/saved";
 import { writeStopScript } from "@/lib/tour/scriptCache";
@@ -42,6 +43,9 @@ function sampleRequest(city: City, lang: string): TourRequest {
     sample: true,
   };
 }
+
+/** Closer than this, two stops are the same place. */
+const SAME_PLACE_M = 25;
 
 /** Builds in progress on this server, so two visitors from one city pay once. */
 const BUILDING = new Map<string, Promise<StoredTour>>();
@@ -79,6 +83,11 @@ async function build(city: City, lang: string): Promise<StoredTour> {
   } catch {
     // Estimated coordinates beat no sample.
   }
+  // Two names the map put on the same spot are one stop heard twice: keep the
+  // first (seen in villages, where the map knows fewer places).
+  plan.stops = plan.stops.filter(
+    (stop, i) => !plan.stops.slice(0, i).some((prev) => distanceMeters(prev, stop) < SAME_PLACE_M),
+  );
   plan.stops = orderStops(plan.stops, req.start);
 
   // The walk starts at its first stop: nobody trying it is standing at the
