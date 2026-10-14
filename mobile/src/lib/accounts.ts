@@ -46,14 +46,18 @@ async function me(path: string, init?: RequestInit): Promise<Response | null> {
 }
 
 /** Whether this account is a developer, and what the server runs on (see the website's lib/accounts/developer.ts). */
-export async function developerStatus(): Promise<{ developer: boolean; info: Record<string, string> | null }> {
+export async function developerStatus(): Promise<{
+  developer: boolean;
+  info: Record<string, string> | null;
+  tts: string | null;
+}> {
   try {
     const res = await me("/developer");
-    if (!res?.ok) return { developer: false, info: null };
-    const body = (await res.json()) as { developer?: boolean; info?: Record<string, string> };
-    return { developer: Boolean(body.developer), info: body.info ?? null };
+    if (!res?.ok) return { developer: false, info: null, tts: null };
+    const body = (await res.json()) as { developer?: boolean; info?: Record<string, string>; tts?: string };
+    return { developer: Boolean(body.developer), info: body.info ?? null, tts: body.tts ?? null };
   } catch {
-    return { developer: false, info: null };
+    return { developer: false, info: null, tts: null };
   }
 }
 

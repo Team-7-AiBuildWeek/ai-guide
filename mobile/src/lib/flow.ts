@@ -45,17 +45,29 @@ export function tourShape(d: Pick<Draft, "durationMinutes" | "detail" | "pace">)
   return { stops, km };
 }
 
+/** The languages Kokoro reads — the website's lib/providers/tts/kokoroLangs.ts. */
+const KOKORO_LANGS = ["en", "es", "fr", "it", "pt", "ja", "zh"];
+
 /**
  * What a tour roughly costs to make, for the developer panel — the website's
- * lib/tour/cost.ts: Gemini Flash for the writing, about $0.015 a minute of
- * audio for the voice. Recordings already kept cost nothing, which this does
- * not know.
+ * lib/tour/cost.ts: Gemini Flash for the writing, and the voice at the price of
+ * whichever reads this language. `tts` is the server's TTS_PROVIDER: with
+ * kokoro+google, Kokoro (~$0.0013 a minute) reads the languages it has and
+ * Gemini (~$0.015 a minute) the rest. Recordings already kept cost nothing,
+ * which this does not know.
  */
-export function estimateTourCost(stops: number, detail: Detail = "story") {
+export function estimateTourCost(
+  stops: number,
+  detail: Detail = "story",
+  voice: { tts?: string | null; lang?: string | null } = {},
+) {
   const audioMinutes = stops * SCRIPT_MINUTES[detail];
   const writing = 0.01 + stops * 0.009;
-  const voice = audioMinutes * 0.015;
-  return { audioMinutes, writing, voice, total: writing + voice };
+  const kokoro =
+    voice.tts === "kokoro" || (voice.tts === "kokoro+google" && KOKORO_LANGS.includes(voice.lang ?? "en"));
+  const voiceName = kokoro ? "Kokoro" : "Gemini";
+  const voiceUsd = audioMinutes * (kokoro ? (145 * 6 * 0.99 * 1.5) / 1_000_000 : 0.015);
+  return { audioMinutes, writing, voice: voiceUsd, voiceName, total: writing + voiceUsd };
 }
 
 export const INTERESTS: { value: Interest; icon: string; tint: string }[] = [

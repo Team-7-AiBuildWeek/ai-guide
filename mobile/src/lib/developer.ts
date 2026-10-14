@@ -7,9 +7,10 @@
 import { useSyncExternalStore } from "react";
 import { developerStatus } from "./accounts";
 
-type State = { developer: boolean; info: Record<string, string> | null };
+/** `tts` is the server's TTS_PROVIDER, for pricing the voice. */
+type State = { developer: boolean; info: Record<string, string> | null; tts: string | null };
 
-const NOBODY: State = { developer: false, info: null };
+const NOBODY: State = { developer: false, info: null, tts: null };
 let state: State = NOBODY;
 let asked = false;
 const listeners = new Set<() => void>();

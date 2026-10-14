@@ -15,7 +15,8 @@ import { estimateTourCost } from "@/lib/flow";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
 import type { StoredTour } from "@/lib/types";
 
-const usd = (n: number) => `$${n.toFixed(2)}`;
+/** A third decimal under a cent, so a cheap voice does not read as free. */
+const usd = (n: number) => (n > 0 && n < 0.01 ? `$${n.toFixed(3)}` : `$${n.toFixed(2)}`);
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
@@ -35,12 +36,12 @@ export default function DevPanel({
   currentIndex: number;
   onJump: (index: number) => void;
 }) {
-  const { developer, info } = useDeveloper();
+  const { developer, info, tts } = useDeveloper();
   const [open, setOpen] = useState(false);
   if (!developer) return null;
 
   const req = tour.req;
-  const cost = estimateTourCost(tour.plan.stops.length, req?.detail);
+  const cost = estimateTourCost(tour.plan.stops.length, req?.detail, { tts, lang: req?.lang });
 
   return (
     <>
@@ -72,9 +73,9 @@ export default function DevPanel({
           <View style={[styles.box, { backgroundColor: colors.mintWash }]}>
             <Fact label="Narration" value={`≈ ${Math.round(cost.audioMinutes)} min of audio`} />
             <Fact label="Writing" value={`≈ ${usd(cost.writing)}`} />
-            <Fact label="Voice" value={`≈ ${usd(cost.voice)}`} />
+            <Fact label={`Voice (${cost.voiceName})`} value={`≈ ${usd(cost.voice)}`} />
             <Fact label="Cost to make" value={`≈ ${usd(cost.total)}`} />
-            <Text style={styles.note}>Estimate at today&apos;s Gemini prices; recordings already kept cost nothing.</Text>
+            <Text style={styles.note}>Estimate at today&apos;s prices for the voice this language gets now; recordings already kept cost nothing.</Text>
           </View>
 
           {info ? (
