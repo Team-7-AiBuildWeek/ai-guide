@@ -17,7 +17,8 @@ import { r2Get, r2Put } from "@/lib/storage/r2";
 import { voiceKey, voiceObject } from "@/lib/tour/voiceKey";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+// The rest of a stop is one recording now (lib/audio/chunk.ts): ~70 s to make.
+export const maxDuration = 300;
 
 type Entry = { body: ArrayBuffer; mimeType: string };
 

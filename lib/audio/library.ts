@@ -65,6 +65,22 @@ type Speech = { url: string } | { error: string };
 const EARLY = new Map<string, Promise<Speech>>();
 const earlyKey = (text: string, lang: string) => `${lang}\u0000${text}`;
 
+/**
+ * A piece that fails is tried again before the stop gives up on the guide's
+ * voice: switching to the phone's voice halfway through a stop is a second
+ * narrator, the thing this is all about avoiding. A spent daily quota is not
+ * retried; waiting will not bring it back.
+ */
+async function fetchSpeechRetrying(text: string, lang: string): Promise<Speech> {
+  let made = await fetchSpeech(text, lang);
+  for (const wait of [3000, 8000]) {
+    if (!("error" in made) || /daily|quota is spent|PerDay/i.test(made.error)) return made;
+    await new Promise((r) => setTimeout(r, wait));
+    made = await fetchSpeech(text, lang);
+  }
+  return made;
+}
+
 function fetchSpeech(text: string, lang: string): Promise<Speech> {
   return (async () => {
     try {
@@ -388,7 +404,7 @@ export class AudioLibrary {
     }
     // Chained onto the queue so requests are serialised, and the tail is
     // caught so one failure cannot poison every later piece.
-    const job = this.queue.then(() => fetchSpeech(text, this.lang));
+    const job = this.queue.then(() => fetchSpeechRetrying(text, this.lang));
     this.queue = job.catch(() => ({ error: "Could not reach the voice." }) as const);
     return job;
   }

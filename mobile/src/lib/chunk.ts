@@ -1,13 +1,14 @@
 /**
  * The website's lib/audio/chunk.ts, unchanged in behaviour: narration is
- * voiced in pieces that grow (a short first one, so the walk starts sooner),
+ * voiced as a short first piece (so the walk starts sooner) and then the rest
+ * of the stop as one recording, so a stop stays one voice;
  * cut at sentence ends. The server cuts the opening with the same rules, which
  * is what lets the first piece be voiced before the walk begins.
  */
 
 export const WORDS_PER_SECOND = 145 / 60;
 
-const CHUNK_WORDS = [55, 140, 330];
+const CHUNK_WORDS = [55, 550];
 const targetWords = (index: number) => CHUNK_WORDS[Math.min(index, CHUNK_WORDS.length - 1)];
 
 const ABBREVIATIONS = new Set([

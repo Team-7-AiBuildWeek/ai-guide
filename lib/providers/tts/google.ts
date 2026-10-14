@@ -60,6 +60,10 @@ const VOICES: { id: string; character: string }[] = [
 /** Informative, mature, unhurried — a guide, not a presenter. */
 const DEFAULT_VOICE = "Charon";
 
+/** Fixed, so every recording is drawn the same way. Changing it changes the voice's read. */
+const VOICE_SEED = 7;
+const VOICE_TEMPERATURE = 0.3;
+
 export class GoogleTTSProvider implements TTSProvider {
   readonly name = "google";
   readonly mimeType = "audio/wav";
@@ -103,6 +107,11 @@ export class GoogleTTSProvider implements TTSProvider {
         model: config.geminiTtsModel,
         contents: [{ role: "user", parts: [{ text: prompt }] }],
         config: {
+          // The same seed and a calmer temperature on every request, so the
+          // pieces of one stop come out as one narrator (measured: same text,
+          // same seed, same length and pitch; without it ±10% of both).
+          seed: VOICE_SEED,
+          temperature: VOICE_TEMPERATURE,
           responseModalities: ["AUDIO"],
           speechConfig: {
             voiceConfig: {

@@ -16,15 +16,17 @@ export const WORDS_PER_SECOND = 145 / 60;
 /**
  * How big each piece should be, in words.
  *
- * It ramps, and the ramp is the whole design. The first piece is the only one
- * anybody waits for, so it is tiny; each one after that buys time to make the
- * next, so they grow. Flat 170-word pieces meant six synthesis calls for one
- * stop — six times what an unsplit script cost — which burns a free-tier quota
- * in under two stops for no benefit past the first few seconds.
+ * Two pieces: a short opening, the only one anybody waits for, then the rest
+ * of the stop in one recording. Every piece is a separate synthesis, and a
+ * generated voice comes out a little different each time — three pieces made
+ * one stop sound like two or three narrators, paragraph by paragraph. One join
+ * per stop, with a fixed seed on every request (lib/providers/tts/google.ts),
+ * keeps it one voice. 550 words (~3¾ minutes) stays under the audio route's
+ * 4,000-character limit; only a very long stop gets a third piece.
  *
- * ~23s, then ~58s, then ~2¼ minutes each.
+ * ~23s, then the rest.
  */
-const CHUNK_WORDS = [55, 140, 330];
+const CHUNK_WORDS = [55, 550];
 
 const targetWords = (index: number) =>
   CHUNK_WORDS[Math.min(index, CHUNK_WORDS.length - 1)];
