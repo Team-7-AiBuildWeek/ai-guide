@@ -45,6 +45,11 @@ export const StopSchema = z.object({
   lng: z.number(),
   /** One line on what this stop is for, carried into the script pass. */
   angle: z.string(),
+  /**
+   * A lesser-known place, chosen on purpose next to the famous ones (sample
+   * walks: lib/tour/sample.ts). Shown as "Local secret".
+   */
+  secret: z.boolean().optional(),
   /** "walk down the lane, the church is on your right" — second pass. */
   walkingCueToHere: z.string().optional(),
   /** Four to five minutes spoken — second pass. */
@@ -133,6 +138,12 @@ export type TourRequest = {
   end?: LatLng & { label?: string };
   /** BCP-47, e.g. "sk" or "en". */
   lang: string;
+  /**
+   * A sample walk (lib/tour/sample.ts): the city's most famous sights with two
+   * lesser-known places among them, for someone trying the app on a city they
+   * already know.
+   */
+  sample?: boolean;
 };
 
 // ------------------------------------------------------------------- asking

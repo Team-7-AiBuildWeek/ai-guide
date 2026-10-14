@@ -2861,3 +2861,114 @@ body[data-immersive] .tabbar {
   background: var(--mint);
   color: var(--ink);
 }
+
+/* ---------------------------------------------------------------------------
+   Sample offer — "Try a tour of Vienna" after the welcome (components/SampleOffer).
+   A card of the sheets' reading glass over a soft scrim, rising from below.
+   ------------------------------------------------------------------------ */
+.sample-offer {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 16px max(16px, var(--safe-bottom));
+  pointer-events: none;
+}
+.sample-offer[data-open="true"] {
+  pointer-events: auto;
+}
+.sample-offer__scrim {
+  position: absolute;
+  inset: 0;
+  background: rgb(17 24 39 / 0.28);
+  opacity: 0;
+  transition: opacity 240ms ease;
+}
+.sample-offer[data-open="true"] .sample-offer__scrim {
+  opacity: 1;
+}
+.sample-offer__card {
+  position: relative;
+  width: 100%;
+  max-width: 28rem;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  border: 1px solid rgb(255 255 255 / 0.6);
+  border-radius: var(--radius-panel);
+  padding: 12px 16px 12px;
+  transform: translateY(24px);
+  opacity: 0;
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1), opacity 240ms ease;
+}
+.sample-offer[data-open="true"] .sample-offer__card {
+  transform: none;
+  opacity: 1;
+}
+/* The buttons stay in view while the stops scroll under them. */
+.sample-offer__actions {
+  position: sticky;
+  bottom: -12px;
+  margin: 16px -16px -12px;
+  padding: 12px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: linear-gradient(180deg, rgb(255 255 255 / 0) 0%, rgb(255 255 255 / 0.94) 16%);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+}
+.sample-offer__stops {
+  margin-top: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.sample-offer__stops li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 40px;
+  padding: 4px 10px 4px 4px;
+  border-radius: 20px;
+  background: rgb(255 255 255 / 0.5);
+  border: 1px solid rgb(255 255 255 / 0.85);
+  font-family: var(--font-display);
+  font-weight: 500;
+  font-size: var(--text-caption);
+  color: var(--ink);
+}
+.sample-offer__num {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.sample-offer__secret {
+  flex: none;
+  border-radius: 999px;
+  padding: 2px 8px;
+  background: var(--mint-wash);
+  color: var(--mint-ink);
+  font-size: 11px;
+  font-weight: 600;
+}
+@media (prefers-reduced-motion: reduce) {
+  .sample-offer__card,
+  .sample-offer__scrim {
+    transition: none;
+  }
+}
+@media (prefers-reduced-transparency: reduce), (prefers-contrast: more) {
+  .sample-offer__stops li {
+    background: var(--canvas);
+    border-color: var(--line-strong);
+  }
+}

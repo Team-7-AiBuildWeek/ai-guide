@@ -40,6 +40,12 @@ function ensureSchema(): Promise<void> {
       )`;
     await q`CREATE INDEX IF NOT EXISTS saved_tours_created_at ON saved_tours (created_at DESC)`;
     await q`
+      CREATE TABLE IF NOT EXISTS sample_tours (
+        key text PRIMARY KEY,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        tour jsonb NOT NULL
+      )`;
+    await q`
       CREATE TABLE IF NOT EXISTS saved_stop_scripts (
         key text PRIMARY KEY,
         script text NOT NULL,
@@ -66,6 +72,27 @@ export async function saveTour(tour: object): Promise<string | null> {
   } catch (err) {
     console.warn("[saved] tour not kept", err);
     return null;
+  }
+}
+
+/** A city's sample walk (lib/tour/sample.ts), by its key, or null. */
+export async function loadSample(key: string): Promise<StoredTour | null> {
+  const q = sql();
+  if (!q) return null;
+  await ensureSchema();
+  const rows = (await q`SELECT tour FROM sample_tours WHERE key = ${key}`) as { tour: StoredTour }[];
+  return rows[0]?.tour ?? null;
+}
+
+/** Keep a sample walk. The first one kept for a key wins; a racing second build is dropped. */
+export async function saveSample(key: string, tour: StoredTour): Promise<void> {
+  const q = sql();
+  if (!q) return;
+  try {
+    await ensureSchema();
+    await q`INSERT INTO sample_tours (key, tour) VALUES (${key}, ${JSON.stringify(tour)}::jsonb) ON CONFLICT (key) DO NOTHING`;
+  } catch (err) {
+    console.warn("[saved] sample not kept", err);
   }
 }
 

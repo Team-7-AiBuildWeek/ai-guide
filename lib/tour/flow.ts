@@ -189,6 +189,8 @@ export type StoredTour = {
   rides?: TourRide[];
   /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
   demo?: boolean;
+  /** A sample walk of the walker's city (lib/tour/sample.ts): opened ready, not added to history. */
+  sample?: boolean;
   /** The walk this was booked as (lib/billing), for completing it and earning points. */
   walkId?: string | null;
   /** The server's signature on these stops, so the walk can be walked again (lib/billing/planSig.ts). */

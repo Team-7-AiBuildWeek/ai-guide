@@ -166,6 +166,22 @@ export function buildItineraryPrompt(req: TourRequest): string {
     `Interests: ${interests}.`,
   ];
 
+  if (req.sample) {
+    lines.push(
+      ``,
+      `THIS IS A SAMPLE WALK. The walker knows this city, or knows of it, and is`,
+      `checking whether you do. Earn their trust and then surprise them:`,
+      `- ${Math.max(1, shape.stops - 2)} stops are the city's most famous sights — the ones on every`,
+      `  postcard, that anyone from here would name first. Set secret to false.`,
+      `- 2 stops are lesser-known places a few minutes' walk from those: a courtyard,`,
+      `  a detail on a façade, a small museum, a street with a story — real, open to`,
+      `  anyone, and something even a local might not know. Set secret to true.`,
+      `Keep the whole walk in the historic centre, walkable end to end, no transport.`,
+      `Start at the most famous sight. Put the two secrets between famous stops, not`,
+      `at the end.`,
+    );
+  }
+
   if (req.freeText?.trim()) {
     lines.push(
       ``,
@@ -227,6 +243,9 @@ export function buildScriptPrompt(args: {
     `THIS STOP: ${stop.name}${stop.localName && stop.localName !== stop.name ? ` (${stop.localName})` : ""}`,
     `Its place in the walk: stop ${position} of ${total}.`,
     `Why it is on the walk: ${stop.angle}`,
+    stop.secret
+      ? `This is one of the walk's lesser-known places, a surprise among the famous ones: open by saying most people walk straight past it, then show them why they shouldn't.`
+      : ``,
     `Where it is: ${stop.lat}, ${stop.lng}.`,
     ``,
     previous
@@ -306,8 +325,12 @@ export const ITINERARY_JSON_SCHEMA = {
             type: "string",
             description: "One sentence to yourself on what this stop's narration is about.",
           },
+          secret: {
+            type: "boolean",
+            description: "True only for a lesser-known place chosen as a surprise; false for everything else.",
+          },
         },
-        required: ["id", "name", "localName", "lat", "lng", "angle"],
+        required: ["id", "name", "localName", "lat", "lng", "angle", "secret"],
         additionalProperties: false,
       },
     },

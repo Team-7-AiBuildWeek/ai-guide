@@ -62,6 +62,7 @@ import { cityAt } from "@/lib/tour/city";
 import { rememberWalk } from "@/lib/tour/history";
 import Paywall from "./Paywall";
 import PlaceImage from "./PlaceImage";
+import SampleOffer from "./SampleOffer";
 import TourComplete from "./TourComplete";
 import { flushCompletions, reportCompletion, walkComplete, type Visit } from "@/lib/billing/completion";
 import { useWalkStatus } from "@/lib/billing/useWalkStatus";
@@ -88,6 +89,9 @@ function previewOf(built: StoredTour): TourPreview {
     stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle, localName: x.localName, lat: x.lat, lng: x.lng })),
   };
 }
+
+/** Set once the "Try a tour of your city" offer has been answered on this device. */
+const SAMPLE_OFFERED_KEY = "btour:sample-offered:v1";
 
 export default function TourFlow({
   styleUrl,
@@ -252,8 +256,8 @@ export default function TourFlow({
 
   /** What the wait is spent building, in the walker's own choices — asking
    *  only feels worth it when the answers visibly shape the result. */
-  // The demo was built from somebody else's choices, so it names those.
-  const asked = ready && tour?.demo && tour.req ? tour.req : draft;
+  // The demo and the sample walks were built from other choices, so they name those.
+  const asked = ready && (tour?.demo || tour?.sample) && tour.req ? tour.req : draft;
   const builtAround = [
     asked.interests.length > 0 ? asked.interests.map((i) => t(`interest.${i}`)).join(" + ") : null,
     t(`duration.${asked.durationMinutes}`),
@@ -526,6 +530,81 @@ export default function TourFlow({
     },
     [patchDraft, draft.start, draft.end],
   );
+
+  // --------------------------------------------------------- sample walk --
+  /**
+   * "Try a tour of <your city>", once per device, the first time the landing
+   * screen shows after the welcome (signing in or carrying on without an
+   * account). The city is the one the location says; when location is off,
+   * refused or slow, the connection's (/api/whereami). See SampleOffer.
+   */
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [ipCity, setIpCity] = useState<City | null>(null);
+  /** The connection was asked and had no city: the offer asks for one instead. */
+  const [ipUnknown, setIpUnknown] = useState(false);
+  /** "Choose another city" from the offer: offer again once one is chosen. */
+  const offerAfterPick = useRef(false);
+  useEffect(() => {
+    if (stage !== "start" || tour) return;
+    let offered = true;
+    try {
+      offered = localStorage.getItem(SAMPLE_OFFERED_KEY) !== null;
+    } catch {
+      /* storage blocked: never nag */
+    }
+    if (!offered) queueMicrotask(() => setOfferOpen(true));
+    // Once, on arriving at the landing screen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const offerCity = draft.city ?? ipCity;
+  useEffect(() => {
+    if (!offerOpen || draft.city || ipCity) return;
+    // Location first: give it a few seconds (or until it fails) before asking
+    // the connection instead.
+    const failed = status.kind === "error";
+    const timer = window.setTimeout(
+      () => {
+        void fetch(`/api/whereami?lang=${encodeURIComponent(draft.lang)}`)
+          .then((r) => r.json())
+          .then((b: { city?: City | null }) => (b.city ? setIpCity(b.city) : setIpUnknown(true)))
+          .catch(() => setIpUnknown(true));
+      },
+      failed ? 0 : 4000,
+    );
+    return () => window.clearTimeout(timer);
+  }, [offerOpen, draft.city, ipCity, status.kind, draft.lang]);
+  const closeOffer = useCallback(() => {
+    setOfferOpen(false);
+    try {
+      localStorage.setItem(SAMPLE_OFFERED_KEY, String(Date.now()));
+    } catch {
+      /* fine */
+    }
+  }, []);
+  const chooseCityForOffer = useCallback(
+    (c: City) => {
+      chooseCity(c);
+      if (offerAfterPick.current) {
+        offerAfterPick.current = false;
+        setCityOpen(false);
+        setOfferOpen(true);
+      }
+    },
+    [chooseCity],
+  );
+  /** Opens a ready sample like the demo: no build, no paywall, not in history. */
+  const startSample = useCallback((built: StoredTour) => {
+    closeOffer();
+    demoRun.current = false;
+    setStage("generating");
+    setGenError(null);
+    setTour(built);
+    saveTour(built);
+    setCurrentIndex(0);
+    setPreview(previewOf(built));
+    setPhase("done");
+    setReady(true);
+  }, [closeOffer]);
 
   // ------------------------------------------------------------ tour data --
   const stops = useMemo(
@@ -1103,7 +1182,7 @@ export default function TourFlow({
       ) : null}
 
       {/* Location trouble is reported once, above the sheet, not per screen. */}
-      {status.kind === "error" && stage === "start" ? (
+      {status.kind === "error" && stage === "start" && !offerOpen ? (
         <div className="pointer-events-none absolute inset-x-0 top-0 z-10 p-4 pt-[max(1rem,var(--safe-top))]">
           <div className="pointer-events-auto mx-auto w-full max-w-lg panel-dark panel--glass px-4 py-3">
             <p className="font-[family-name:var(--font-display)] font-semibold">{status.message}</p>
@@ -1255,7 +1334,7 @@ export default function TourFlow({
                       lang={draft.lang}
                       open
                       onOpenChange={setCityOpen}
-                      onChange={chooseCity}
+                      onChange={chooseCityForOffer}
                     />
                   </div>
                 ) : (
@@ -1267,6 +1346,13 @@ export default function TourFlow({
                     {t("landing.chooseCity")}
                   </button>
                 )}
+                <button
+                  type="button"
+                  onClick={() => setOfferOpen(true)}
+                  className="mt-3 min-h-[44px] w-full text-center font-[family-name:var(--font-display)] font-medium text-[color:var(--mint-ink)] underline underline-offset-4"
+                >
+                  {offerCity ? `Try a sample walk of ${offerCity.name}` : "Try a sample walk"}
+                </button>
                 {/* Offered here and nowhere else: the walk itself should not
                     carry a control for the browser it happens to be in. */}
                 <FullscreenButton />
@@ -1382,6 +1468,20 @@ export default function TourFlow({
           ) : null}
         </BottomSheet>
       )}
+
+      <SampleOffer
+        open={offerOpen && stage === "start"}
+        city={offerCity}
+        cityUnknown={!offerCity && ipUnknown}
+        lang={draft.lang}
+        onStart={startSample}
+        onChooseCity={() => {
+          offerAfterPick.current = true;
+          setOfferOpen(false);
+          setCityOpen(true);
+        }}
+        onClose={closeOffer}
+      />
 
       {tour ? (
         <TourComplete
