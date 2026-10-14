@@ -15,6 +15,7 @@
  * It costs the walker nothing: not a walk from their allowance, no sign-in.
  */
 
+import { backendPlanFor } from "@/lib/backend/tours";
 import { getLLM, getMaps } from "@/lib/providers/factory";
 import type { City, TourRequest } from "@/lib/providers/types";
 import type { StoredTour } from "@/lib/tour/flow";
@@ -55,6 +56,12 @@ export async function sampleFor(
   lang: string,
   opts: { beforeBuild?: () => Promise<void> } = {},
 ): Promise<StoredTour> {
+  // A city walk-backend has recorded (Bratislava) plays its recordings:
+  // instant, the prepared voice, nothing written live. Not kept as a sample,
+  // so it always points at the current recordings (they change with a voice).
+  const recorded = await recordedSample(city, lang);
+  if (recorded) return recorded;
+
   const key = sampleKey(city, lang);
   const kept = await loadSample(key).catch(() => null);
   if (kept) return kept;
@@ -69,6 +76,26 @@ export async function sampleFor(
     .finally(() => BUILDING.delete(key));
   BUILDING.set(key, job);
   return job;
+}
+
+async function recordedSample(city: City, lang: string): Promise<StoredTour | null> {
+  const req = sampleRequest(city, lang);
+  const recorded = await backendPlanFor(req);
+  if (!recorded || recorded.status !== "ready" || !recorded.plan.stops.every((s) => s.audio)) return null;
+  const plan = recorded.plan;
+  const first = plan.stops[0];
+  req.start = { lat: first.lat, lng: first.lng, label: first.name };
+  return { plan, ...(await routeFor(plan.stops)), req, sample: true } as StoredTour;
+}
+
+async function routeFor(stops: { lat: number; lng: number }[]) {
+  try {
+    const r = await routeWithRides(getMaps(), stops.map((s) => ({ lat: s.lat, lng: s.lng })), []);
+    return { route: r.geojson as unknown as GeoJSON.Feature, meters: r.meters, seconds: r.seconds, maneuvers: r.maneuvers as unknown[] };
+  } catch {
+    // Stops without a line is still a walk.
+    return { route: null, meters: 0, seconds: 0, maneuvers: [] as unknown[] };
+  }
 }
 
 async function build(city: City, lang: string): Promise<StoredTour> {
@@ -104,19 +131,5 @@ async function build(city: City, lang: string): Promise<StoredTour> {
   );
   plan.stops = plan.stops.map((stop, i) => ({ ...stop, ...scripts[i] }));
 
-  let route: GeoJSON.Feature | null = null;
-  let meters = 0;
-  let seconds = 0;
-  let maneuvers: unknown[] = [];
-  try {
-    const r = await routeWithRides(maps, plan.stops.map((s) => ({ lat: s.lat, lng: s.lng })), []);
-    route = r.geojson as unknown as GeoJSON.Feature;
-    meters = r.meters;
-    seconds = r.seconds;
-    maneuvers = r.maneuvers;
-  } catch {
-    // Stops without a line is still a walk.
-  }
-
-  return { plan, route, meters, seconds, maneuvers, req, sample: true } as StoredTour;
+  return { plan, ...(await routeFor(plan.stops)), req, sample: true } as StoredTour;
 }
