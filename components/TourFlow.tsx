@@ -1141,7 +1141,10 @@ export default function TourFlow({
           full sheet, the directions panel — it is a floating icon over someone
           else's words. */}
       {showLayerSwitcher ? (
-        <div className="pointer-events-none absolute left-0 top-20 z-30 p-4">
+        // Measured from the safe area, like the back button and the picking
+        // banner above it: a fixed top-20 sat on the back button under a notch.
+        // 4.5rem clears the taller of the two (the banner, ~68px) with a gap.
+        <div className="pointer-events-none absolute left-0 top-[calc(max(1rem,var(--safe-top))+4.5rem)] z-30 p-4">
           <div className="pointer-events-auto">
             <LayerSwitcher styles={styles} value={styleId} onChange={setStyleId} />
           </div>
