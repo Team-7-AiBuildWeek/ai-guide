@@ -82,12 +82,19 @@ class Settings:
     # Providers: real ones by default; "fake" runs everything offline at zero cost.
     llm_provider: str = field(default_factory=lambda: _env("BACKEND_LLM_PROVIDER", "gemini"))
     # gemini (default): same key as the scripts, Batch API. chirp: Google Cloud TTS with
-    # SSML <phoneme>, so the pronunciation lexicon applies. fake: offline.
+    # SSML <phoneme>, so the pronunciation lexicon applies. kokoro+gemini: Kokoro on
+    # DeepInfra for the languages it speaks (here: en), Gemini for the rest. fake: offline.
     tts_provider: str = field(default_factory=lambda: _env("BACKEND_TTS_PROVIDER", "gemini"))
     routing_provider: str = field(default_factory=lambda: _env("BACKEND_ROUTING_PROVIDER", "ors"))
 
     gemini_api_key: str | None = field(default_factory=lambda: _env("GEMINI_API_KEY"))
     ors_api_key: str | None = field(default_factory=lambda: _env("ORS_API_KEY"))
+    deepinfra_api_key: str | None = field(default_factory=lambda: _env("DEEPINFRA_API_KEY"))
+    kokoro_model: str = field(default_factory=lambda: _env("KOKORO_MODEL", "hexgrad/Kokoro-82M"))
+    # Shared with the web app: "en=bm_george,pt=pm_alex" over the defaults in providers/tts.py.
+    kokoro_voices: str | None = field(default_factory=lambda: _env("KOKORO_VOICES"))
+    # Reading speed, shared with the web app; 1 = Kokoro's own.
+    kokoro_speed: float = field(default_factory=lambda: float(_env("KOKORO_SPEED", "0.9")))
     # Service-account JSON for Cloud TTS, for hosts without a credentials file.
     # Otherwise GOOGLE_APPLICATION_CREDENTIALS is used, as usual.
     google_credentials_json: str | None = field(default_factory=lambda: _env("GOOGLE_CREDENTIALS_JSON"))

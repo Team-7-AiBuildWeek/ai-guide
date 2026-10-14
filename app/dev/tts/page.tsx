@@ -49,7 +49,7 @@ export default async function TtsDevPage() {
       <TtsBench
         voices={voices}
         provider={tts.name}
-        defaultVoice={voices.find((v) => v.id === "Charon")?.id ?? voices[0]?.id ?? ""}
+        defaultVoice={voices.find((v) => v.id === "Charon")?.id ?? ""}
       />
 
       <nav className="flex flex-wrap gap-3">

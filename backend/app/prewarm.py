@@ -85,10 +85,11 @@ def _missing_cost(session: Session, settings: Settings, providers: Providers, po
     if script is not None and script.status == "ready":
         if _ready_segment(session, planned_segment(session, script, settings, providers.tts)[0]):
             return None
-        return estimate.audio_cost(session, providers.tts, depth_level=depth_level, on=today)
+        return estimate.audio_cost(session, providers.tts, language=language, depth_level=depth_level, on=today)
     fact_chars = sum(len(f.content) for f in current_facts(session, poi.id))
     translate = script is not None and translation_source(session, script) is not None
-    return estimate.segment_cost(session, settings, providers.tts, depth_level=depth_level, fact_chars=fact_chars,
+    return estimate.segment_cost(session, settings, providers.tts, language=language, depth_level=depth_level,
+                                 fact_chars=fact_chars,
                                  need_script=True, translate=translate, on=today)
 
 

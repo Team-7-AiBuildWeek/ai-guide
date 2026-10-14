@@ -35,6 +35,12 @@ export default function TtsBench({
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  /**
+   * Only the voices that speak this language. Kokoro's are one language
+   * each, and the wrong one reads with another language's phonetics.
+   */
+  const speaking = voices.filter((v) => v.langs.includes(lang));
+  const chosen = speaking.some((v) => v.id === voice) ? voice : "";
   const lastUrl = useRef<string | null>(null);
 
   // Object URLs are not garbage collected on their own.
@@ -53,7 +59,8 @@ export default function TtsBench({
       const res = await fetch("/api/dev/tts", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ text, lang, voice }),
+        // Empty means the provider's default for this language.
+        body: JSON.stringify({ text, lang, voice: chosen || undefined }),
       });
 
       if (!res.ok) {
@@ -114,12 +121,12 @@ export default function TtsBench({
           </label>
           <select
             id="tts-voice"
-            value={voice}
+            value={chosen}
             onChange={(e) => setVoice(e.target.value)}
             className="mt-2 min-h-[48px] w-full rounded-[var(--radius-control)] border border-[color:var(--line-strong)] bg-[color:var(--surface)] px-3 text-[color:var(--ink)]"
           >
-            {voices.length === 0 ? <option value="">No voices listed</option> : null}
-            {voices.map((v) => (
+            <option value="">Default for this language</option>
+            {speaking.map((v) => (
               <option key={v.id} value={v.id}>
                 {v.name}
               </option>

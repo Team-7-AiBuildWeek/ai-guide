@@ -16,7 +16,7 @@ from app.hashing import audio_hash, script_hash
 from app.models import Job, Poi, Script, Segment
 from app.pipeline import estimate
 from app.pipeline.content import current_facts, lexicon_for
-from app.providers.tts import TTSInput, TTSProvider
+from app.providers.tts import TTSInput, TTSProvider, voice_provider
 
 LIVE_JOB = text("status IN ('queued', 'running', 'submitted')")
 
@@ -90,7 +90,8 @@ def enqueue_script(session: Session, script: Script, poi: Poi, funding: Funding,
     if job is None:
         return None
     fact_chars = sum(len(f.content) for f in current_facts(session, poi.id))
-    amount = estimate.segment_cost(session, settings, tts, depth_level=script.depth_level, fact_chars=fact_chars,
+    amount = estimate.segment_cost(session, settings, tts, language=script.language,
+                                   depth_level=script.depth_level, fact_chars=fact_chars,
                                    need_script=True, translate=source is not None, on=on)
     reserve(session, funding.budget_ids, amount)
     job.reserved_usd = amount
@@ -100,6 +101,7 @@ def enqueue_script(session: Session, script: Script, poi: Poi, funding: Funding,
 def planned_segment(session: Session, script: Script, settings: Settings,
                     tts: TTSProvider) -> tuple[str, TTSInput]:
     """The audio hash a ready script should have under the current voice and lexicon."""
+    tts = voice_provider(tts, script.language)
     locale = LANGUAGES[script.language]
     tts_input = tts.prepare(script.script_text, locale, lexicon_for(session, locale))
     input_hash = audio_hash(script_input_hash=script.input_hash, script_text=script.script_text,
@@ -111,6 +113,7 @@ def planned_segment(session: Session, script: Script, settings: Settings,
 
 def claim_segment(session: Session, script: Script, settings: Settings, tts: TTSProvider) -> Segment:
     input_hash, tts_input = planned_segment(session, script, settings, tts)
+    tts = voice_provider(tts, script.language)
     session.execute(
         insert(Segment).values(
             script_id=script.id, poi_id=script.poi_id, language=script.language, persona=script.persona,
@@ -132,7 +135,7 @@ def enqueue_audio(session: Session, segment: Segment, funding: Funding, settings
     if job is None:
         return None
     if reserved is None:
-        reserved = estimate.audio_cost(session, tts, depth_level=segment.depth_level, on=on)
+        reserved = estimate.audio_cost(session, tts, language=segment.language, depth_level=segment.depth_level, on=on)
         reserve(session, funding.budget_ids, reserved)
     job.reserved_usd = reserved
     return job

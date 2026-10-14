@@ -39,7 +39,7 @@ from app.pipeline.work import Funding, claim_segment, enqueue_audio
 from app.pricing import cost
 from app.providers import Providers
 from app.providers.llm import LLMRequest
-from app.providers.tts import TTSInput, TTSRequest, TTSResult
+from app.providers.tts import TTSInput, TTSRequest, TTSResult, voice_provider
 from app.storage import Storage
 
 log = logging.getLogger("walk.worker")
@@ -347,6 +347,7 @@ class Worker:
             if segment.status == "ready":
                 self._finish(session, job, "done")
                 return False
+            tts = voice_provider(tts, segment.language)
             units = tts.worst_case_units(TTSInput(chunks=segment.ssml.split("\n"), lexicon_hash=segment.lexicon_hash))
             exact = cost(session, tts.pricing_provider, tts.model, tts.tier, units, self.today())
             try:
@@ -363,6 +364,7 @@ class Worker:
         with self.sessions.begin() as session:
             segment = session.get(Segment, segment_id)
             chunks, voice_id, language = segment.ssml.split("\n"), segment.voice_id, segment.language
+        tts = voice_provider(tts, language)
         try:
             if hasattr(tts, "synthesize_billed"):  # billed in tokens, by what came back
                 parts, units = tts.synthesize_billed(chunks, voice_id, LANGUAGES[language])

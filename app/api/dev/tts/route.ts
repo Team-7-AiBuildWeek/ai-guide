@@ -11,6 +11,7 @@
 import { developerOnly } from "@/lib/accounts/developer";
 import { normaliseLang } from "@/lib/i18n/languages";
 import { getTTS } from "@/lib/providers/factory";
+import type { KokoroGoogleTTSProvider } from "@/lib/providers/tts/routed";
 
 /** Null to go ahead; otherwise the response to send instead. */
 async function gate(): Promise<Response | null> {
@@ -24,15 +25,17 @@ export const maxDuration = 120;
 
 async function synthesize(text: string, lang: string, voice?: string) {
   const tts = getTTS();
+  const code = normaliseLang(lang);
   const started = Date.now();
-  const audio = await tts.synthesize(text, { lang: normaliseLang(lang), voice });
+  const audio = await tts.synthesize(text, { lang: code, voice });
   return new Response(audio, {
     headers: {
       "content-type": tts.mimeType,
       "content-length": String(audio.byteLength),
       // Read by the bench so it can report size and latency without a
       // second request.
-      "x-tts-provider": tts.name,
+      // A routed provider names the vendor this language went to.
+      "x-tts-provider": "speakerFor" in tts ? (tts as KokoroGoogleTTSProvider).speakerFor(code) : tts.name,
       "x-tts-ms": String(Date.now() - started),
       "cache-control": "no-store",
     },

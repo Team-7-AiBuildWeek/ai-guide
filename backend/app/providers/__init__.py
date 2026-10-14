@@ -10,7 +10,8 @@ from app.config import Settings
 from app.providers.llm import FakeLLMProvider, GeminiBatchProvider, LLMBatchProvider
 from app.providers.routing import (FakeRoutingProvider, OpenRouteServiceProvider, RoutingProvider,
                                    StraightLineRoutingProvider)
-from app.providers.tts import ChirpTTSProvider, FakeTTSProvider, GeminiBatchTTSProvider, GeminiTTSProvider, TTSProvider
+from app.providers.tts import (ChirpTTSProvider, FakeTTSProvider, GeminiBatchTTSProvider, GeminiTTSProvider,
+                               KokoroTTSProvider, LanguageRoutedTTS, TTSProvider)
 
 
 @dataclass
@@ -36,6 +37,12 @@ def build_providers(settings: Settings) -> Providers:
     elif settings.tts_provider == "gemini-batch":
         tts = GeminiBatchTTSProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY"),
                                      settings.tts_model or "gemini-3.8-flash-tts")
+    elif settings.tts_provider == "kokoro+gemini":
+        tts = LanguageRoutedTTS(
+            KokoroTTSProvider(_require(settings.deepinfra_api_key, "DEEPINFRA_API_KEY"),
+                              settings.kokoro_model, settings.kokoro_voices, settings.kokoro_speed),
+            GeminiTTSProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY"),
+                              settings.tts_model or "gemini-2.5-flash-preview-tts"))
     else:  # "gemini": the live narration's voice (GeminiTTSProvider)
         tts = GeminiTTSProvider(_require(settings.gemini_api_key, "GEMINI_API_KEY"),
                                 settings.tts_model or "gemini-2.5-flash-preview-tts")

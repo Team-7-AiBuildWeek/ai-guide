@@ -22,6 +22,8 @@ import { ElevenLabsTTSProvider } from "./tts/elevenlabs";
 import { OpenAITTSProvider } from "./tts/openai";
 import { GoogleTTSProvider } from "./tts/google";
 import { GoogleCloudTTSProvider } from "./tts/google-cloud";
+import { KokoroTTSProvider } from "./tts/kokoro";
+import { KokoroGoogleTTSProvider } from "./tts/routed";
 
 import type { MapProvider } from "./maps";
 import { MockMapProvider } from "./maps/mock";
@@ -61,6 +63,10 @@ export function getTTS(): TTSProvider {
       return (tts = new GoogleTTSProvider());
     case "google-cloud":
       return (tts = new GoogleCloudTTSProvider());
+    case "kokoro":
+      return (tts = new KokoroTTSProvider());
+    case "kokoro+google":
+      return (tts = new KokoroGoogleTTSProvider());
     default:
       return (tts = new MockTTSProvider());
   }

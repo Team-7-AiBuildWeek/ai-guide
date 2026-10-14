@@ -7,7 +7,15 @@
  */
 
 export type LLMProviderName = "mock" | "anthropic" | "openai" | "google";
-export type TTSProviderName = "mock" | "cartesia" | "elevenlabs" | "openai" | "google" | "google-cloud";
+export type TTSProviderName =
+  | "mock"
+  | "cartesia"
+  | "elevenlabs"
+  | "openai"
+  | "google"
+  | "google-cloud"
+  | "kokoro"
+  | "kokoro+google";
 export type MapProviderName = "mock" | "stadia" | "maptiler" | "mapbox" | "osm";
 
 function pick<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
@@ -23,7 +31,7 @@ export const config = {
   ),
   ttsProvider: pick<TTSProviderName>(
     process.env.TTS_PROVIDER,
-    ["mock", "cartesia", "elevenlabs", "openai", "google", "google-cloud"],
+    ["mock", "cartesia", "elevenlabs", "openai", "google", "google-cloud", "kokoro", "kokoro+google"],
     "mock",
   ),
   mapProvider: pick<MapProviderName>(
@@ -45,6 +53,8 @@ export const config = {
   googleCloudApiKey: process.env.GOOGLE_CLOUD_API_KEY ?? process.env.GOOGLE_API_KEY,
   elevenlabsApiKey: process.env.ELEVENLABS_API_KEY,
   cartesiaApiKey: process.env.CARTESIA_API_KEY,
+  /** DeepInfra, which hosts Kokoro. */
+  deepinfraApiKey: process.env.DEEPINFRA_API_KEY,
   stadiaApiKey: process.env.STADIA_API_KEY,
   maptilerApiKey: process.env.MAPTILER_API_KEY,
   mapboxAccessToken: process.env.MAPBOX_ACCESS_TOKEN,
@@ -88,6 +98,27 @@ export const config = {
   cartesiaVoice: process.env.CARTESIA_VOICE ?? "db6b0ed5-d5d3-463d-ae85-518a07d3c2b4",
 
   /**
+   * Kokoro, on DeepInfra. Speaks en, es, fr, it, pt (Brazilian), ja and zh;
+   * TTS_PROVIDER=kokoro+google sends every other language to Gemini.
+   */
+  kokoroModel: process.env.KOKORO_MODEL ?? "hexgrad/Kokoro-82M",
+  /**
+   * Per-language voice overrides, "en=bm_george,pt=pm_alex". Unset languages
+   * keep the defaults in lib/providers/tts/kokoro.ts. Audition at /dev/tts.
+   */
+  kokoroVoices: process.env.KOKORO_VOICES ?? "",
+  /**
+   * DeepInfra's queue: "priority" (1.5× the price, no wait) or "default"
+   * (can queue 1.5–10 s when busy — while a walker watches a spinner).
+   */
+  kokoroServiceTier: process.env.KOKORO_SERVICE_TIER ?? "priority",
+  /**
+   * Reading speed, 1 = Kokoro's own. A little under reads as a storyteller
+   * rather than someone reading aloud; much under starts to drag.
+   */
+  kokoroSpeed: Number(process.env.KOKORO_SPEED ?? "0.9") || 0.9,
+
+  /**
    * Which model the *selected* speech provider is using.
    *
    * Only for cache keys and diagnostics: anything that caches synthesised
@@ -105,6 +136,11 @@ export const config = {
         return this.geminiTtsModel;
       case "openai":
         return this.openaiTtsModel;
+      // Voices and speed are part of the sound, so changing either gets new cache entries.
+      case "kokoro":
+        return `${this.kokoroModel}|${this.kokoroVoices}|${this.kokoroSpeed}`;
+      case "kokoro+google":
+        return `${this.kokoroModel}|${this.kokoroVoices}|${this.kokoroSpeed}|${this.geminiTtsModel}`;
       default:
         return this.ttsProvider;
     }

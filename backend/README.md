@@ -276,7 +276,7 @@ Project environment variables (shared by both services):
 | `MIGRATE_ON_START=true` | apply migrations when the API starts; serverless has no deploy hook |
 | `CRON_SECRET` | any long random string |
 | `BACKEND_LLM_PROVIDER=gemini`, `GEMINI_API_KEY` | |
-| `BACKEND_TTS_PROVIDER=gemini` | the live voice; uses `GEMINI_API_KEY`. `gemini-batch` for the Batch voice. For `chirp`, also `GOOGLE_CREDENTIALS_JSON` (the JSON itself, not a path) |
+| `BACKEND_TTS_PROVIDER=gemini` | the live voice; uses `GEMINI_API_KEY`. `gemini-batch` for the Batch voice. For `chirp`, also `GOOGLE_CREDENTIALS_JSON` (the JSON itself, not a path). `kokoro+gemini`: Kokoro on DeepInfra (`DEEPINFRA_API_KEY`, optional `KOKORO_VOICES`) for the languages it speaks — of en/de/sk, only English — and Gemini for the rest |
 | `BACKEND_ROUTING_PROVIDER=ors` + `ORS_API_KEY`, or `straight` | `straight` estimates walking from straight-line distance, no key needed; the web app draws real directions itself |
 | `S3_ENDPOINT_URL`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET`, `S3_REGION=auto` | Cloudflare R2 |
 | `REQUEST_BUDGET_USD`, `DAILY_BUDGET_USD`, `ADMIN_TOKEN` | optional |

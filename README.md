@@ -172,7 +172,7 @@ one env var. Nothing outside `lib/providers/` reads `process.env`.
 | Interface | Env var | Implementations |
 |---|---|---|
 | `LLMProvider` | `LLM_PROVIDER` | `mock`, `anthropic`, `openai`, `google` |
-| `TTSProvider` | `TTS_PROVIDER` | `mock`, `cartesia`, `elevenlabs`, `openai`, `google`, `google-cloud` |
+| `TTSProvider` | `TTS_PROVIDER` | `mock`, `cartesia`, `elevenlabs`, `openai`, `google`, `google-cloud`, `kokoro`, `kokoro+google` |
 | `MapProvider` | `MAP_PROVIDER` | `mock`, `stadia`, `maptiler`, `mapbox`, `osm` |
 
 ```
@@ -185,7 +185,17 @@ lib/providers/tts/lexicon.ts  pronunciation map, applied before every synthesis.
 lib/providers/maps/           index.ts holds haversine + the straight-line fallback.
 ```
 
-### Cartesia (`TTS_PROVIDER=cartesia`) — the voice
+### Kokoro + Gemini (`TTS_PROVIDER=kokoro+google`) — the voice
+
+Kokoro-82M, hosted by DeepInfra, reads English, Spanish, French, Italian,
+Portuguese (Brazilian voices), Japanese and Chinese; Gemini reads every other
+language. `DEEPINFRA_API_KEY` and `GEMINI_API_KEY`, both server-side only. If
+DeepInfra fails, that stop is read by Gemini instead. Voices per language default
+to the best-rated ones (`lib/providers/tts/kokoro.ts`); override with
+`KOKORO_VOICES=en=bm_george,pt=pm_alex` after listening at `/dev/tts`.
+`KOKORO_SERVICE_TIER=priority` (default) skips DeepInfra's queue at 1.5× the price.
+
+### Cartesia (`TTS_PROVIDER=cartesia`)
 
 `CARTESIA_API_KEY`, server-side only. `CARTESIA_MODEL` defaults to `sonic-3.5`;
 `sonic-latest` follows the newest model, which means it changes under you. The

@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import DEPTHS, Settings
 from app.pipeline.prompts import FACT_CHECK_MAX_TOKENS
 from app.pricing import cost
-from app.providers.tts import TTSProvider
+from app.providers.tts import TTSProvider, voice_provider
 
 THINKING_TOKENS = 800
 PROMPT_OVERHEAD_TOKENS = 500
@@ -37,14 +37,15 @@ def script_cost(session: Session, settings: Settings, *, depth_level: str, fact_
     return draft + check
 
 
-def audio_cost(session: Session, tts: TTSProvider, *, depth_level: str, on: date) -> Decimal:
+def audio_cost(session: Session, tts: TTSProvider, *, language: str, depth_level: str, on: date) -> Decimal:
+    tts = voice_provider(tts, language)
     return cost(session, tts.pricing_provider, tts.model, tts.tier,
                 tts.expected_units(DEPTHS[depth_level].words), on, round_up=True)
 
 
-def segment_cost(session: Session, settings: Settings, tts: TTSProvider, *, depth_level: str, fact_chars: int,
-                 need_script: bool, translate: bool, on: date) -> Decimal:
-    total = audio_cost(session, tts, depth_level=depth_level, on=on)
+def segment_cost(session: Session, settings: Settings, tts: TTSProvider, *, language: str, depth_level: str,
+                 fact_chars: int, need_script: bool, translate: bool, on: date) -> Decimal:
+    total = audio_cost(session, tts, language=language, depth_level=depth_level, on=on)
     if need_script:
         total += script_cost(session, settings, depth_level=depth_level, fact_chars=fact_chars,
                              translate=translate, on=on)

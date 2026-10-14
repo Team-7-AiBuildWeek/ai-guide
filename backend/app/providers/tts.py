@@ -301,6 +301,115 @@ class GeminiTTSProvider(_GeminiPricing):
         return parts, units
 
 
+# --------------------------------------------------------- Kokoro (DeepInfra)
+
+KOKORO_ENDPOINT = "https://api.deepinfra.com/v1/openai/audio/speech"
+
+# The voice a language gets, matching the live narration (lib/providers/tts/kokoro.ts).
+# Kokoro has no language parameter: the voice's first letter is the language, so a
+# voice from the wrong row reads with another language's phonetics.
+KOKORO_DEFAULT_VOICES = {"en": "bf_emma", "es": "ef_dora", "fr": "ff_siwis", "it": "if_sara",
+                         "pt": "pf_dora", "ja": "jf_alpha", "zh": "zf_xiaobei"}
+_KOKORO_LANG_LETTER = {"en": "ab", "es": "e", "fr": "f", "it": "i", "pt": "p", "ja": "j", "zh": "z"}
+
+
+def kokoro_voices(overrides: str | None) -> dict[str, str]:
+    """KOKORO_VOICES="en=bm_george,pt=pm_alex" over the defaults; ill-matched pairs are ignored."""
+    voices = dict(KOKORO_DEFAULT_VOICES)
+    for pair in (overrides or "").split(","):
+        lang, _, voice = (s.strip() for s in pair.partition("="))
+        if lang in voices and voice[:1] in _KOKORO_LANG_LETTER[lang] and voice[1:3] in ("f_", "m_"):
+            voices[lang] = voice
+    return voices
+
+
+class KokoroTTSProvider:
+    """Kokoro-82M on DeepInfra: plain text in, 24 kHz mono WAV out, billed per character.
+
+    Synchronous, like Chirp, and priced like it — by what was sent, so the reservation
+    is exact. The default service tier: a queued request costs this worker a few
+    seconds, not a walker. Measured: a 3,600-character stop in ~51 s.
+    """
+
+    name = "deepinfra"
+    pricing_provider = "deepinfra"
+    tier = "standard"
+    mode = "sync"
+    parallel = 4
+
+    def __init__(self, api_key: str, model: str = "hexgrad/Kokoro-82M", voices: str | None = None,
+                 speed: float = 0.9):
+        import httpx
+
+        self.client = httpx.Client(timeout=180, headers={"Authorization": f"Bearer {api_key}"})
+        self.model = model
+        self.voices = kokoro_voices(voices)
+        self.speed = speed
+
+    @property
+    def delivery(self) -> str:
+        """Part of the audio's identity: a new speed is a new recording."""
+        return f"speed={self.speed:g}"
+
+    def supports(self, language: str) -> bool:
+        return language in self.voices
+
+    def voice_for(self, language: str, voice_name: str) -> str:
+        return self.voices[language]  # voice_name is Gemini's ("Charon"); Kokoro has its own
+
+    def prepare(self, script_text: str, locale: str, lexicon: list[Pronunciation]) -> TTSInput:
+        # Plain text, as for Gemini: the lexicon is IPA for SSML, which Kokoro does not take.
+        text = "\n\n".join(p.strip() for p in script_text.split("\n\n") if p.strip())
+        return TTSInput(chunks=[text.replace("\n", " ")], lexicon_hash=lexicon_hash(locale, []))
+
+    def worst_case_units(self, tts_input: TTSInput) -> dict[str, int]:
+        return {"character": sum(len(c) for c in tts_input.chunks)}  # exact
+
+    def expected_units(self, words: int) -> dict[str, int]:
+        return {"character": round(words * 6.5 * 1.08)}
+
+    def synthesize(self, chunks: list[str], voice_id: str, locale: str) -> list[bytes]:
+        parts = []
+        for chunk in chunks:
+            response = self.client.post(KOKORO_ENDPOINT, json={
+                "model": self.model, "input": chunk, "voice": voice_id, "response_format": "wav",
+                "speed": self.speed})
+            if response.status_code != 200:
+                raise RuntimeError(f"DeepInfra HTTP {response.status_code}: {response.text[:300]}")
+            if response.content[:4] != b"RIFF":  # never store an error page as narration
+                raise RuntimeError(f"expected a WAV, got {response.headers.get('content-type')}")
+            pcm, rate = pcm_from(response.content, "audio/wav")
+            parts.append(pcm_to_mp3(pcm, rate))
+        return parts
+
+
+class LanguageRoutedTTS:
+    """Kokoro for the languages it speaks, another voice for the rest ("kokoro+gemini").
+
+    Which voice a segment gets is decided by its language, so everything that prices,
+    hashes or records audio asks `for_language` first (see `voice_provider`). Both
+    sides must be synchronous: the worker picks sync or batch for the whole queue.
+    """
+
+    mode = "sync"
+    parallel = 4
+
+    def __init__(self, kokoro: KokoroTTSProvider, other: "TTSProvider"):
+        if getattr(other, "mode", "sync") != "sync":
+            raise ValueError("kokoro+ needs a synchronous voice for the other languages, not a batch one")
+        self.kokoro, self.other = kokoro, other
+        self.name = f"kokoro+{other.name}"
+        self.model = f"{kokoro.model}+{other.model}"
+
+    def for_language(self, language: str) -> "TTSProvider":
+        return self.kokoro if self.kokoro.supports(language) else self.other
+
+
+def voice_provider(tts: "TTSProvider | LanguageRoutedTTS", language: str) -> "TTSProvider":
+    """The provider that voices this language: itself, unless it routes by language."""
+    return tts.for_language(language) if isinstance(tts, LanguageRoutedTTS) else tts
+
+
 def _silent_wav(seconds: float, rate: int = 24000) -> bytes:
     buffer = io.BytesIO()
     with wave.open(buffer, "wb") as w:

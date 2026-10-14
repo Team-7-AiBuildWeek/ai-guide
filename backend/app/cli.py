@@ -188,7 +188,8 @@ def revoice(
             .order_by(Script.id)).all()
         stale = [s for s in scripts
                  if not _ready_segment(session, planned_segment(session, s, settings, providers.tts)[0])]
-        expected = sum((estimate.audio_cost(session, providers.tts, depth_level=s.depth_level, on=today)
+        expected = sum((estimate.audio_cost(session, providers.tts, language=s.language, depth_level=s.depth_level,
+                                            on=today)
                         for s in stale), Decimal(0))
         typer.echo(f"{len(stale)} of {len(scripts)} recordings in {city} are not in the current voice "
                    f"({providers.tts.model}); expected ${expected:.2f}")

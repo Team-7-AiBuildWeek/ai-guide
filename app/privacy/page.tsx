@@ -106,9 +106,14 @@ export default function PrivacyPage() {
         <ul className="flex list-disc flex-col gap-3 pl-5">
           <li>
             <strong className="text-[color:var(--ink)]">Google (Gemini).</strong> Writes the tour and
-            the stories, answers your questions, and voices the narration. It receives your request,
-            including anything you typed, your start and end points, and, for a question, the question
-            and your position.
+            the stories, answers your questions, and voices the narration in most languages. It
+            receives your request, including anything you typed, your start and end points, and, for a
+            question, the question and your position.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">DeepInfra.</strong> Voices the narration in
+            English, Spanish, French, Italian, Portuguese, Japanese and Chinese. It receives the text
+            of each stop&apos;s story — sent from our server, so not who you are or where.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Clerk.</strong> Runs sign-in if you create an

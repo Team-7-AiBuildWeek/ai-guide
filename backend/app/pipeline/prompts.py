@@ -34,7 +34,11 @@ def draft(*, place: str, local_name: str | None, facts: list[tuple[str, str]], l
         "You write narration for a GPS-triggered audio walking tour. The listener is standing "
         "at the place, looking at it, listening on headphones. Write spoken prose only: no "
         "headings, lists, stage directions, markdown or URLs. Separate paragraphs with a blank "
-        "line. Use only facts from the provided sources; if something is not in the sources, "
+        "line. Write it to be performed, not just read: the voice takes its feeling from your "
+        "punctuation. A question when you want them to wonder, a dash for a turn in the story, an "
+        "ellipsis for the pause before a reveal, and an exclamation mark only for the one moment "
+        "that genuinely surprises, once or twice at most. Vary the rhythm: a run of short "
+        "sentences, then a longer one. Use only facts from the provided sources; if something is not in the sources, "
         "leave it out. Never invent dates, names or numbers. Write place names exactly as given."
     )
     lines = [
