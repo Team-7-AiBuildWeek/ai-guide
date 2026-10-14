@@ -15,7 +15,7 @@ import { estimateTourCost, usd } from "@/lib/tour/cost";
 type Detail = "highlights" | "story" | "everything";
 
 export default function SavedToursPage() {
-  const { developer } = useDeveloper();
+  const { developer, tts } = useDeveloper();
   const [tours, setTours] = useState<SavedTourSummary[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
@@ -48,8 +48,13 @@ export default function SavedToursPage() {
   }, [tours]);
 
   const spent = useMemo(
-    () => (tours ?? []).reduce((sum, t) => sum + (t.demo ? 0 : estimateTourCost(t.stops, (t.detail as Detail) ?? "story").total), 0),
-    [tours],
+    () =>
+      (tours ?? []).reduce(
+        (sum, t) =>
+          sum + (t.demo ? 0 : estimateTourCost(t.stops, (t.detail as Detail) ?? "story", { tts, lang: t.lang }).total),
+        0,
+      ),
+    [tours, tts],
   );
 
   if (!developer) {
@@ -128,7 +133,7 @@ export default function SavedToursPage() {
                     <td className="px-3 py-2">{t.lang ?? "—"}</td>
                     <td className="px-3 py-2 tabular-nums">{t.stops}</td>
                     <td className="whitespace-nowrap px-3 py-2 tabular-nums">
-                      <CostCell tour={t} />
+                      <CostCell tour={t} tts={tts} />
                     </td>
                     <td className="max-w-[16rem] px-3 py-2 italic text-[color:var(--ink-soft)]">{t.freeText ? `“${t.freeText}”` : ""}</td>
                   </tr>
@@ -144,11 +149,13 @@ export default function SavedToursPage() {
 }
 
 /** A tour's estimated cost, with what it is made of on hover. Demos cost nothing. */
-function CostCell({ tour }: { tour: SavedTourSummary }) {
+function CostCell({ tour, tts }: { tour: SavedTourSummary; tts: string | null }) {
   if (tour.demo) return <span className="text-[color:var(--ink-mute)]">$0.00</span>;
-  const c = estimateTourCost(tour.stops, (tour.detail as Detail) ?? "story");
+  const c = estimateTourCost(tour.stops, (tour.detail as Detail) ?? "story", { tts, lang: tour.lang });
   return (
-    <span title={`Writing ${usd(c.writing)} + voice ${usd(c.voice)} (${Math.round(c.audioMinutes)} min of audio)`}>
+    <span
+      title={`Writing ${usd(c.writing)} + ${c.voiceName} voice ${usd(c.voice)} (${Math.round(c.audioMinutes)} min of audio)`}
+    >
       ≈ {usd(c.total)}
     </span>
   );

@@ -32,12 +32,12 @@ export default function DevPanel({
   currentIndex: number;
   onJump: (index: number) => void;
 }) {
-  const { developer, info } = useDeveloper();
+  const { developer, info, tts } = useDeveloper();
   const [open, setOpen] = useState(false);
   if (!developer) return null;
 
   const req = tour.req;
-  const cost = estimateTourCost(tour.plan.stops.length, req?.detail);
+  const cost = estimateTourCost(tour.plan.stops.length, req?.detail, { tts, lang: req?.lang });
 
   return (
     <>
@@ -74,10 +74,11 @@ export default function DevPanel({
           <div className="rounded-[var(--radius-control)] bg-[color:var(--mint-wash)] px-3 py-2">
             <Fact label="Narration" value={`≈ ${Math.round(cost.audioMinutes)} min of audio`} />
             <Fact label="Writing" value={`≈ ${usd(cost.writing)}`} />
-            <Fact label="Voice" value={`≈ ${usd(cost.voice)}`} />
+            <Fact label={`Voice (${cost.voiceName})`} value={`≈ ${usd(cost.voice)}`} />
             <Fact label="Cost to make" value={`≈ ${usd(cost.total)}`} />
             <p className="pt-1 text-[11px] text-[color:var(--ink-mute)]">
-              Estimate at today&apos;s Gemini prices; recordings already kept in R2 cost nothing.
+              Estimate at today&apos;s prices for the voice this language gets now; recordings
+              already kept in R2 cost nothing.
             </p>
           </div>
 

@@ -308,7 +308,7 @@ KOKORO_ENDPOINT = "https://api.deepinfra.com/v1/openai/audio/speech"
 # The voice a language gets, matching the live narration (lib/providers/tts/kokoro.ts).
 # Kokoro has no language parameter: the voice's first letter is the language, so a
 # voice from the wrong row reads with another language's phonetics.
-KOKORO_DEFAULT_VOICES = {"en": "bf_emma", "es": "ef_dora", "fr": "ff_siwis", "it": "if_sara",
+KOKORO_DEFAULT_VOICES = {"en": "af_heart", "es": "ef_dora", "fr": "ff_siwis", "it": "if_sara",
                          "pt": "pf_dora", "ja": "jf_alpha", "zh": "zf_xiaobei"}
 _KOKORO_LANG_LETTER = {"en": "ab", "es": "e", "fr": "f", "it": "i", "pt": "p", "ja": "j", "zh": "z"}
 

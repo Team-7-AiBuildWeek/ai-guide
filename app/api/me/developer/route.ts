@@ -17,6 +17,8 @@ export async function GET() {
   if (userId instanceof Response || !(await isDeveloper(userId))) return Response.json({ developer: false });
   return Response.json({
     developer: true,
+    // Which voice service is live, so the cost estimate prices the right one.
+    tts: config.ttsProvider,
     info: {
       "AI model": config.llmProvider === "google" ? `Gemini (${config.geminiModel})` : config.llmProvider,
       Voice: `${config.ttsProvider} (${config.ttsModel})`,

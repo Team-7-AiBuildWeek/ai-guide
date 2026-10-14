@@ -6,6 +6,8 @@
  * `process.env` directly.
  */
 
+import { KOKORO_DEFAULT_VOICES } from "@/lib/providers/tts/kokoroLangs";
+
 export type LLMProviderName = "mock" | "anthropic" | "openai" | "google";
 export type TTSProviderName =
   | "mock"
@@ -17,6 +19,12 @@ export type TTSProviderName =
   | "kokoro"
   | "kokoro+google";
 export type MapProviderName = "mock" | "stadia" | "maptiler" | "mapbox" | "osm";
+
+/** Every language's Kokoro voice, defaults then overrides — for the audio cache key. */
+function kokoroVoiceTable(overrides: string): string {
+  const table = Object.entries(KOKORO_DEFAULT_VOICES).map(([lang, voice]) => `${lang}=${voice}`);
+  return overrides ? `${table.join(",")};${overrides}` : table.join(",");
+}
 
 function pick<T extends string>(value: string | undefined, allowed: readonly T[], fallback: T): T {
   const v = (value ?? "").trim().toLowerCase();
@@ -138,9 +146,9 @@ export const config = {
         return this.openaiTtsModel;
       // Voices and speed are part of the sound, so changing either gets new cache entries.
       case "kokoro":
-        return `${this.kokoroModel}|${this.kokoroVoices}|${this.kokoroSpeed}`;
+        return `${this.kokoroModel}|${kokoroVoiceTable(this.kokoroVoices)}|${this.kokoroSpeed}`;
       case "kokoro+google":
-        return `${this.kokoroModel}|${this.kokoroVoices}|${this.kokoroSpeed}|${this.geminiTtsModel}`;
+        return `${this.kokoroModel}|${kokoroVoiceTable(this.kokoroVoices)}|${this.kokoroSpeed}|${this.geminiTtsModel}`;
       default:
         return this.ttsProvider;
     }

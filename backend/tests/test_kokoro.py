@@ -52,11 +52,11 @@ def test_english_is_voiced_by_kokoro_and_billed_per_character(sessions, settings
     worker.drain()
     n = r.request.segments_total
     assert len(providers.tts.kokoro.calls) == n and not providers.tts.other.prompts
-    assert {v for v, _ in providers.tts.kokoro.calls} == {"bf_emma"}
+    assert {v for v, _ in providers.tts.kokoro.calls} == {"af_heart"}
     with sessions() as session:
         assert session.scalar(text(f"SELECT status FROM tours WHERE id = {r.tour.id}")) == "ready"
         segments = session.scalars(select(Segment)).all()
-    assert all(s.tts_provider == "deepinfra" and s.voice_id == "bf_emma" for s in segments)
+    assert all(s.tts_provider == "deepinfra" and s.voice_id == "af_heart" for s in segments)
     with engine.connect() as conn:
         rows = conn.execute(text("SELECT provider, model, units, cost_usd FROM cost_ledger WHERE operation = 'tts'")).all()
     assert len(rows) == n

@@ -18,16 +18,18 @@
 import { config, requireKey } from "@/lib/config";
 import { ProviderError, type Voice } from "@/lib/providers/types";
 import type { SynthesizeOptions, TTSProvider } from "./index";
+import { KOKORO_DEFAULT_VOICES, KOKORO_LANGS } from "./kokoroLangs";
 import { applyLexicon } from "./lexicon";
 
 const ENDPOINT = "https://api.deepinfra.com/v1/openai/audio/speech";
 
 /** Kokoro's v1.0 voices for the languages this app offers. Hindi is left out. */
 const VOICES: Voice[] = [
-  // en-GB is the app's English locale, so the British voices come first.
+  // af_heart, the English default, first; then the British voices, en-GB being the app's locale.
+  ...["af_heart"].map((id) => voice(id, "en", "female")),
   ...["bf_emma", "bf_isabella", "bf_alice", "bf_lily"].map((id) => voice(id, "en", "female")),
   ...["bm_george", "bm_fable", "bm_daniel", "bm_lewis"].map((id) => voice(id, "en", "male")),
-  ...["af_heart", "af_bella", "af_nicole", "af_sarah", "af_nova", "af_sky"].map((id) => voice(id, "en", "female")),
+  ...["af_bella", "af_nicole", "af_sarah", "af_nova", "af_sky"].map((id) => voice(id, "en", "female")),
   ...["am_michael", "am_fenrir", "am_puck", "am_adam", "am_eric", "am_liam"].map((id) => voice(id, "en", "male")),
   voice("ef_dora", "es", "female"),
   voice("em_alex", "es", "male"),
@@ -47,23 +49,7 @@ function voice(id: string, lang: string, gender: Voice["gender"]): Voice {
   return { id, name: `${id} (${lang})`, langs: [lang], gender };
 }
 
-/**
- * The voice a language gets when none is asked for. Each one is the
- * best-rated voice Kokoro has in that language; KOKORO_VOICES overrides them
- * one language at a time, after an audition at /dev/tts.
- */
-const DEFAULT_VOICES: Record<string, string> = {
-  en: "bf_emma",
-  es: "ef_dora",
-  fr: "ff_siwis",
-  it: "if_sara",
-  pt: "pf_dora",
-  ja: "jf_alpha",
-  zh: "zf_xiaobei",
-};
-
-/** The languages Kokoro can speak at all. */
-export const KOKORO_LANGS: string[] = Object.keys(DEFAULT_VOICES);
+export { KOKORO_LANGS };
 
 /** `KOKORO_VOICES="en=bm_george,pt=pm_alex"`, checked against the voice list. */
 function voiceOverrides(): Record<string, string> {
@@ -77,7 +63,7 @@ function voiceOverrides(): Record<string, string> {
 
 /** The voice for a language, as the voice list and the env var have it. */
 export function kokoroVoiceFor(lang: string): string | undefined {
-  return voiceOverrides()[lang] ?? DEFAULT_VOICES[lang];
+  return voiceOverrides()[lang] ?? KOKORO_DEFAULT_VOICES[lang];
 }
 
 export class KokoroTTSProvider implements TTSProvider {

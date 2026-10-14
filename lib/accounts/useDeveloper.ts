@@ -10,9 +10,10 @@ import { useSyncExternalStore } from "react";
 import { accountsEnabled } from "./client";
 
 export type DeveloperInfo = Record<string, string>;
-type State = { developer: boolean; info: DeveloperInfo | null };
+/** `tts` is the server's TTS_PROVIDER, for pricing the voice. */
+type State = { developer: boolean; info: DeveloperInfo | null; tts: string | null };
 
-const NOBODY: State = { developer: false, info: null };
+const NOBODY: State = { developer: false, info: null, tts: null };
 let state: State = NOBODY;
 let asked = false;
 const listeners = new Set<() => void>();
@@ -21,10 +22,12 @@ function ask() {
   if (asked || !accountsEnabled) return;
   asked = true;
   void fetch("/api/me/developer")
-    .then((r) => (r.ok ? (r.json() as Promise<{ developer?: boolean; info?: DeveloperInfo }>) : null))
+    .then((r) =>
+      r.ok ? (r.json() as Promise<{ developer?: boolean; info?: DeveloperInfo; tts?: string }>) : null,
+    )
     .then((body) => {
       if (!body?.developer) return;
-      state = { developer: true, info: body.info ?? null };
+      state = { developer: true, info: body.info ?? null, tts: body.tts ?? null };
       listeners.forEach((l) => l());
     })
     .catch(() => {});
