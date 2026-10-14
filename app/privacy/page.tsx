@@ -15,7 +15,7 @@ export const metadata: Metadata = {
  * when it last did.
  */
 
-const UPDATED = "13 October 2026";
+const UPDATED = "14 October 2026";
 const CONTACT = "jurajkolesar1976@gmail.com";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -66,6 +66,13 @@ export default function PrivacyPage() {
             find which city you are in, start the tour near you, give directions and start each
             stop&apos;s story when you arrive. The app asks only for location while it is in use, not
             in the background.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">Your approximate city, if location is off.</strong>{" "}
+            To offer a sample walk of a city you know, WalkDots reads the city your internet
+            connection appears to be in (from our hosting provider, Vercel, which works it out from
+            your internet address) and suggests that city or the nearest bigger one. It is used for
+            that suggestion only and not stored.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">What you ask for.</strong> The settings you
@@ -132,6 +139,16 @@ export default function PrivacyPage() {
             the stop&apos;s name and position; for a question, your position, sent from our server so
             not who you are. The photo itself is loaded straight from Wikimedia, which sees your
             device&apos;s internet address.
+          </li>
+          <li>
+            <strong className="text-[color:var(--ink)]">GeoNames.</strong> A list of cities and their
+            populations, used to suggest the nearest bigger city for a sample walk. It is kept on our
+            servers, so nothing about you is sent to GeoNames. City data © GeoNames
+            (geonames.org), used under the{" "}
+            <a href="https://creativecommons.org/licenses/by/4.0/" className="underline underline-offset-4">
+              Creative Commons Attribution 4.0
+            </a>{" "}
+            licence.
           </li>
           <li>
             <strong className="text-[color:var(--ink)]">Apple.</strong> In the iPhone app, the map is
