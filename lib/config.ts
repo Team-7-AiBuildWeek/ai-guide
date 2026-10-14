@@ -165,6 +165,8 @@ export const config = {
    * first, or every tile 401s.
    */
   stadiaDomainAuth: (process.env.STADIA_DOMAIN_AUTH ?? "").toLowerCase() === "true",
+  /** Offer the satellite basemap. Only on a Stadia plan with imagery; otherwise its tiles are 403s. */
+  stadiaSatellite: (process.env.STADIA_SATELLITE ?? "").toLowerCase() === "true",
 
   /**
    * The walk-backend service (pre-recorded, shared narration). Unset means the

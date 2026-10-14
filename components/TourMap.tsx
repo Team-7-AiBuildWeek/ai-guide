@@ -255,7 +255,15 @@ export default function TourMap({
   const ridesRef = useRef<GeoJSON.FeatureCollection>({ type: "FeatureCollection", features: [] });
   const styleReady = useRef(false);
   const hasCentred = useRef(false);
-  const currentStyleRef = useRef<string | undefined>(styleId);
+  /** The basemap the map is actually showing, set when it is created or swapped. */
+  const currentStyleRef = useRef<string | undefined>(undefined);
+  /**
+   * The basemap the walker chose, for a map that is built again. The map is
+   * rebuilt when the stage or centre changes and when it stops drawing, and a
+   * new one used to open on the default style while the switcher still showed
+   * the old choice — so a chosen style quietly reverted.
+   */
+  const chosenStyleRef = useRef<{ id?: string; styles: MapStyle[] }>({ id: styleId, styles });
   const onPickRef = useRef(onPick);
   const pickingRef = useRef(picking);
   /** Held in a ref so a new handler does not rebuild every marker. */
@@ -269,13 +277,19 @@ export default function TourMap({
     onSelectStopRef.current = onSelectStop;
   }, [onPick, picking, onSelectStop]);
 
+  useEffect(() => {
+    chosenStyleRef.current = { id: styleId, styles };
+  }, [styleId, styles]);
+
   // ------------------------------------------------------------------ map --
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const chosen = chosenStyleRef.current.styles.find((s) => s.id === chosenStyleRef.current.id);
+    currentStyleRef.current = chosen?.id;
     const map = new MapLibreMap({
       container: containerRef.current,
-      style: styleUrl,
+      style: chosen?.url ?? styleUrl,
       center: [center.lng, center.lat],
       zoom: OPENING_ZOOM,
       attributionControl: { compact: true },
@@ -487,7 +501,7 @@ export default function TourMap({
     if (!target) return;
     // Cheap guard: setStyle on the style already showing would still tear the
     // route down and rebuild it for nothing.
-    if (map.getStyle()?.name && currentStyleRef.current === styleId) return;
+    if (currentStyleRef.current === styleId) return;
     currentStyleRef.current = styleId;
     styleReady.current = false;
     map.setStyle(target.url);

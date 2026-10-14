@@ -149,7 +149,6 @@ export default function Flow() {
   const [sheetDrag, setSheetDrag] = useState<SheetHeight | null>(null);
   const [detectingCity, setDetectingCity] = useState(false);
   const [cityPinned, setCityPinned] = useState<City | null>(null);
-  const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
   /** The stop the arrival card names, kept while the card slides away. */
   const [lastArrived, setLastArrived] = useState<string | null>(null);
@@ -473,7 +472,7 @@ export default function Flow() {
 
   // Arrival: the nearest unheard stop within 35 m, once the fix can be trusted.
   useEffect(() => {
-    if (stage !== "tour" || !autoAdvance || !tour || !fix || fix.accuracy > TRUSTED_M) return;
+    if (stage !== "tour" || !tour || !fix || fix.accuracy > TRUSTED_M) return;
     let best: { index: number; name: string; id: string; d: number } | null = null;
     tour.plan.stops.forEach((s, i) => {
       if (arrived.current.has(s.id)) return;
@@ -496,7 +495,7 @@ export default function Flow() {
       setCompleteMinutes(Math.max(1, Math.round((Date.now() - walkStart.current.t) / 60_000)));
       setTimeout(() => setCompleteOpen(true), 2500);
     }
-  }, [fix, stage, autoAdvance, tour, currentIndex]);
+  }, [fix, stage, tour, currentIndex]);
 
   useEffect(() => {
     if (!justArrived) return;
@@ -708,17 +707,6 @@ export default function Flow() {
               </GlassSurface>
             </PanelReveal>
           ) : null}
-          <Btn
-            small
-            variant={autoAdvance ? "primary" : "quiet"}
-            label={autoAdvance ? "Auto-play" : "Manual"}
-            onPress={() => setAutoAdvance((v) => !v)}
-            accessibilityLabel={
-              autoAdvance
-                ? "Auto-play when you arrive at a stop. Switch to manual."
-                : "Stops are played manually. Switch to auto-play on arrival."
-            }
-          />
         </View>
       ) : null}
 

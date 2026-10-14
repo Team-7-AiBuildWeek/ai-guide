@@ -753,7 +753,6 @@ export default function TourFlow({
   const [completeMinutes, setCompleteMinutes] = useState<number | null>(null);
   const [completePoints, setCompletePoints] = useState(0);
   const walkStart = useRef<{ key: string; t: number } | null>(null);
-  const [autoAdvance, setAutoAdvance] = useState(true);
   const [justArrived, setJustArrived] = useState<string | null>(null);
   /** The stop the arrival card names, kept while the card slides away. */
   const [lastArrived, setLastArrived] = useState<string | null>(null);
@@ -762,7 +761,7 @@ export default function TourFlow({
   const arrivedStop = arrivedIndex >= 0 ? tour!.plan.stops[arrivedIndex] : null;
 
   useEffect(() => {
-    if (stage !== "tour" || !autoAdvance || !tour) return;
+    if (stage !== "tour" || !tour) return;
     // A ±150 m fix sits inside 35 m of a stop while you are two streets away,
     // and starts the wrong narration. Better to wait for a fix that knows
     // which street it is on — the panel says why, and the arrows still work.
@@ -816,7 +815,7 @@ export default function TourFlow({
       setCompleteMinutes(Math.max(1, Math.round((Date.now() - walkStart.current.t) / 60_000)));
       window.setTimeout(() => setCompleteOpen(true), 2500); // after the arrival card has had its moment
     }
-  }, [fix, stage, autoAdvance, tour, currentIndex, simulating]);
+  }, [fix, stage, tour, currentIndex, simulating]);
 
   // A walk finished without signal still counts: try queued reports on opening.
   useEffect(() => {
@@ -1186,22 +1185,6 @@ export default function TourFlow({
                 </div>
               </div>
             ) : null}
-            {/* A setting, not an action — it should read as smaller than the
-                turn card and the player. The full sentence stays in the label
-                for anyone who cannot see which of the two states is lit. */}
-            <button
-              type="button"
-              onClick={() => setAutoAdvance((v) => !v)}
-              aria-pressed={autoAdvance}
-              aria-label={
-                autoAdvance
-                  ? "Auto-play when you arrive at a stop. Switch to manual."
-                  : "Stops are played manually. Switch to auto-play on arrival."
-              }
-              className={`btn btn--small ${autoAdvance ? "btn--primary" : "btn--quiet"}`}
-            >
-              {autoAdvance ? "Auto-play" : "Manual"}
-            </button>
           </div>
         </div>
       ) : null}

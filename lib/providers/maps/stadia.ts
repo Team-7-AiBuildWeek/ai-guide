@@ -494,13 +494,16 @@ export class StadiaMapProvider implements MapProvider {
   }
 
   /**
-   * The four worth offering on a walking tour. Satellite is the one people
-   * actually reach for — it answers "which of these buildings is it".
+   * The ones worth offering on a walking tour. Satellite is the one people
+   * actually reach for — it answers "which of these buildings is it" — but
+   * Stadia serves its imagery only on paid plans: on ours every satellite tile
+   * is a 403 and the map goes blank (measured 2026-10-14). So it is offered only
+   * once STADIA_SATELLITE=true says the plan includes it.
    */
   styles(): MapStyle[] {
     const options: [string, string][] = [
       [config.stadiaStyle, "Map"],
-      ["alidade_satellite", "Satellite"],
+      ...(config.stadiaSatellite ? ([["alidade_satellite", "Satellite"]] as [string, string][]) : []),
       ["outdoors", "Outdoors"],
       ["alidade_smooth_dark", "Dark"],
     ];
