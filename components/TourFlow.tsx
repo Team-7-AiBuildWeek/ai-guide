@@ -556,9 +556,33 @@ export default function TourFlow({
     // Once, on arriving at the landing screen.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const offerCity = draft.city ?? ipCity;
+  /**
+   * The city the location puts the walker in on this visit. Not draft.city:
+   * that is the last city chosen, kept between visits — and offering someone
+   * in Slovakia a walk of Lima, because they once looked at Lima, is the
+   * opposite of "a city you know".
+   */
+  const [hereCity, setHereCity] = useState<City | null>(null);
+  const hereLookup = useRef(false);
   useEffect(() => {
-    if (!offerOpen || draft.city || ipCity) return;
+    if (!offerOpen || !fix || hereCity || hereLookup.current) return;
+    const known = draft.city;
+    if (known && distanceMeters(fix, { lat: known.lat, lng: known.lng }) < CITY_RADIUS_M) {
+      queueMicrotask(() => setHereCity(known));
+      return;
+    }
+    hereLookup.current = true;
+    void cityAt(fix.lat, fix.lng, draft.lang)
+      .then((c) => c && setHereCity(c))
+      .finally(() => {
+        hereLookup.current = false;
+      });
+  }, [offerOpen, fix, hereCity, draft.city, draft.lang]);
+  /** Picked with "Choose another city" from the offer itself. */
+  const [offerPick, setOfferPick] = useState<City | null>(null);
+  const offerCity = offerPick ?? hereCity ?? ipCity;
+  useEffect(() => {
+    if (!offerOpen || hereCity || ipCity) return;
     // Location first: give it a few seconds (or until it fails) before asking
     // the connection instead.
     const failed = status.kind === "error";
@@ -572,7 +596,7 @@ export default function TourFlow({
       failed ? 0 : 4000,
     );
     return () => window.clearTimeout(timer);
-  }, [offerOpen, draft.city, ipCity, status.kind, draft.lang]);
+  }, [offerOpen, hereCity, ipCity, status.kind, draft.lang]);
   const closeOffer = useCallback(() => {
     setOfferOpen(false);
     try {
@@ -586,6 +610,7 @@ export default function TourFlow({
       chooseCity(c);
       if (offerAfterPick.current) {
         offerAfterPick.current = false;
+        setOfferPick(c);
         setCityOpen(false);
         setOfferOpen(true);
       }

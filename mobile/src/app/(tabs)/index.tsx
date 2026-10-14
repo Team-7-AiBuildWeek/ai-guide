@@ -374,16 +374,39 @@ export default function Flow() {
     // Once, on arriving at Explore.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-  const offerCity = draft.city ?? ipCity;
+  /**
+   * The city the location puts the walker in now. Not draft.city: that is the
+   * last city chosen, kept between launches — a walker in Slovakia was offered
+   * Lima because they had once looked at it.
+   */
+  const [hereCity, setHereCity] = useState<City | null>(null);
+  const hereLookup = useRef(false);
   useEffect(() => {
-    if (!offerOpen || draft.city || ipCity) return;
+    if (!offerOpen || !fix || hereCity || hereLookup.current) return;
+    const known = draft.city;
+    if (known && inCity(fix, known)) {
+      queueMicrotask(() => setHereCity(known));
+      return;
+    }
+    hereLookup.current = true;
+    void cityAt(fix.lat, fix.lng, draft.lang)
+      .then((c) => c && setHereCity(c))
+      .finally(() => {
+        hereLookup.current = false;
+      });
+  }, [offerOpen, fix, hereCity, draft.city, draft.lang]);
+  /** Picked with "Choose another city" from the offer itself. */
+  const [offerPick, setOfferPick] = useState<City | null>(null);
+  const offerCity = offerPick ?? hereCity ?? ipCity;
+  useEffect(() => {
+    if (!offerOpen || hereCity || ipCity) return;
     // Location first: a few seconds (or until it is refused), then the connection.
     const timer = setTimeout(
       () => void whereAmI(draft.lang).then((c) => (c ? setIpCity(c) : setIpUnknown(true))),
       denied ? 0 : 4000,
     );
     return () => clearTimeout(timer);
-  }, [offerOpen, draft.city, ipCity, denied, draft.lang]);
+  }, [offerOpen, hereCity, ipCity, denied, draft.lang]);
   const closeOffer = useCallback(() => {
     setOfferOpen(false);
     writeJson(SAMPLE_OFFERED_KEY, { at: Date.now() });
@@ -393,6 +416,7 @@ export default function Flow() {
       chooseCity(c);
       if (offerAfterPick.current) {
         offerAfterPick.current = false;
+        setOfferPick(c);
         setCityOpen(false);
         setOfferOpen(true);
       }
