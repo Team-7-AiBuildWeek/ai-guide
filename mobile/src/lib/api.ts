@@ -125,6 +125,30 @@ export async function demoTour(): Promise<StoredTour> {
   return body;
 }
 
+/**
+ * A ready walk of a city to try the app on: the famous sights and a local
+ * secret or two. Instant when it exists; about a minute the first time
+ * anyone asks for that city (the website's /api/sample).
+ */
+export async function sampleTour(city: City, lang: string, signal?: AbortSignal): Promise<StoredTour> {
+  const q = new URLSearchParams({ name: city.name, label: city.label, lat: String(city.lat), lng: String(city.lng), lang });
+  const res = await fetch(`${BASE}/api/sample?${q}`, { signal });
+  const body = (await res.json().catch(() => ({}))) as { tour?: StoredTour; error?: string };
+  if (!res.ok || !body.tour) throw new Error(body.error ?? "The sample walk could not be made.");
+  return body.tour;
+}
+
+/** Which city the connection is in, for when the phone's location is off. Null when it cannot tell. */
+export async function whereAmI(lang: string): Promise<City | null> {
+  try {
+    const res = await fetch(`${BASE}/api/whereami?lang=${encodeURIComponent(lang)}`);
+    const body = (await res.json()) as { city?: City | null };
+    return body.city ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export type WrittenStop = {
   script: string;
   walkingCueToHere?: string;
@@ -252,8 +276,14 @@ export async function searchCities(q: string, lang: string): Promise<City[]> {
     .filter((c) => (seen.has(c.label) ? false : (seen.add(c.label), true)));
 }
 
-export function searchPlaces(q: string, lang: string, near: { lat: number; lng: number } | null): Promise<Place[]> {
-  const nearby = near ? `&nearLat=${near.lat}&nearLng=${near.lng}` : "";
+/** Places within `radiusKm` of `near` only (the chosen city), when a radius is given. */
+export function searchPlaces(
+  q: string,
+  lang: string,
+  near: { lat: number; lng: number } | null,
+  radiusKm?: number,
+): Promise<Place[]> {
+  const nearby = near ? `&nearLat=${near.lat}&nearLng=${near.lng}${radiusKm ? `&radiusKm=${radiusKm}` : ""}` : "";
   return places(`q=${encodeURIComponent(q.trim())}${nearby}&lang=${encodeURIComponent(lang)}`);
 }
 

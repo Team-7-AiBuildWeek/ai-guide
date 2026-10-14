@@ -27,7 +27,9 @@ import Headphones from "@/components/flow/Headphones";
 import { MiniPlayer, Player } from "@/components/flow/Players";
 import Points, { CityPicker, PointsFooter } from "@/components/flow/Points";
 import { AskAnything, Directions, StopRow, TurnSummary, turnLabel } from "@/components/flow/Walk";
-import { ask, buildTour, cityAt, demoTour, PaywallError } from "@/lib/api";
+import { ask, buildTour, cityAt, demoTour, PaywallError, whereAmI } from "@/lib/api";
+import SampleOffer from "@/components/SampleOffer";
+import { readJson, writeJson } from "@/lib/store";
 import Paywall from "@/components/Paywall";
 import PlaceImage from "@/components/PlaceImage";
 import TourComplete from "@/components/TourComplete";
@@ -113,6 +115,9 @@ function previewOf(built: StoredTour): TourPreview {
     stops: built.plan.stops.map((x) => ({ name: x.name, angle: x.angle, localName: x.localName, lat: x.lat, lng: x.lng })),
   };
 }
+
+/** Set once the "Try a tour of your city" offer has been answered on this phone. */
+const SAMPLE_OFFERED_KEY = "sample-offered-v1";
 
 export default function Flow() {
   const insets = useSafeAreaInsets();
@@ -351,6 +356,65 @@ export default function Flow() {
       });
     },
     [patchDraft, draft.start, draft.end],
+  );
+
+  // --------------------------------------------------------- sample walk --
+  /**
+   * "Try a tour of <your city>", once per phone, the first time Explore shows
+   * after the welcome — the website's TourFlow. The city is the one the
+   * location says; with location off, refused or slow, the connection's.
+   */
+  const [offerOpen, setOfferOpen] = useState(false);
+  const [ipCity, setIpCity] = useState<City | null>(null);
+  const [ipUnknown, setIpUnknown] = useState(false);
+  /** "Choose another city" from the offer: offer again once one is chosen. */
+  const offerAfterPick = useRef(false);
+  useEffect(() => {
+    if (stage === "start" && !tour && readJson(SAMPLE_OFFERED_KEY) === null) queueMicrotask(() => setOfferOpen(true));
+    // Once, on arriving at Explore.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const offerCity = draft.city ?? ipCity;
+  useEffect(() => {
+    if (!offerOpen || draft.city || ipCity) return;
+    // Location first: a few seconds (or until it is refused), then the connection.
+    const timer = setTimeout(
+      () => void whereAmI(draft.lang).then((c) => (c ? setIpCity(c) : setIpUnknown(true))),
+      denied ? 0 : 4000,
+    );
+    return () => clearTimeout(timer);
+  }, [offerOpen, draft.city, ipCity, denied, draft.lang]);
+  const closeOffer = useCallback(() => {
+    setOfferOpen(false);
+    writeJson(SAMPLE_OFFERED_KEY, { at: Date.now() });
+  }, []);
+  const chooseCityForOffer = useCallback(
+    (c: City) => {
+      chooseCity(c);
+      if (offerAfterPick.current) {
+        offerAfterPick.current = false;
+        setCityOpen(false);
+        setOfferOpen(true);
+      }
+    },
+    [chooseCity],
+  );
+  /** Opens a ready sample like the demo: no build, no paywall, not in history. */
+  const startSample = useCallback(
+    (built: StoredTour) => {
+      closeOffer();
+      demoRun.current = false;
+      setStage("generating");
+      setGenError(null);
+      setTour(built);
+      saveTour(built);
+      arrived.current.clear();
+      setCurrentIndex(0);
+      setPreview(previewOf(built));
+      setPhase("done");
+      setReady(true);
+    },
+    [closeOffer],
   );
 
   // ------------------------------------------------------------ the walk --
@@ -634,7 +698,7 @@ export default function Flow() {
         </View>
       ) : null}
 
-      {denied && stage === "start" ? (
+      {denied && stage === "start" && !offerOpen ? (
         <View style={[styles.topBar, { top: top + 64 }]}>
           <GlassSurface tone="dark" style={styles.banner}>
             <Text style={[styles.bannerText, { flex: 1 }]}>
@@ -732,12 +796,17 @@ export default function Flow() {
                       lang={draft.lang}
                       open
                       onOpenChange={setCityOpen}
-                      onChange={chooseCity}
+                      onChange={chooseCityForOffer}
                     />
                   </View>
                 ) : (
                   <Btn large label={t("landing.chooseCity")} onPress={() => setCityOpen(true)} style={{ marginTop: 12 }} />
                 )}
+                <TextLink
+                  label={offerCity ? `Try a sample walk of ${offerCity.name}` : "Try a sample walk"}
+                  onPress={() => setOfferOpen(true)}
+                  style={{ marginTop: 12, alignSelf: "center" }}
+                />
               </View>
             )
           }
@@ -807,6 +876,19 @@ export default function Flow() {
           ) : null}
         </Sheet>
       )}
+      <SampleOffer
+        open={offerOpen && stage === "start"}
+        city={offerCity}
+        cityUnknown={!offerCity && ipUnknown}
+        lang={draft.lang}
+        onStart={startSample}
+        onChooseCity={() => {
+          offerAfterPick.current = true;
+          setOfferOpen(false);
+          setCityOpen(true);
+        }}
+        onClose={closeOffer}
+      />
       {tour ? (
         <TourComplete
           open={completeOpen && stage === "tour"}

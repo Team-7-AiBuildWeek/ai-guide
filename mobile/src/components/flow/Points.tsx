@@ -6,7 +6,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import GlowButton from "@/components/GlowButton";
 import { Btn, Eyebrow, Field, TextLink } from "@/components/ui";
 import { searchCities, searchPlaces } from "@/lib/api";
-import { inCity } from "@/lib/geo";
+import { CITY_RADIUS_M } from "@/lib/geo";
 import { t } from "@/lib/strings";
 import { colors, fonts, radius, size, type } from "@/lib/theme";
 import type { City, Draft, Fix, Place, Point } from "@/lib/types";
@@ -140,7 +140,7 @@ function PointRow({
   onUseLocation: () => void;
 }) {
   const [query, setQuery] = useState("");
-  const { results, searching } = useDebounced<Place>(query, (q) => searchPlaces(q, lang, near), [near?.lat, near?.lng]);
+  const { results, searching } = useDebounced<Place>(query, (q) => searchPlaces(q, lang, near, CITY_RADIUS_M / 1000), [near?.lat, near?.lng]);
   const label = target === "start" ? t("points.start") : t("points.end");
   const which = target === "start" ? "a start" : "an end";
 
@@ -230,13 +230,10 @@ export default function Points({
   const [showEnd, setShowEnd] = useState(false);
   const [cityOpen, setCityOpen] = useState(false);
   const city = draft.city;
-  // Search near the walker when they are in the city, else near the city.
-  const near =
-    fix && (!city || inCity(fix, city))
-      ? { lat: fix.lat, lng: fix.lng }
-      : city
-        ? { lat: city.lat, lng: city.lng }
-        : null;
+  // Start and end points come only from the chosen city: searched within
+  // CITY_RADIUS_M of its centre (the website does the same). With no city
+  // chosen, around the walker.
+  const near = city ? { lat: city.lat, lng: city.lng } : fix ? { lat: fix.lat, lng: fix.lng } : null;
 
   const row = (target: Target) => (
     <PointRow

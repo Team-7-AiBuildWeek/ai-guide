@@ -33,6 +33,8 @@ export type Stop = {
   lat: number;
   lng: number;
   angle: string;
+  /** A lesser-known place among the famous ones (sample walks): "Local secret". */
+  secret?: boolean;
   walkingCueToHere?: string;
   script?: string;
   audio?: { src: string; durationMs: number };
@@ -92,6 +94,8 @@ export type StoredTour = {
   rides?: TourRide[];
   /** A saved tour opened with the Demo button (/api/demo-tour): played back from storage, not added to history. */
   demo?: boolean;
+  /** A ready sample walk of the walker's city (the website's lib/tour/sample.ts). */
+  sample?: boolean;
   /** The walk this was booked as on the website (lib/billing there). */
   walkId?: string | null;
   /** The website's signature on these stops, so the walk can be walked again. */
