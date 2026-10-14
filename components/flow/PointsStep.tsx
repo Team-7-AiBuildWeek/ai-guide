@@ -259,10 +259,15 @@ export default function PointsStep({
     debounce.current = window.setTimeout(async () => {
       setSearching(true);
       try {
-        // Ranked around where the walker actually is but not walled into it:
-        // people search for a station on the edge of town, and a hard boundary
-        // would hide it.
-        const near = anchor ? `&nearLat=${anchor.lat}&nearLng=${anchor.lng}` : "";
+        // Only places in the chosen city: a start or end point in another town
+        // is never what was meant (a "Main Square" search used to offer one in
+        // the next country). Walled to CITY_RADIUS_M around the city centre, a
+        // radius generous enough for a station or a park on the edge of town;
+        // with no city chosen, around where the walker is.
+        const fence = city ? { lat: city.lat, lng: city.lng } : anchor;
+        const near = fence
+          ? `&nearLat=${fence.lat}&nearLng=${fence.lng}&radiusKm=${CITY_RADIUS_M / 1000}`
+          : "";
         const res = await fetch(
           `/api/geocode?q=${encodeURIComponent(query.trim())}${near}&lang=${encodeURIComponent(draft.lang)}`,
         );

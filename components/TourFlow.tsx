@@ -602,7 +602,11 @@ export default function TourFlow({
     // Stops written mid-walk need the same brief the first one was written
     // from, so the tour keeps its own copy of the request.
     req: tour?.req ?? null,
-    lang: draft.lang,
+    // The language the walk was written in, not the app's current one: switch
+    // the app to Hungarian on an English walk and the voice was told to read
+    // English text "in Hungarian" — English words with a Hungarian accent.
+    // Hearing it in another language is a walk-again in that language.
+    lang: tour?.req?.lang ?? draft.lang,
     album: draft.city?.name,
     index: currentIndex,
     onAdvance: advance,

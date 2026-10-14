@@ -11,6 +11,7 @@
  */
 
 import { normaliseLang } from "@/lib/i18n/languages";
+import { distanceMeters } from "@/lib/tour/route";
 import { getMaps } from "@/lib/providers/factory";
 import type { GeocodeKind, GeocodeOptions } from "@/lib/providers/maps";
 
@@ -49,7 +50,15 @@ export async function GET(request: Request) {
       return Response.json({ places: [place] });
     }
     if (!q || q.trim().length < 2) return Response.json({ places: [] });
-    return Response.json({ places: await maps.geocode(q.trim(), opts) });
+    const places = await maps.geocode(q.trim(), opts);
+    // A radius is a wall whatever the provider does with it: some only rank by
+    // it, so anything outside is dropped here too.
+    const fence = opts.bounds;
+    return Response.json({
+      places: fence
+        ? places.filter((p) => distanceMeters(p, fence) <= fence.radiusKm * 1000)
+        : places,
+    });
   } catch (err) {
     return Response.json(
       { places: [], error: err instanceof Error ? err.message : "Lookup failed." },
