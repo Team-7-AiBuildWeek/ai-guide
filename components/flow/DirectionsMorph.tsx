@@ -12,6 +12,11 @@
  *
  * Both sizes are measured from what they hold, so the panel opens to exactly
  * its contents, whatever the directions say.
+ *
+ * Also the map layer button, top left (LayerSwitcher): `from="left"` grows it
+ * out of that corner, `light` starts it as the light glass of the back button
+ * beside it and lets that fade into the dark menu, and `fitMenu` sizes the
+ * menu to its own contents rather than the directions' full width.
  */
 
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
@@ -38,6 +43,9 @@ export default function DirectionsMorph({
   trigger,
   triggerLabel,
   closedRadius = 22,
+  from = "right",
+  light = false,
+  fitMenu = false,
   children,
 }: {
   open: boolean;
@@ -47,6 +55,12 @@ export default function DirectionsMorph({
   triggerLabel: string;
   /** The card's own corner radius: 22 for the turn card, half its height for a round button. */
   closedRadius?: number;
+  /** The corner it grows from. */
+  from?: "left" | "right";
+  /** Closed, it is light glass rather than dark. */
+  light?: boolean;
+  /** The menu is as wide as its contents. */
+  fitMenu?: boolean;
   /** The open panel. */
   children: ReactNode;
 }) {
@@ -64,11 +78,18 @@ export default function DirectionsMorph({
   } as CSSProperties;
 
   return (
-    // Holds the card's place in the bar; the surface grows out of its top-right corner.
+    // Holds the card's place in the bar; the surface grows out of its corner.
     <div className="t-morph-anchor" style={{ width: closed.w, height: closed.h }}>
-      <div className="t-morph panel-dark panel--glass" data-open={open} style={sizes}>
+      <div
+        className="t-morph panel-dark panel--glass"
+        data-open={open}
+        data-from={from}
+        data-light={light}
+        style={sizes}
+      >
+        {light ? <span className="t-morph-light" aria-hidden="true" /> : null}
         <div className="t-morph-menu" aria-hidden={!open} inert={!open}>
-          <div ref={menuRef} className="t-morph-menu-inner">
+          <div ref={menuRef} className={fitMenu ? "t-morph-menu-inner t-morph-menu-inner--fit" : "t-morph-menu-inner"}>
             {children}
           </div>
         </div>

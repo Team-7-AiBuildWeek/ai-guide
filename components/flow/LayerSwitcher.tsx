@@ -1,15 +1,17 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
+import type { MapStyle } from "@/lib/providers/types";
+import DirectionsMorph from "./DirectionsMorph";
+
 /**
  * Basemap switcher.
  *
- * Satellite is the one people actually reach for on a walking tour — it
- * answers "which of these buildings is it" in a way a road map never does.
+ * The button grows into the list (DirectionsMorph, from the top-left corner):
+ * one surface, light glass like the back button while closed, turning into the
+ * dark menu as it opens, and shrinking back into the button on a choice, a tap
+ * elsewhere, or Escape.
  */
-
-import { useState } from "react";
-import type { MapStyle } from "@/lib/providers/types";
-
 export default function LayerSwitcher({
   styles,
   value,
@@ -20,40 +22,60 @@ export default function LayerSwitcher({
   onChange: (id: string) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const outside = (e: PointerEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) setOpen(false);
+    };
+    const escape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("pointerdown", outside);
+    document.addEventListener("keydown", escape);
+    return () => {
+      document.removeEventListener("pointerdown", outside);
+      document.removeEventListener("keydown", escape);
+    };
+  }, [open]);
+
   if (styles.length < 2) return null;
 
   return (
-    <div className="flex flex-col items-start gap-2">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-expanded={open}
-        aria-label="Change the map layer"
-        className="btn btn--glass btn--icon"
+    <div ref={rootRef}>
+      <DirectionsMorph
+        open={open}
+        onToggle={() => setOpen((o) => !o)}
+        triggerLabel={open ? "Close the map layers" : "Change the map layer"}
+        closedRadius={24}
+        from="left"
+        light
+        fitMenu
+        trigger={
+          <span className="grid h-12 w-12 place-items-center">
+            {/* Stacked sheets. */}
+            <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
+              <path
+                d="M12 3.5 3 8l9 4.5L21 8l-9-4.5z"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M3.5 12.6 12 16.8l8.5-4.2M3.5 16.6 12 20.8l8.5-4.2"
+                stroke="currentColor"
+                strokeWidth="1.9"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </span>
+        }
       >
-        {/* Stacked sheets. */}
-        <svg viewBox="0 0 24 24" className="h-6 w-6" fill="none" aria-hidden="true">
-          <path
-            d="M12 3.5 3 8l9 4.5L21 8l-9-4.5z"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinejoin="round"
-          />
-          <path
-            d="M3.5 12.6 12 16.8l8.5-4.2M3.5 16.6 12 20.8l8.5-4.2"
-            stroke="currentColor"
-            strokeWidth="1.9"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </button>
-
-      {/* p-1.5 against a --radius-card item is deliberate: the panel is 20px,
-          so an inner corner of 20 − 6 sits concentric inside it. At the old 3px
-          the selected block looked square against the panel's curve. */}
-      {open ? (
-        <ul className="panel-dark panel--glass overflow-hidden p-1.5">
+        {/* p-1.5 against a --radius-card item is deliberate: the panel is 22px,
+            so an inner corner of 22 − 6 sits concentric inside it. */}
+        <ul className="min-w-40 p-1.5">
           {styles.map((s) => (
             <li key={s.id}>
               <button
@@ -76,7 +98,7 @@ export default function LayerSwitcher({
             </li>
           ))}
         </ul>
-      ) : null}
+      </DirectionsMorph>
     </div>
   );
 }
