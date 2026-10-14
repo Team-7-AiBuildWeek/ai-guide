@@ -104,6 +104,11 @@ const LOOSE = 0.5;
 
 // ------------------------------------------------------------------ lookups
 
+/** Before asking the map again after a refusal. */
+const RETRY_MS = 1200;
+/** Stops looked up at once: all of a long walk together trips the map's rate limit. */
+const AT_ONCE = 3;
+
 /** Per process: the same stop is looked up again on every rebuild and every language. */
 const cache = new Map<string, Promise<Candidate[]>>();
 const CACHE_MAX = 1000;
@@ -111,10 +116,15 @@ const CACHE_MAX = 1000;
 function cached(key: string, load: () => Promise<Candidate[]>): Promise<Candidate[]> {
   const hit = cache.get(key);
   if (hit) return hit;
-  const p = load().catch(() => {
-    cache.delete(key); // a failure is not an answer; ask again next time
-    return [] as Candidate[];
-  });
+  // A refused lookup (the map's rate limit, a timeout) is tried once more
+  // after a moment: "the map was busy" must never read as "no such place",
+  // which is what dropped the Vienna State Opera from a walk.
+  const p = load()
+    .catch(() => new Promise<Candidate[]>((resolve, reject) => setTimeout(() => load().then(resolve, reject), RETRY_MS)))
+    .catch(() => {
+      cache.delete(key); // a failure is not an answer; ask again next time
+      return [] as Candidate[];
+    });
   if (cache.size >= CACHE_MAX) cache.delete(cache.keys().next().value!);
   cache.set(key, p);
   return p;
@@ -227,8 +237,7 @@ export async function snapStopsToRealPlaces(
   const radiusKm = Math.min(MAX_SEARCH_KM, Math.max(MIN_SEARCH_KM, farthestKm + SEARCH_MARGIN_KM));
   const area = { lat: near.lat, lng: near.lng, radiusKm };
 
-  const placed = await Promise.all(
-    stops.map(async (stop): Promise<Placed> => {
+  const placeOne = async (stop: Stop): Promise<Placed> => {
       // The local name first: it is what the map data is indexed by.
       const names = [...new Set([stop.localName, stop.name].filter((q): q is string => !!q?.trim()))];
       const map = (await Promise.all(names.map((q) => fromMap(maps, q, area).catch(() => [])))).flat();
@@ -240,8 +249,11 @@ export async function snapStopsToRealPlaces(
         ? (await Promise.all(names.map((q) => fromWikipedia(q, area).catch(() => [])))).flat()
         : [];
       return choose(stop, names, map, wiki);
-    }),
-  );
+  };
+  const placed: Placed[] = [];
+  for (let i = 0; i < stops.length; i += AT_ONCE) {
+    placed.push(...(await Promise.all(stops.slice(i, i + AT_ONCE).map(placeOne))));
+  }
 
   // Dropping what could not be placed, but never so much that the walk falls apart.
   const placedCount = placed.filter(Boolean).length;

@@ -31,12 +31,20 @@ export function sampleKey(city: City, lang: string): string {
   return `${city.label.trim().toLowerCase()}|${lang}`;
 }
 
-/** An hour on foot: six stops, four famous and two secret. */
+/** Kept: the famous ones prove it knows the city, the secrets surprise. */
+const KEEP_FAMOUS = 4;
+const KEEP_SECRETS = 2;
+
+/**
+ * Asked for as a 90-minute walk — nine candidates, six famous and three
+ * secret — because the map check drops any it cannot confirm, and the
+ * lesser-known places are the likeliest to go. Trimmed to six after.
+ */
 function sampleRequest(city: City, lang: string): TourRequest {
   return {
     city,
     lang,
-    durationMinutes: 60,
+    durationMinutes: 90,
     detail: "highlights",
     pace: "steady",
     interests: [],
@@ -107,6 +115,7 @@ async function build(city: City, lang: string): Promise<StoredTour> {
   try {
     const snapped = await snapStopsToRealPlaces(maps, plan.stops, req.start);
     plan.stops = snapped.stops;
+    if (snapped.dropped.length) console.info(`[sample] ${city.label}: not found on the map:`, snapped.dropped.join(", "));
   } catch {
     // Estimated coordinates beat no sample.
   }
@@ -115,6 +124,12 @@ async function build(city: City, lang: string): Promise<StoredTour> {
   plan.stops = plan.stops.filter(
     (stop, i) => !plan.stops.slice(0, i).some((prev) => distanceMeters(prev, stop) < SAME_PLACE_M),
   );
+  // Four famous (the model lists them most famous first) and two secrets,
+  // from whatever survived the check.
+  const famous = plan.stops.filter((s) => !s.secret).slice(0, KEEP_FAMOUS);
+  const secrets = plan.stops.filter((s) => s.secret).slice(0, KEEP_SECRETS);
+  plan.stops = [...famous, ...secrets];
+  req.durationMinutes = 60; // what six stops come to
   plan.stops = orderStops(plan.stops, req.start);
 
   // The walk starts at its first stop: nobody trying it is standing at the

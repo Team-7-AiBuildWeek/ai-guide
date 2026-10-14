@@ -171,14 +171,13 @@ export function buildItineraryPrompt(req: TourRequest): string {
       ``,
       `THIS IS A SAMPLE WALK. The walker knows this city, or knows of it, and is`,
       `checking whether you do. Earn their trust and then surprise them:`,
-      `- ${Math.max(1, shape.stops - 2)} stops are the city's most famous sights — the ones on every`,
-      `  postcard, that anyone from here would name first. Set secret to false.`,
-      `- 2 stops are lesser-known places a few minutes' walk from those: a courtyard,`,
+      `- ${shape.stops - Math.round(shape.stops / 3)} stops are the city's most famous sights — the ones on every`,
+      `  postcard, that anyone from here would name first, most famous first. Set secret to false.`,
+      `- ${Math.round(shape.stops / 3)} stops are lesser-known places a few minutes' walk from those: a courtyard,`,
       `  a detail on a façade, a small museum, a street with a story — real, open to`,
       `  anyone, and something even a local might not know. Set secret to true.`,
       `Keep the whole walk in the historic centre, walkable end to end, no transport.`,
-      `Start at the most famous sight. Put the two secrets between famous stops, not`,
-      `at the end.`,
+      `Every place must be one you are sure exists under that exact local name.`,
     );
   }
 
