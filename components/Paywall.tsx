@@ -18,13 +18,17 @@
  * Buying needs an account (purchases follow the person to their phone). The
  * plans show signed out too; choosing one asks for sign-in and then carries on
  * to checkout with the plan that was chosen. Checkout itself is Stripe's page
- * (app/api/billing/checkout), so no card ever touches WalkDots.
+ * (app/api/billing/checkout), so no card ever touches WalkDots — except with
+ * NEXT_PUBLIC_MOCK_CHECKOUT=1, where a pretend checkout opens in its place
+ * (components/MockCheckout.tsx), signed in or not, and grants nothing.
  */
 
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import RouteArt from "./RouteArt";
 import SignInSheet from "./SignInSheet";
+import MockCheckout from "./MockCheckout";
+import { mockCheckoutOn } from "@/lib/billing/mockCard";
 import { PRODUCTS, type Product, type ProductId } from "@/lib/billing/products";
 import type { ClientWalkStatus } from "@/lib/billing/useWalkStatus";
 import type { PaywallReason } from "@/lib/billing/store";
@@ -112,6 +116,7 @@ export default function Paywall({
   const [busy, setBusy] = useState<ProductId | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [index, setIndex] = useState(0);
+  const [mock, setMock] = useState<Product | null>(null);
   const rail = useRef<HTMLDivElement>(null);
   const why = WHY[reason ?? "no_walks"];
   const freeBehindSignIn = reason === "signin_for_free";
@@ -124,6 +129,7 @@ export default function Paywall({
     setSigningIn(false);
     setPending(null);
     setError(null);
+    setMock(null);
     onClose();
   };
   const closeRef = useRef(close);
@@ -166,6 +172,10 @@ export default function Paywall({
   };
 
   const choose = (product: ProductId) => {
+    if (mockCheckoutOn()) {
+      setMock(PRODUCTS.find((p) => p.id === product) ?? null);
+      return;
+    }
     if (!status.signedIn) {
       setPending(product);
       setSigningIn(true);
@@ -299,6 +309,17 @@ export default function Paywall({
           </button>
         </footer>
       </div>
+      {open && mock ? (
+        <MockCheckout
+          key={mock.id}
+          product={mock}
+          onClose={() => setMock(null)}
+          onPaid={() => {
+            setMock(null);
+            close();
+          }}
+        />
+      ) : null}
     </div>
   );
 }
