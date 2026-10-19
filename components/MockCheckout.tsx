@@ -6,12 +6,14 @@
  * leaves the browser. Shown by the paywall in place of Stripe's page when
  * NEXT_PUBLIC_MOCK_CHECKOUT=1, and on /dev/checkout.
  *
- * Four steps in one sheet: pay (the order and a saved card), add a card (with
- * a live picture of it and Stripe's test numbers a tap away), paying, done.
+ * Four steps in one sheet: pay (the order, a saved card, and slide to pay —
+ * components/ui/SlideCommit.tsx), add a card (with a live picture of it and
+ * Stripe's test numbers a tap away), paying, done.
  * Card rules live in lib/billing/mockCard.ts.
  */
 
 import { useEffect, useRef, useState } from "react";
+import SlideCommit from "./ui/SlideCommit";
 import type { Product } from "@/lib/billing/products";
 import {
   BRAND_NAME,
@@ -71,6 +73,17 @@ export default function MockCheckout({
   const [receipt, setReceipt] = useState<{ reference: string; card: SavedCard; at: Date } | null>(null);
   const [flipped, setFlipped] = useState(false);
   const numberRef = useRef<HTMLInputElement>(null);
+  /** The slider takes a width in pixels, so it is measured off its slot. */
+  const slot = useRef<HTMLDivElement>(null);
+  const [slotWidth, setSlotWidth] = useState(0);
+
+  useEffect(() => {
+    const el = slot.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setSlotWidth(Math.floor(entry.contentRect.width)));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [step]);
 
   useEffect(() => {
     if (step === "add") numberRef.current?.focus({ preventScroll: true });
@@ -96,6 +109,10 @@ export default function MockCheckout({
     return () => window.removeEventListener("keydown", onKey, true);
   }, [onClose]);
 
+  /**
+   * The slider's onConfirm: it spins while this runs, unfurls "Paid" when it
+   * resolves, and shakes back when it throws. The receipt follows onDone.
+   */
   const pay = async (card: SavedCard) => {
     setError(null);
     setStep("paying");
@@ -103,10 +120,9 @@ export default function MockCheckout({
     if (!result.ok) {
       setError(result.message);
       setStep("pay");
-      return;
+      throw new Error(result.message);
     }
     setReceipt({ reference: result.reference, card, at: new Date() });
-    setStep("done");
   };
 
   const addCard = (e: React.FormEvent) => {
@@ -115,13 +131,14 @@ export default function MockCheckout({
     setErrors(found);
     if (Object.keys(found).length) return;
     const card = toSaved(form);
-    // An unsaved card is still used for this payment, just not kept.
+    // An unsaved card can still pay this time; it is just not kept.
     const next = [card, ...cards];
     if (save) storeCards(next);
     setCards(next);
     setSelected(card.id);
     setForm(EMPTY);
-    void pay(card);
+    setError(null);
+    setStep("pay");
   };
 
   const remove = (id: string) => {
@@ -306,7 +323,7 @@ export default function MockCheckout({
             </div>
 
             <button type="submit" className="paywall__cta mock-co__cta">
-              Add card and pay {amount}
+              Add card
             </button>
           </form>
         ) : (
@@ -357,20 +374,32 @@ export default function MockCheckout({
               </p>
             ) : null}
 
-            <button
-              type="button"
-              className="paywall__cta mock-co__cta"
-              disabled={!chosen || step === "paying"}
-              onClick={() => chosen && void pay(chosen)}
-            >
-              {step === "paying" ? (
-                <>
-                  <span className="mock-co__spinner" aria-hidden="true" /> Paying…
-                </>
-              ) : (
-                `Pay ${amount}`
-              )}
-            </button>
+            <div ref={slot} className="mock-co__slide">
+              {slotWidth ? (
+                <SlideCommit
+                  label={`Slide to pay ${amount}`}
+                  doneLabel="Paid"
+                  errorLabel="Payment failed"
+                  onConfirm={() => (chosen ? pay(chosen) : Promise.reject(new Error("Choose a card.")))}
+                  // A beat on the "Paid" pill before the receipt.
+                  onDone={() =>
+                    setTimeout(() => {
+                      setStep("done");
+                      slot.current?.closest(".mock-co__sheet")?.scrollTo({ top: 0 });
+                    }, 900)
+                  }
+                  trackColor="#111827"
+                  handleColor="#5eda9b"
+                  successColor="#5eda9b"
+                  dangerColor="#e5484d"
+                  width={slotWidth}
+                  height={60}
+                  radius={30}
+                  holdMs={0}
+                  disabled={!chosen}
+                />
+              ) : null}
+            </div>
             <p className="mock-co__fine">
               {product.mode === "subscription" ? "Renews yearly until cancelled. " : "One payment — doesn't renew. "}
               This is a mock checkout: no card is charged.
